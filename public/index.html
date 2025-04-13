@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RustPot - Rust Skin Jackpot</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="icon" type="image/png" href="/img/favicon.png">
+</head>
+<body>
+    <!-- Header with navigation -->
+    <header>
+        <div class="container">
+            <nav>
+                <div class="logo">RustPot</div>
+                <div class="nav-links">
+                    <a href="#" id="home-link">Home</a>
+                    <a href="#" id="faq-link">FAQ</a>
+                    <a href="#" id="fair-link">Provably Fair</a>
+                </div>
+                <button class="login-btn" id="login-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M11.5 6.027a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0z"/>
+                        <path d="M11.5 1a.5.5 0 0 1 .5.5v3.5a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5V3a.5.5 0 0 1 1 0v1.5H11V1.5a.5.5 0 0 1 .5-.5zM.8 1a.8.8 0 0 0-.8.8v9.6a.8.8 0 0 0 .8.8h14.4a.8.8 0 0 0 .8-.8V1.8a.8.8 0 0 0-.8-.8H.8z"/>
+                    </svg>
+                    Login with Steam
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main content -->
+    <main class="container">
+        <!-- Jackpot section -->
+        <div class="jackpot-container" id="home-page">
+            <div class="jackpot-header">
+                <div class="jackpot-value">Current Pot: $0.00</div>
+                <div class="timer">Next round: 02:00</div>
+            </div>
+            
+            <div class="jackpot-wheel">
+                <div class="wheel-items" id="wheel-items">
+                    <!-- Wheel items will be added dynamically -->
+                </div>
+            </div>
+            
+            <div class="jackpot-info">
+                <div class="participants">
+                    <h3>Participants (0)</h3>
+                    <div id="participants-list">
+                        <!-- Participants will be added dynamically -->
+                        <p>No participants yet.</p>
+                    </div>
+                </div>
+                <div class="your-chance">
+                    <h3>Your Chance</h3>
+                    <div id="chance-display">
+                        <p>Login to participate</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="deposit-section">
+                <button class="deposit-btn" id="deposit-btn">Deposit Skins</button>
+            </div>
+        </div>
+        
+        <!-- Items in current round -->
+        <div class="items-container">
+            <div class="items-header">
+                <h2>Items in Current Round</h2>
+                <div>Total value: $0.00</div>
+            </div>
+            
+            <div class="items-grid" id="items-grid">
+                <!-- Items will be added dynamically -->
+                <div class="item-card">
+                    <p>No items yet.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- FAQ Page -->
+        <div id="faq-page" style="display: none;">
+            <h1>Frequently Asked Questions</h1>
+            
+            <div class="faq-item">
+                <div class="faq-question">How does RustPot work?</div>
+                <div class="faq-answer">
+                    RustPot is a Rust skin jackpot site where players can deposit their skins into a pool. When the timer runs out, a winner is randomly selected. The winner takes all skins in the pot. Your chance of winning is proportional to the value of skins you've deposited compared to the total pot value.
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question">How do I deposit skins?</div>
+                <div class="faq-answer">
+                    First, log in with your Steam account. Then click the "Deposit Skins" button, which will open a window showing your Rust inventory. Select the skins you want to deposit and confirm. You'll then receive a trade offer that you must accept to complete the deposit.
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question">How is the winner selected?</div>
+                <div class="faq-answer">
+                    The winner is selected using a provably fair system. Each player gets tickets proportional to the value of their deposited skins. A random ticket is selected as the winner. See our "Provably Fair" page for more details.
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question">How do I receive my winnings?</div>
+                <div class="faq-answer">
+                    If you win, all items in the pot will be automatically sent to you via a Steam trade offer. Make sure your trade URL is set correctly in your profile and that your inventory is public.
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question">Is there a minimum deposit value?</div>
+                <div class="faq-answer">
+                    Yes, the minimum deposit value is $1.00. Items worth less than this amount cannot be deposited.
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question">What is your fee?</div>
+                <div class="faq-answer">
+                    RustPot takes a 5% fee from each pot to cover operational costs and ensure the long-term sustainability of the site.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Provably Fair Page -->
+        <div id="fair-page" style="display: none;">
+            <h1>Provably Fair System</h1>
+            
+            <div class="fair-section">
+                <div class="fair-title">How Our System Works</div>
+                <div class="fair-content">
+                    RustPot uses a provably fair system to ensure complete transparency and fairness in winner selection. Our system uses cryptographic methods to guarantee that the results cannot be manipulated and can be independently verified by anyone.
+                </div>
+            </div>
+            
+            <div class="fair-section">
+                <div class="fair-title">The Process</div>
+                <div class="fair-content">
+                    <ol>
+                        <li>When a round begins, the server generates a random string called the "server seed" and creates a SHA256 hash of it. This hash is publicly displayed before any deposits are made.</li>
+                        <li>As players deposit items, they are assigned ticket numbers proportional to the value of their deposits.</li>
+                        <li>When the round ends, we combine the server seed with a "client seed" (which is the round ID plus timestamp) to generate a random number.</li>
+                        <li>This random number determines which ticket wins the pot.</li>
+                    </ol>
+                </div>
+            </div>
+            
+            <div class="fair-section">
+                <div class="fair-title">Verification</div>
+                <div class="fair-content">
+                    After each round, we publish the original server seed that was used to create the hash. You can verify that:
+                    <ul>
+                        <li>The hash displayed at the beginning of the round matches the server seed revealed at the end.</li>
+                        <li>The winning ticket was correctly determined using our formula.</li>
+                    </ul>
+                    This ensures that we cannot manipulate the outcome, as the server seed is committed before any deposits are made.
+                </div>
+            </div>
+            
+            <div class="fair-section">
+                <div class="fair-title">Verification Tool</div>
+                <div class="fair-content">
+                    You can use our verification tool below to check any past round:
+                    <div style="margin-top: 15px;">
+                        <div class="form-group">
+                            <label>Round ID: </label>
+                            <input type="text" id="round-id" placeholder="Enter round ID">
+                        </div>
+                        <div class="form-group">
+                            <label>Server Seed: </label>
+                            <input type="text" id="server-seed" placeholder="Enter server seed">
+                        </div>
+                        <div class="form-group">
+                            <label>Client Seed: </label>
+                            <input type="text" id="client-seed" placeholder="Enter client seed">
+                        </div>
+                        <button class="deposit-btn" id="verify-btn" style="padding: 5px 10px; font-size: 14px;">Verify</button>
+                    </div>
+                    <div id="verification-result"></div>
+                </div>
+            </div>
+            
+            <div class="fair-section">
+                <div class="fair-title">Past Rounds</div>
+                <div class="fair-content">
+                    <div id="past-rounds">
+                        <table class="rounds-table">
+                            <thead>
+                                <tr>
+                                    <th>Round ID</th>
+                                    <th>Date</th>
+                                    <th>Total Value</th>
+                                    <th>Winner</th>
+                                    <th>Server Seed Hash</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rounds-table-body">
+                                <tr>
+                                    <td colspan="6">Loading past rounds...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="pagination" id="rounds-pagination">
+                            <!-- Pagination will be added dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Deposit Modal -->
+    <div class="modal" id="deposit-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Select Skins to Deposit</h2>
+                <button class="close-btn" id="close-deposit-modal">&times;</button>
+            </div>
+            
+            <div id="inventory-items" class="items-grid">
+                <!-- Inventory items will be loaded here -->
+                <p>Loading your inventory...</p>
+            </div>
+            
+            <div style="margin-top: 20px; text-align: right;">
+                <button class="deposit-btn" id="confirm-deposit">Confirm Deposit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trade URL Modal -->
+    <div class="modal" id="trade-url-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Set Your Trade URL</h2>
+                <button class="close-btn" id="close-trade-url-modal">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <p>Please set your Steam trade URL to receive winnings:</p>
+                <div class="form-group">
+                    <input type="text" id="trade-url-input" placeholder="Enter your Steam trade URL">
+                </div>
+                <p class="help-text">
+                    You can find your trade URL in your 
+                    <a href="https://steamcommunity.com/my/tradeoffers/privacy" target="_blank">Steam Trade Privacy Settings</a>.
+                </p>
+            </div>
+            
+            <div style="margin-top: 20px; text-align: right;">
+                <button class="deposit-btn" id="save-trade-url">Save Trade URL</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Round Details Modal -->
+    <div class="modal" id="round-details-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Round Details</h2>
+                <button class="close-btn" id="close-round-details-modal">&times;</button>
+            </div>
+            
+            <div class="modal-body" id="round-details-content">
+                <!-- Round details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 RustPot. All rights reserved. RustPot is not affiliated with Valve or Steam.</p>
+        </div>
+    </footer>
+
+    <!-- Socket.io -->
+    <script src="/socket.io/socket.io.js"></script>
+    
+    <!-- Main JavaScript -->
+    <script src="/js/main.js"></script>
+</body>
+</html>
