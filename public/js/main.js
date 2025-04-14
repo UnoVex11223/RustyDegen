@@ -80,13 +80,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!localStorage.getItem('ageVerified')) {
         showModal(ageVerificationModal);
     }
-    
+
     // Check if user is logged in
     checkLoginStatus();
-    
+
     // Setup event listeners
     setupEventListeners();
-    
+
     // Connect to socket for real-time updates
     setupSocketConnection();
 });
@@ -98,70 +98,70 @@ function setupEventListeners() {
         e.preventDefault();
         showPage(homePage);
     });
-    
+
     faqLink.addEventListener('click', (e) => {
         e.preventDefault();
         showPage(faqPage);
     });
-    
+
     fairLink.addEventListener('click', (e) => {
         e.preventDefault();
         showPage(fairPage);
     });
-    
+
     // Login
     loginButton.addEventListener('click', () => {
         window.location.href = '/auth/steam';
     });
-    
+
     // Deposit
     showDepositModal.addEventListener('click', () => {
         if (!currentUser) {
             alert('Please log in first');
             return;
         }
-        
+
         // Check if user has set trade URL
         if (!currentUser.tradeUrl) {
             showModal(tradeUrlModal);
             return;
         }
-        
+
         showModal(depositModal);
         loadUserInventory();
     });
-    
+
     closeDepositModal.addEventListener('click', () => {
         hideModal(depositModal);
     });
-    
+
     depositButton.addEventListener('click', submitDeposit);
-    
+
     // Trade URL
     closeTradeUrlModal.addEventListener('click', () => {
         hideModal(tradeUrlModal);
     });
-    
+
     saveTradeUrl.addEventListener('click', saveUserTradeUrl);
-    
+
     // Age Verification
     agreeCheckbox.addEventListener('change', () => {
         agreeButton.disabled = !agreeCheckbox.checked;
     });
-    
+
     agreeButton.addEventListener('click', () => {
         localStorage.setItem('ageVerified', 'true');
         hideModal(ageVerificationModal);
     });
-    
+
     // Roulette
     returnToJackpot.addEventListener('click', resetToJackpotView);
-    
+
     // Provably Fair
     if (verifyBtn) {
         verifyBtn.addEventListener('click', verifyRound);
     }
-    
+
     // Handle clicks outside modals
     window.addEventListener('click', (e) => {
         if (e.target === depositModal) {
@@ -171,7 +171,80 @@ function setupEventListeners() {
             hideModal(tradeUrlModal);
         }
     });
+
+    // **--- NEW CODE ADDED HERE ---**
+    // Add event listener for the test spin button
+    const testSpinButton = document.getElementById('testSpinButton');
+    if (testSpinButton) {
+        testSpinButton.addEventListener('click', testRouletteAnimation);
+    }
+    // **--- END OF NEW CODE ---**
 }
+
+// **--- NEW FUNCTION ADDED HERE ---**
+// Function to test the roulette animation
+function testRouletteAnimation() {
+    // Create test data if no current round exists or it's empty
+    if (!currentRound || !currentRound.participants || currentRound.participants.length === 0) {
+        // Create sample participants
+        currentRound = {
+            roundId: 1,
+            totalValue: 194.66,
+            participants: [
+                {
+                    user: {
+                        id: 'test_user_1',
+                        username: 'DavE',
+                        avatar: 'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg'
+                    },
+                    itemsValue: 185.69,
+                    tickets: 1857 // Example: Based on $0.10 per ticket logic
+                },
+                {
+                    user: {
+                        id: 'test_user_2',
+                        username: 'Lisqo',
+                        avatar: 'https://avatars.steamstatic.com/bb8a0a497b4b1f46b96b6b0775e9368fc8c5c3b4_full.jpg'
+                    },
+                    itemsValue: 7.39,
+                    tickets: 74  // Example: Based on $0.10 per ticket logic
+                },
+                {
+                    user: {
+                        id: 'test_user_3',
+                        username: 'simon50110',
+                        avatar: 'https://avatars.steamstatic.com/3c4c5a7c9968414c3a1ddd1e73cb8e6aeeec5f32_full.jpg'
+                    },
+                    itemsValue: 1.04,
+                    tickets: 10  // Example: Based on $0.10 per ticket logic
+                }
+            ],
+            items: [] // Assuming items array might be needed elsewhere
+        };
+        console.log('Using test data for roulette animation.'); // Log that test data is used
+    }
+
+    // Choose a random winner from participants (using currentRound, which might be real or test data)
+    const winnerIndex = Math.floor(Math.random() * currentRound.participants.length);
+    const winnerParticipant = currentRound.participants[winnerIndex];
+
+    // Create winner data in the format expected by startRouletteAnimation
+    // Note: The winningTicket calculation here is simplified for the test.
+    // The actual winningTicket comes from server calculations in a real scenario.
+    const winnerData = {
+        roundId: currentRound.roundId,
+        winner: winnerParticipant.user,
+        winningTicket: Math.floor(Math.random() * winnerParticipant.tickets) // Example winning ticket
+    };
+
+    console.log('Test Winner Selected:', winnerData.winner.username);
+
+    // Switch to roulette view and start animation
+    switchToRouletteView();
+    startRouletteAnimation(winnerData);
+}
+// **--- END OF NEW FUNCTION ---**
+
 
 // Socket connection and events
 function setupSocketConnection() {
@@ -181,12 +254,12 @@ function setupSocketConnection() {
         currentRound = data;
         updateRoundUI();
     });
-    
+
     // Time update event
     socket.on('timeUpdate', (data) => {
         updateTimerUI(data.timeLeft);
     });
-    
+
     // Participant updated event
     socket.on('participantUpdated', (data) => {
         console.log('Participant updated:', data);
@@ -194,7 +267,7 @@ function setupSocketConnection() {
             updateParticipantUI(data);
         }
     });
-    
+
     // Round winner event
     socket.on('roundWinner', (data) => {
         console.log('Round winner:', data);
@@ -202,7 +275,7 @@ function setupSocketConnection() {
             handleWinnerAnnouncement(data);
         }
     });
-    
+
     // Trade offer sent event
     socket.on('tradeOfferSent', (data) => {
         console.log('Trade offer sent:', data);
@@ -210,7 +283,7 @@ function setupSocketConnection() {
             showNotification('Trade offer sent', 'Check your Steam trade offers to receive your winnings!');
         }
     });
-    
+
     // Initial round data
     socket.on('roundData', (data) => {
         console.log('Received round data:', data);
@@ -223,7 +296,7 @@ function setupSocketConnection() {
 async function checkLoginStatus() {
     try {
         const response = await fetch('/api/user');
-        
+
         if (response.ok) {
             currentUser = await response.json();
             updateUserUI();
@@ -251,26 +324,26 @@ async function loadUserInventory() {
     selectedItemsList = [];
     selectedItems.innerHTML = '';
     updateTotalValue();
-    
+
     inventoryLoading.style.display = 'flex';
     inventoryItems.innerHTML = '';
-    
+
     try {
         const response = await fetch('/api/inventory');
-        
+
         if (!response.ok) {
             throw new Error('Failed to load inventory');
         }
-        
+
         userInventory = await response.json();
-        
+
         inventoryLoading.style.display = 'none';
-        
+
         if (userInventory.length === 0) {
             inventoryItems.innerHTML = '<p>Your inventory is empty.</p>';
             return;
         }
-        
+
         displayInventoryItems();
     } catch (error) {
         inventoryLoading.style.display = 'none';
@@ -282,7 +355,7 @@ async function loadUserInventory() {
 // Display inventory items
 function displayInventoryItems() {
     inventoryItems.innerHTML = '';
-    
+
     userInventory.forEach(item => {
         const itemElement = document.createElement('div');
         itemElement.className = 'inventory-item';
@@ -290,7 +363,7 @@ function displayInventoryItems() {
         itemElement.dataset.name = item.name;
         itemElement.dataset.image = item.image;
         itemElement.dataset.price = item.price;
-        
+
         itemElement.innerHTML = `
             <img src="${item.image}" alt="${item.name}" onerror="this.src='/img/default-item.png'">
             <div class="item-details">
@@ -298,9 +371,9 @@ function displayInventoryItems() {
                 <div class="item-value">$${item.price.toFixed(2)}</div>
             </div>
         `;
-        
+
         itemElement.addEventListener('click', () => toggleItemSelection(itemElement, item));
-        
+
         inventoryItems.appendChild(itemElement);
     });
 }
@@ -308,17 +381,17 @@ function displayInventoryItems() {
 // Toggle item selection
 function toggleItemSelection(element, item) {
     const index = selectedItemsList.findIndex(i => i.assetId === item.assetId);
-    
+
     if (index === -1) {
         // Add to selected items
         selectedItemsList.push(item);
         element.classList.add('selected');
-        
+
         // Add to visual selection
         const selectedElement = document.createElement('div');
         selectedElement.className = 'selected-item';
         selectedElement.dataset.assetId = item.assetId;
-        
+
         selectedElement.innerHTML = `
             <button class="remove-item" data-asset-id="${item.assetId}">&times;</button>
             <img src="${item.image}" alt="${item.name}" onerror="this.src='/img/default-item.png'">
@@ -326,18 +399,18 @@ function toggleItemSelection(element, item) {
                 <div class="selected-item-value">$${item.price.toFixed(2)}</div>
             </div>
         `;
-        
+
         selectedElement.querySelector('.remove-item').addEventListener('click', (e) => {
             e.stopPropagation();
             removeSelectedItem(item.assetId);
         });
-        
+
         selectedItems.appendChild(selectedElement);
     } else {
         // Remove from selected items
         removeSelectedItem(item.assetId);
     }
-    
+
     updateTotalValue();
 }
 
@@ -345,18 +418,18 @@ function toggleItemSelection(element, item) {
 function removeSelectedItem(assetId) {
     // Update selection list
     selectedItemsList = selectedItemsList.filter(item => item.assetId !== assetId);
-    
+
     // Update UI
     const element = document.querySelector(`.inventory-item[data-asset-id="${assetId}"]`);
     if (element) {
         element.classList.remove('selected');
     }
-    
+
     const selectedElement = document.querySelector(`.selected-item[data-asset-id="${assetId}"]`);
     if (selectedElement) {
         selectedElement.remove();
     }
-    
+
     updateTotalValue();
 }
 
@@ -364,7 +437,7 @@ function removeSelectedItem(assetId) {
 function updateTotalValue() {
     const total = selectedItemsList.reduce((sum, item) => sum + item.price, 0);
     totalValue.textContent = `$${total.toFixed(2)}`;
-    
+
     // Update deposit button state
     depositButton.disabled = selectedItemsList.length === 0;
 }
@@ -375,7 +448,7 @@ async function submitDeposit() {
         showNotification('Error', 'Please select at least one item to deposit');
         return;
     }
-    
+
     try {
         const response = await fetch('/api/deposit', {
             method: 'POST',
@@ -386,20 +459,20 @@ async function submitDeposit() {
                 items: selectedItemsList
             })
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || 'Failed to deposit items');
         }
-        
+
         const result = await response.json();
-        
+
         // Hide modal
         hideModal(depositModal);
-        
+
         // Show success notification
         showNotification('Deposit Initiated', 'Please check your Steam trade offers to complete the deposit');
-        
+
         // Clear selection
         selectedItemsList = [];
         selectedItems.innerHTML = '';
@@ -413,17 +486,17 @@ async function submitDeposit() {
 // Save user trade URL
 async function saveUserTradeUrl() {
     const tradeUrl = tradeUrlInput.value.trim();
-    
+
     if (!tradeUrl) {
         showNotification('Error', 'Please enter your trade URL');
         return;
     }
-    
+
     if (!tradeUrl.includes('steamcommunity.com/tradeoffer/new/')) {
         showNotification('Error', 'Invalid trade URL format');
         return;
     }
-    
+
     try {
         const response = await fetch('/api/user/tradeurl', {
             method: 'POST',
@@ -432,24 +505,24 @@ async function saveUserTradeUrl() {
             },
             body: JSON.stringify({ tradeUrl })
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || 'Failed to update trade URL');
         }
-        
+
         const result = await response.json();
-        
+
         // Update current user
         currentUser.tradeUrl = result.tradeUrl;
-        
+
         // Hide modal
         hideModal(tradeUrlModal);
-        
+
         // Show deposit modal
         showModal(depositModal);
         loadUserInventory();
-        
+
         // Show success notification
         showNotification('Success', 'Trade URL saved successfully');
     } catch (error) {
@@ -461,13 +534,13 @@ async function saveUserTradeUrl() {
 // Update round UI
 function updateRoundUI() {
     if (!currentRound) return;
-    
+
     // Update pot value
     potValue.textContent = `$${currentRound.totalValue.toFixed(2)}`;
-    
+
     // Update timer
     updateTimerUI(currentRound.timeLeft);
-    
+
     // Update participants
     updateParticipantsUI();
 }
@@ -476,7 +549,7 @@ function updateRoundUI() {
 function updateTimerUI(timeLeft) {
     // Update timer text
     timerValue.textContent = timeLeft;
-    
+
     // Update timer circle
     const totalTime = 120; // 2 minutes
     const circumference = 2 * Math.PI * 45;
@@ -484,7 +557,7 @@ function updateTimerUI(timeLeft) {
     const offset = circumference * (1 - progress);
     timerForeground.style.strokeDasharray = circumference;
     timerForeground.style.strokeDashoffset = Math.max(0, offset);
-    
+
     // Add pulse effect when time is low
     if (timeLeft <= 10) {
         timerValue.classList.add('urgent-pulse');
@@ -498,52 +571,67 @@ function updateTimerUI(timeLeft) {
 // Update participants UI
 function updateParticipantsUI() {
     if (!currentRound || !currentRound.participants) return;
-    
+
     const participants = currentRound.participants;
-    
+
     // Update participant count
     participantCount.textContent = `${participants.length}/200`;
-    
+
     // Clear container
     participantsContainer.innerHTML = '';
-    
+
     // Show empty message if no participants
     if (participants.length === 0) {
-        participantsContainer.appendChild(emptyPotMessage);
+        // Check if emptyPotMessage exists before appending
+        if(emptyPotMessage) {
+           participantsContainer.appendChild(emptyPotMessage);
+        } else {
+            // Optionally create a message if the element doesn't exist
+            const tempEmptyMsg = document.createElement('p');
+            tempEmptyMsg.textContent = "Pot is currently empty. Deposit items to join!";
+            participantsContainer.appendChild(tempEmptyMsg);
+        }
         return;
+    } else {
+         // Remove empty message if it exists and participants are present
+         if (emptyPotMessage && emptyPotMessage.parentNode === participantsContainer) {
+            participantsContainer.removeChild(emptyPotMessage);
+         }
     }
-    
+
     // Add participants
     participants.forEach(participant => {
-        // Find user's items
-        const userItems = currentRound.items.filter(item => item.owner.toString() === participant.user.id.toString());
-        
+        // Find user's items (Ensure currentRound.items exists)
+        const userItems = currentRound.items ? currentRound.items.filter(item => item.owner && item.owner.toString() === participant.user.id.toString()) : [];
+
         const participantElement = createParticipantElement(participant, userItems);
         participantsContainer.appendChild(participantElement);
     });
 }
+
 
 // Update a single participant
 function updateParticipantUI(data) {
     // Update total pot value
     currentRound.totalValue = data.totalValue;
     potValue.textContent = `$${data.totalValue.toFixed(2)}`;
-    
-    // Check if participant already exists
-    let found = false;
-    if (currentRound.participants) {
-        for (let i = 0; i < currentRound.participants.length; i++) {
-            if (currentRound.participants[i].user.id === data.userId) {
-                currentRound.participants[i].itemsValue = data.itemsValue;
-                currentRound.participants[i].tickets = data.tickets;
-                found = true;
-                break;
-            }
-        }
-    } else {
+
+    // Ensure participants array exists
+     if (!currentRound.participants) {
         currentRound.participants = [];
     }
-    
+
+    // Check if participant already exists
+    let found = false;
+    for (let i = 0; i < currentRound.participants.length; i++) {
+        if (currentRound.participants[i].user.id === data.userId) {
+            currentRound.participants[i].itemsValue = data.itemsValue;
+            currentRound.participants[i].tickets = data.tickets; // Assuming tickets are sent in update
+            found = true;
+            break;
+        }
+    }
+
     // Add new participant if not found
     if (!found) {
         currentRound.participants.push({
@@ -553,25 +641,26 @@ function updateParticipantUI(data) {
                 avatar: data.avatar
             },
             itemsValue: data.itemsValue,
-            tickets: data.tickets
+            tickets: data.tickets // Assuming tickets are sent in update
         });
     }
-    
+
     // Update UI
     updateParticipantsUI();
 }
+
 
 // Create participant element
 function createParticipantElement(participant, items) {
     const participantElement = document.createElement('div');
     participantElement.className = 'participant';
     participantElement.dataset.userId = participant.user.id;
-    
+
     // Calculate percentage
-    const percentage = currentRound.totalValue > 0 ? 
-        ((participant.itemsValue / currentRound.totalValue) * 100).toFixed(2) : 
+    const percentage = currentRound.totalValue > 0 ?
+        ((participant.itemsValue / currentRound.totalValue) * 100).toFixed(2) :
         '0.00';
-    
+
     // Create header
     const headerElement = document.createElement('div');
     headerElement.className = 'participant-header';
@@ -587,11 +676,11 @@ function createParticipantElement(participant, items) {
             </div>
         </div>
     `;
-    
+
     // Create items container
     const itemsElement = document.createElement('div');
     itemsElement.className = 'participant-items';
-    
+
     // Add items
     if (items && items.length > 0) {
         items.forEach(item => {
@@ -604,21 +693,28 @@ function createParticipantElement(participant, items) {
             itemsElement.appendChild(itemElement);
         });
     }
-    
+
     // Append elements
     participantElement.appendChild(headerElement);
     participantElement.appendChild(itemsElement);
-    
+
     return participantElement;
 }
 
 // Handle winner announcement
 function handleWinnerAnnouncement(data) {
     if (isSpinning) return;
-    
+
+    // Ensure we have participant data before starting
+    if (!currentRound || !currentRound.participants || currentRound.participants.length === 0) {
+        console.error("Cannot announce winner: No participant data available.");
+        return;
+    }
+
+
     // Switch to roulette view
     switchToRouletteView();
-    
+
     // Start roulette animation
     startRouletteAnimation(data);
 }
@@ -635,125 +731,196 @@ function startRouletteAnimation(winnerData) {
     winnerInfo.style.display = 'none';
     returnToJackpot.style.display = 'none';
     clearConfetti();
-    
+
     // Create roulette items from participants
+    // Ensure createRouletteItems uses the correct currentRound data
     createRouletteItems();
-    
-    // Find or create winner element
+
+    // Find or create winner object based on winnerData and currentRound
     const winner = findWinnerFromData(winnerData);
-    console.log('Selected Winner:', winner);
-    
+    if (!winner) {
+        console.error('Could not determine winner details for animation.');
+        isSpinning = false;
+        resetToJackpotView(); // Reset view if winner can't be found
+        return;
+    }
+    console.log('Starting animation for Winner:', winner.user.username);
+
+
     // Play spin sound
     if (spinSound) {
         spinSound.currentTime = 0;
         spinSound.play().catch(e => console.error('Error playing sound:', e));
     }
-    
-    // Show roulette track
+
+    // Show roulette track and calculate spin
     setTimeout(() => {
-        // Find a winning item element on the track
-        const items = document.querySelectorAll('.roulette-item');
+        const items = rouletteTrack.querySelectorAll('.roulette-item');
         if (items.length === 0) {
-            console.error('Cannot spin, no items in track');
+            console.error('Cannot spin, no items rendered in roulette track');
             isSpinning = false;
             resetToJackpotView();
             return;
         }
-        
+
         const targetIndex = findTargetItemIndex(items, winner.user.id);
         const winningElement = items[targetIndex];
-        
+
         if (!winningElement) {
-            console.error('Could not find winning element on track');
-            isSpinning = false;
-            resetToJackpotView();
+            console.error('Could not find a representative winning element on the track for user ID:', winner.user.id);
+            // Fallback: maybe pick a random element or the last element with the winner's ID?
+            // For now, let's just stop and reset.
+             isSpinning = false;
+             resetToJackpotView();
             return;
         }
-        
+
         // Calculate stopping position
         const containerWidth = inlineRoulette.querySelector('.roulette-container').offsetWidth;
         const itemWidth = winningElement.offsetWidth;
         const itemOffset = winningElement.offsetLeft;
-        
-        // Position winning item in the center
+
+        // Position winning item roughly in the center
         const targetPosition = -(itemOffset + (itemWidth / 2) - (containerWidth / 2));
-        
+
         // Apply animation
         rouletteTrack.style.transition = `transform ${SPIN_DURATION_SECONDS}s cubic-bezier(0.08, 0.82, 0.17, 1)`;
         rouletteTrack.style.transform = `translateX(${targetPosition}px)`;
-        
+
         // Handle end of animation
-        setTimeout(() => {
-            handleSpinEnd(winningElement, winner);
-        }, SPIN_DURATION_SECONDS * 1000);
-    }, 500);
+        rouletteTrack.addEventListener('transitionend', () => {
+             // Check if this is the intended final state
+             if (isSpinning && Math.abs(parseFloat(rouletteTrack.style.transform.replace(/[^0-9.-]/g, '')) - targetPosition) < 1) {
+                handleSpinEnd(winningElement, winner);
+             }
+        }, { once: true }); // Use { once: true } to ensure the listener is removed after firing
+
+
+        // Fallback timer in case transitionend doesn't fire reliably
+         setTimeout(() => {
+             if(isSpinning) { // Only call if still spinning (transitionend might have already fired)
+                 console.log("Fallback timer triggered for spin end.");
+                 handleSpinEnd(winningElement, winner);
+             }
+         }, (SPIN_DURATION_SECONDS * 1000) + 200); // Add a small buffer
+
+
+    }, 500); // Short delay to ensure elements are rendered
 }
 
-// Find winner from winner data
+// Find winner details from winner data and current round participants
 function findWinnerFromData(winnerData) {
+     if (!currentRound || !currentRound.participants || !winnerData || !winnerData.winner) {
+        console.error("Missing data to find winner details.");
+        return null; // Return null if data is insufficient
+    }
+
+    const winnerParticipant = currentRound.participants.find(p => p.user.id === winnerData.winner.id);
+
+    if (!winnerParticipant) {
+         console.warn(`Winner with ID ${winnerData.winner.id} not found in current round participants. Using data from winnerData directly.`);
+         // Fallback if participant somehow isn't in the list (shouldn't happen ideally)
+         return {
+             user: winnerData.winner,
+             percentage: 0, // Cannot calculate percentage without totalValue and itemsValue
+             value: 0      // Cannot get value without participant data
+         };
+    }
+
+    const totalValue = currentRound.totalValue || 1; // Avoid division by zero
+    const percentage = (winnerParticipant.itemsValue / totalValue) * 100;
+
     return {
         user: {
-            id: winnerData.winner.id,
-            username: winnerData.winner.username,
-            avatar: winnerData.winner.avatar
+            id: winnerParticipant.user.id,
+            username: winnerParticipant.user.username,
+            avatar: winnerParticipant.user.avatar
         },
-        percentage: currentRound.participants.find(p => p.user.id === winnerData.winner.id)?.itemsValue / currentRound.totalValue * 100 || 0,
-        value: currentRound.participants.find(p => p.user.id === winnerData.winner.id)?.itemsValue || 0
+        percentage: percentage || 0,
+        value: winnerParticipant.itemsValue || 0
     };
 }
 
-// Find target item index
+
+// Find target item index for animation stopping point
 function findTargetItemIndex(items, winnerId) {
-    // Look for winner items between 60% and 90% of the track
+    // Look for winner items within a specific range of the track for a more realistic stop
+    // e.g., between 60% and 90% of the total track length
     const minIndex = Math.floor(items.length * 0.6);
     const maxIndex = Math.floor(items.length * 0.9);
-    
+
     const possibleIndices = [];
     for (let i = minIndex; i < maxIndex; i++) {
+        // Ensure item exists and belongs to the winner
         if (items[i] && items[i].dataset.userId === winnerId) {
             possibleIndices.push(i);
         }
     }
-    
+
     if (possibleIndices.length > 0) {
-        // Return random index from possible ones
+        // Return a random index from the suitable ones found in the range
         return possibleIndices[Math.floor(Math.random() * possibleIndices.length)];
     }
-    
-    // Fallback - find any winner item
-    for (let i = 0; i < items.length; i++) {
-        if (items[i] && items[i].dataset.userId === winnerId) {
-            return i;
-        }
-    }
-    
-    // Ultimate fallback - just use an index near the end
-    return Math.floor(items.length * 0.8);
+
+    // Fallback 1: If no winner items found in the preferred range, search the entire track
+    console.warn("No winner item found in preferred range (60-90%), searching full track.");
+    const fallbackIndices = [];
+     for (let i = 0; i < items.length; i++) {
+         if (items[i] && items[i].dataset.userId === winnerId) {
+             fallbackIndices.push(i);
+         }
+     }
+
+     if (fallbackIndices.length > 0) {
+        // Return a random index from anywhere on the track
+         return fallbackIndices[Math.floor(Math.random() * fallbackIndices.length)];
+     }
+
+
+    // Fallback 2: If absolutely no item for the winner is found (should be impossible if createRouletteItems worked)
+    console.error(`CRITICAL: No roulette item found for winner ID ${winnerId}. Selecting a default index.`);
+    // Return an index near the end as a last resort
+    return Math.max(0, items.length - 10); // Pick an item near the end
 }
 
 // Handle end of spin animation
 function handleSpinEnd(winningElement, winner) {
+     if (!isSpinning) return; // Prevent running multiple times if called by both timer and event listener
+
     isSpinning = false;
-    
-    // Highlight winner
-    winningElement.classList.add('winner');
-    
-    // Show winner info after delay
+    console.log("Spin animation finished.");
+
+    // Highlight winner element
+    if (winningElement) {
+       winningElement.classList.add('winner');
+    } else {
+        console.error("Winning element not provided to handleSpinEnd");
+    }
+
+
+    // Show winner info after a short delay for effect
     setTimeout(() => {
         // Set winner info
-        winnerAvatar.src = winner.user.avatar || '/img/default-avatar.png';
-        winnerAvatar.alt = winner.user.username;
-        winnerName.textContent = winner.user.username;
-        winnerDeposit.textContent = `${winner.value.toFixed(2)}`;
-        winnerChance.textContent = `${winner.percentage.toFixed(2)}%`;
-        
-        // Show winner info and return button
-        winnerInfo.style.display = 'block';
-        returnToJackpot.style.display = 'block';
-        
-        // Launch confetti
-        launchConfetti();
-    }, 1000);
+        if(winner && winner.user) {
+            winnerAvatar.src = winner.user.avatar || '/img/default-avatar.png';
+            winnerAvatar.alt = winner.user.username;
+            winnerName.textContent = winner.user.username;
+            winnerDeposit.textContent = `${winner.value.toFixed(2)}`;
+            winnerChance.textContent = `${winner.percentage.toFixed(2)}%`;
+
+             // Show winner info and return button
+            winnerInfo.style.display = 'block';
+            returnToJackpot.style.display = 'block';
+
+            // Launch confetti
+            launchConfetti();
+        } else {
+             console.error("Winner data is incomplete, cannot display winner info.");
+             // Maybe reset to jackpot view as a fallback
+             resetToJackpotView();
+        }
+
+    }, 500); // Delay before showing winner info
 }
 
 // Reset to jackpot view
@@ -762,129 +929,128 @@ function resetToJackpotView() {
     inlineRoulette.style.display = 'none';
     winnerInfo.style.display = 'none';
     returnToJackpot.style.display = 'none';
-    
+
     // Clear winner highlight and confetti
-    const winnerElement = document.querySelector('.roulette-item.winner');
+    const winnerElement = rouletteTrack.querySelector('.roulette-item.winner');
     if (winnerElement) {
         winnerElement.classList.remove('winner');
     }
     clearConfetti();
-    
-    // Reset roulette track
+
+    // Reset roulette track position and transition
     rouletteTrack.style.transition = 'none';
     rouletteTrack.style.transform = 'translateX(0)';
-    
+    rouletteTrack.innerHTML = ''; // Clear items for the next round
+
     // Show jackpot header
     jackpotHeader.style.display = 'flex';
+
+    // Reset spinning state just in case
+    isSpinning = false;
 }
 
 // Create roulette items
 function createRouletteItems() {
-    rouletteTrack.innerHTML = '';
-    rouletteTrack.style.transition = 'none';
-    rouletteTrack.style.transform = 'translateX(0)';
-    
+    rouletteTrack.innerHTML = ''; // Clear previous items
+    rouletteTrack.style.transition = 'none'; // Ensure no transition during setup
+    rouletteTrack.style.transform = 'translateX(0)'; // Reset position
+
     if (!currentRound || !currentRound.participants || currentRound.participants.length === 0) {
-        console.error('No participants for roulette');
-        return;
+        console.error('Cannot create roulette items: No participants data available.');
+        return; // Exit if no data
     }
-    
-    // Create a pool of items based on tickets
+
+    // Create a pool of "tickets" where each participant is represented proportionally
     let itemsPool = [];
-    
     currentRound.participants.forEach(participant => {
-        // Calculate tickets (1 per $0.10)
-        const tickets = Math.floor(participant.itemsValue * 10);
-        
-        // Add items to pool based on tickets
+        // Calculate number of tickets (e.g., 1 ticket per $0.01 value, adjust as needed)
+        // Use participant.tickets if available and reliable, otherwise calculate from value
+        const tickets = participant.tickets || Math.max(1, Math.floor(participant.itemsValue * 100)); // Ensure at least 1 ticket
         for (let i = 0; i < tickets; i++) {
-            itemsPool.push(participant);
+            itemsPool.push(participant); // Add participant reference for each ticket
         }
     });
-    
-    // Shuffle pool for more randomness
+
+    // Shuffle the pool thoroughly for randomness in the visual sequence
     itemsPool = shuffleArray(itemsPool);
-    
-    // Create items with repetitions
-    const fragment = document.createDocumentFragment();
-    
-    for (let r = 0; r < ROULETTE_REPETITIONS; r++) {
-        for (let i = 0; i < itemsPool.length; i++) {
-            const participant = itemsPool[i];
-            const colorClass = `item-${(i % 5) + 1}`;
-            
-            const item = document.createElement('div');
-            item.className = `roulette-item ${colorClass}`;
-            item.dataset.userId = participant.user.id;
-            
-            const picContainer = document.createElement('div');
-            picContainer.className = 'profile-pic-container';
-            
-            const img = document.createElement('img');
-            img.className = 'roulette-avatar';
-            img.src = participant.user.avatar || '/img/default-avatar.png';
-            img.alt = participant.user.username;
-            img.onerror = () => { img.src = '/img/default-avatar.png'; };
-            
-            picContainer.appendChild(img);
-            
-            const infoContainer = document.createElement('div');
-            infoContainer.className = 'roulette-info';
-            
-            const nameSpan = document.createElement('span');
-            nameSpan.className = 'roulette-name';
-            nameSpan.textContent = participant.user.username;
-            
-            const percentSpan = document.createElement('span');
-            percentSpan.className = 'roulette-percentage';
-            const percentage = currentRound.totalValue > 0 ? 
-                ((participant.itemsValue / currentRound.totalValue) * 100).toFixed(2) : 
-                '0.00';
-            percentSpan.textContent = `${percentage}%`;
-            
-            infoContainer.appendChild(nameSpan);
-            infoContainer.appendChild(percentSpan);
-            
-            item.appendChild(picContainer);
-            item.appendChild(infoContainer);
-            
-            fragment.appendChild(item);
-        }
+
+    // Create the visual items for the roulette track
+    const fragment = document.createDocumentFragment(); // Use fragment for performance
+    const totalItemsToCreate = Math.min(itemsPool.length * ROULETTE_REPETITIONS, 2000); // Limit total items for performance
+    const poolLength = itemsPool.length;
+
+    if (poolLength === 0) {
+        console.error("Items pool is empty after processing participants.");
+        return;
     }
-    
-    rouletteTrack.appendChild(fragment);
+
+
+    for (let i = 0; i < totalItemsToCreate; i++) {
+        // Cycle through the shuffled pool
+         const participant = itemsPool[i % poolLength];
+
+        // Basic color cycling for visual distinction
+        const colorClass = `item-${(i % 5) + 1}`;
+
+        const item = document.createElement('div');
+        item.className = `roulette-item ${colorClass}`;
+        item.dataset.userId = participant.user.id; // Store user ID for identification
+
+        // Calculate percentage for display (ensure totalValue is not zero)
+         const percentage = currentRound.totalValue > 0 ?
+            ((participant.itemsValue / currentRound.totalValue) * 100).toFixed(2) :
+            '0.00';
+
+
+        // Use innerHTML for simpler element creation within the loop
+        item.innerHTML = `
+            <div class="profile-pic-container">
+                <img class="roulette-avatar" src="${participant.user.avatar || '/img/default-avatar.png'}" alt="${participant.user.username}" onerror="this.src='/img/default-avatar.png';">
+            </div>
+            <div class="roulette-info">
+                <span class="roulette-name">${participant.user.username}</span>
+                <span class="roulette-percentage">${percentage}%</span>
+            </div>
+        `;
+
+        fragment.appendChild(item);
+    }
+
+    rouletteTrack.appendChild(fragment); // Append all items at once
+    console.log(`Created ${totalItemsToCreate} items for the roulette track.`);
 }
+
 
 // Launch confetti
 function launchConfetti() {
-    clearConfetti();
-    
+    clearConfetti(); // Clear any existing confetti
+
     const colors = ['#00ffaa', '#33ccff', '#9933ff', '#ffcc00', '#ff3366', '#ffffff'];
-    
+
     for (let i = 0; i < CONFETTI_COUNT; i++) {
         const confetti = document.createElement('div');
         confetti.className = 'confetti';
-        
-        // Random position
+
+        // Random position across the container width
         confetti.style.left = `${Math.random() * 100}%`;
-        
+
         // Random color
         confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-        
+
         // Random size
-        const size = Math.random() * 8 + 5;
+        const size = Math.random() * 8 + 5; // Size between 5px and 13px
         confetti.style.width = `${size}px`;
         confetti.style.height = `${size}px`;
-        
-        // Random shape (circle or square)
-        if (Math.random() > 0.5) {
+
+        // Random shape (slight variation - mostly square, sometimes circle)
+        if (Math.random() > 0.7) { // 30% chance of being a circle
             confetti.style.borderRadius = '50%';
         }
-        
-        // Random animation delay and duration
-        confetti.style.animationDuration = `${Math.random() * 2 + 2}s`;
-        confetti.style.animationDelay = `${Math.random() * 0.5}s`;
-        
+
+        // Random animation delay and duration for variation
+        confetti.style.animationDuration = `${Math.random() * 3 + 2}s`; // Duration 2s to 5s
+        confetti.style.animationDelay = `${Math.random() * 0.5}s`; // Start delay up to 0.5s
+
         confettiContainer.appendChild(confetti);
     }
 }
@@ -897,47 +1063,54 @@ function clearConfetti() {
 // Load past rounds for provably fair page
 async function loadPastRounds(page = 1) {
     if (!roundsTableBody) return;
-    
+
     try {
         roundsTableBody.innerHTML = '<tr><td colspan="5">Loading past rounds...</td></tr>';
-        
+
         const response = await fetch(`/api/rounds?page=${page}&limit=10`);
-        
+
         if (!response.ok) {
             throw new Error('Failed to load past rounds');
         }
-        
+
         const data = await response.json();
-        
+
         // Clear table
         roundsTableBody.innerHTML = '';
-        
+
         if (data.rounds.length === 0) {
             roundsTableBody.innerHTML = '<tr><td colspan="5">No rounds found</td></tr>';
+             createPagination(data.currentPage, data.totalPages); // Still show pagination controls even if empty
             return;
         }
-        
+
         // Add rounds to table
         data.rounds.forEach(round => {
             const row = document.createElement('tr');
-            
-            // Format date
-            const date = new Date(round.endTime);
-            const formattedDate = date.toLocaleString();
-            
+
+            // Format date safely
+            let formattedDate = 'N/A';
+            try {
+                 if(round.endTime) {
+                    const date = new Date(round.endTime);
+                     formattedDate = date.toLocaleString();
+                 }
+            } catch (e) { console.error("Error formatting date:", e); }
+
+
             row.innerHTML = `
                 <td>${round.roundId}</td>
                 <td>${formattedDate}</td>
-                <td>${round.totalValue.toFixed(2)}</td>
+                <td>${round.totalValue ? round.totalValue.toFixed(2) : '0.00'}</td>
                 <td>${round.winner ? round.winner.username : 'N/A'}</td>
                 <td>
                     <button class="btn" onclick="showRoundDetails(${round.roundId})">Details</button>
                 </td>
             `;
-            
+
             roundsTableBody.appendChild(row);
         });
-        
+
         // Create pagination
         createPagination(data.currentPage, data.totalPages);
     } catch (error) {
@@ -949,65 +1122,98 @@ async function loadPastRounds(page = 1) {
 // Create pagination controls
 function createPagination(currentPage, totalPages) {
     if (!roundsPagination) return;
-    
-    roundsPagination.innerHTML = '';
-    
-    if (totalPages <= 1) return;
-    
+
+    roundsPagination.innerHTML = ''; // Clear existing controls
+
+    if (totalPages <= 1) return; // No pagination needed for 1 or fewer pages
+
+    const createButton = (text, pageNum, isActive = false, isDisabled = false) => {
+        const button = document.createElement('button');
+        button.className = `page-button ${isActive ? 'active' : ''}`;
+        button.textContent = text;
+        button.disabled = isDisabled;
+        if (!isDisabled) {
+            button.addEventListener('click', () => loadPastRounds(pageNum));
+        }
+        return button;
+    };
+
     // Previous button
-    if (currentPage > 1) {
-        const prevButton = document.createElement('button');
-        prevButton.className = 'page-button';
-        prevButton.textContent = 'Previous';
-        prevButton.addEventListener('click', () => loadPastRounds(currentPage - 1));
-        roundsPagination.appendChild(prevButton);
-    }
-    
-    // Page buttons
-    let startPage = Math.max(1, currentPage - 2);
-    let endPage = Math.min(totalPages, startPage + 4);
-    
-    if (endPage - startPage < 4) {
-        startPage = Math.max(1, endPage - 4);
-    }
-    
+    roundsPagination.appendChild(createButton('Previous', currentPage - 1, false, currentPage <= 1));
+
+
+    // Page number buttons (e.g., show current, 2 before, 2 after)
+    const maxPagesToShow = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+    let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+
+     // Adjust startPage if endPage is at the limit
+     if (endPage === totalPages) {
+        startPage = Math.max(1, endPage - maxPagesToShow + 1);
+     }
+
+
+    // Add "..." if startPage is far from 1
+     if (startPage > 1) {
+         roundsPagination.appendChild(createButton('1', 1));
+         if (startPage > 2) {
+             const ellipsis = document.createElement('span');
+             ellipsis.textContent = '...';
+             ellipsis.className = 'page-ellipsis';
+             roundsPagination.appendChild(ellipsis);
+         }
+     }
+
+
     for (let i = startPage; i <= endPage; i++) {
-        const pageButton = document.createElement('button');
-        pageButton.className = `page-button ${i === currentPage ? 'active' : ''}`;
-        pageButton.textContent = i;
-        pageButton.addEventListener('click', () => loadPastRounds(i));
-        roundsPagination.appendChild(pageButton);
+        roundsPagination.appendChild(createButton(i, i, i === currentPage));
     }
-    
+
+     // Add "..." if endPage is far from totalPages
+      if (endPage < totalPages) {
+          if (endPage < totalPages - 1) {
+              const ellipsis = document.createElement('span');
+              ellipsis.textContent = '...';
+              ellipsis.className = 'page-ellipsis';
+              roundsPagination.appendChild(ellipsis);
+          }
+          roundsPagination.appendChild(createButton(totalPages, totalPages));
+      }
+
     // Next button
-    if (currentPage < totalPages) {
-        const nextButton = document.createElement('button');
-        nextButton.className = 'page-button';
-        nextButton.textContent = 'Next';
-        nextButton.addEventListener('click', () => loadPastRounds(currentPage + 1));
-        roundsPagination.appendChild(nextButton);
-    }
+    roundsPagination.appendChild(createButton('Next', currentPage + 1, false, currentPage >= totalPages));
 }
 
 // Verify round fairness
 async function verifyRound() {
-    const roundId = document.getElementById('round-id').value;
-    const serverSeed = document.getElementById('server-seed').value;
-    const clientSeed = document.getElementById('client-seed').value;
-    
+    const roundIdInput = document.getElementById('round-id');
+    const serverSeedInput = document.getElementById('server-seed');
+    const clientSeedInput = document.getElementById('client-seed');
     const verificationResult = document.getElementById('verification-result');
-    
+
+     // Basic validation
+     if (!roundIdInput || !serverSeedInput || !clientSeedInput || !verificationResult) {
+        console.error("Missing elements for verification.");
+        return;
+     }
+
+    const roundId = roundIdInput.value.trim();
+    const serverSeed = serverSeedInput.value.trim();
+    const clientSeed = clientSeedInput.value.trim();
+
+
     if (!roundId || !serverSeed || !clientSeed) {
         verificationResult.style.display = 'block';
         verificationResult.style.color = 'red';
-        verificationResult.textContent = 'Please fill in all fields';
+        verificationResult.textContent = 'Please fill in Round ID, Server Seed, and Client Seed.';
         return;
     }
-    
+
     try {
         verificationResult.style.display = 'block';
+        verificationResult.style.color = 'var(--text-secondary)'; // Indicate loading
         verificationResult.textContent = 'Verifying...';
-        
+
         const response = await fetch('/api/verify', {
             method: 'POST',
             headers: {
@@ -1019,32 +1225,39 @@ async function verifyRound() {
                 clientSeed
             })
         });
-        
+
+        const result = await response.json(); // Get response regardless of status
+
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Verification failed');
+             // Use error message from server if available
+            throw new Error(result.error || `Verification failed with status ${response.status}`);
         }
-        
-        const result = await response.json();
-        
+
+
         verificationResult.style.color = result.verified ? 'green' : 'red';
-        
+
         if (result.verified) {
+            // Display detailed success information
             verificationResult.innerHTML = `
-                <div style="color: green">
-                    <strong>Verification Successful!</strong>
+                <div style="color: green; text-align: left; padding: 10px; border: 1px solid green; border-radius: 4px; background-color: rgba(0, 255, 0, 0.05);">
+                    <strong>Verification Successful!</strong><br>
                     <p>Round #${result.roundId} has been verified as fair.</p>
                     <p><strong>Server Seed:</strong> ${result.serverSeed}</p>
-                    <p><strong>Server Seed Hash:</strong> ${result.serverSeedHash}</p>
+                    <p><strong>Server Seed Hash (used during round):</strong> ${result.serverSeedHash}</p>
                     <p><strong>Client Seed:</strong> ${result.clientSeed}</p>
-                    <p><strong>Winning Ticket:</strong> ${result.winningTicket}</p>
+                    <p><strong>Combined Hash (Server + Client Seed):</strong> ${result.combinedHash || 'N/A'}</p>
+                    <p><strong>Calculated Winning Ticket:</strong> ${result.winningTicket}</p>
+                     <p><strong>Winner Determined By Server:</strong> ${result.winnerUsername || 'N/A'}</p>
                 </div>
             `;
         } else {
-            verificationResult.innerHTML = `
-                <div style="color: red">
-                    <strong>Verification Failed!</strong>
-                    <p>Reason: ${result.reason}</p>
+            // Display failure information
+             verificationResult.innerHTML = `
+                <div style="color: red; text-align: left; padding: 10px; border: 1px solid red; border-radius: 4px; background-color: rgba(255, 0, 0, 0.05);">
+                    <strong>Verification Failed!</strong><br>
+                    <p>Reason: ${result.reason || 'Unknown error during verification.'}</p>
+                    ${result.winningTicket ? `<p>Calculated Winning Ticket (for reference): ${result.winningTicket}</p>` : ''}
+                     ${result.serverSeedHash ? `<p>Server Seed Hash (used during round): ${result.serverSeedHash}</p>` : ''}
                 </div>
             `;
         }
@@ -1062,38 +1275,55 @@ function showPage(page) {
     homePage.style.display = 'none';
     faqPage.style.display = 'none';
     fairPage.style.display = 'none';
-    
+
     // Show selected page
     page.style.display = 'block';
-    
+
     // Update active nav link
     document.querySelectorAll('.main-nav a').forEach(link => {
         link.classList.remove('active');
     });
-    
-    if (page === homePage) {
+
+    // Add active class to the correct link
+    if (page === homePage && homeLink) {
         homeLink.classList.add('active');
-    } else if (page === faqPage) {
+    } else if (page === faqPage && faqLink) {
         faqLink.classList.add('active');
-    } else if (page === fairPage) {
+    } else if (page === fairPage && fairLink) {
         fairLink.classList.add('active');
-        loadPastRounds();
+        // Load initial data for the fair page when shown
+        loadPastRounds(1); // Load first page of rounds
     }
 }
 
+
 function showModal(modal) {
+    if(!modal) return; // Prevent errors if modal doesn't exist
     modal.style.display = 'flex';
-    setTimeout(() => {
+    // Use requestAnimationFrame for smoother transition start
+     requestAnimationFrame(() => {
         modal.classList.add('active');
-    }, 10);
+    });
 }
 
 function hideModal(modal) {
+    if(!modal) return;
     modal.classList.remove('active');
-    setTimeout(() => {
-        modal.style.display = 'none';
-    }, 300);
+    // Listen for transition end to set display: none
+     modal.addEventListener('transitionend', () => {
+         if (!modal.classList.contains('active')) { // Check if it's still hidden
+             modal.style.display = 'none';
+         }
+     }, { once: true });
+
+     // Fallback timer in case transitionend doesn't fire
+     setTimeout(() => {
+         if (!modal.classList.contains('active')) {
+             modal.style.display = 'none';
+         }
+     }, 350); // Should match transition duration
 }
+
 
 function showNotification(title, message) {
     const notification = document.createElement('div');
@@ -1107,87 +1337,124 @@ function showNotification(title, message) {
             ${message}
         </div>
     `;
-    
+
     document.body.appendChild(notification);
-    
-    // Style notification
-    notification.style.position = 'fixed';
-    notification.style.bottom = '20px';
-    notification.style.right = '20px';
-    notification.style.width = '300px';
-    notification.style.backgroundColor = 'var(--background-medium)';
-    notification.style.borderRadius = '8px';
-    notification.style.boxShadow = '0 5px 15px rgba(0, 0, 0, 0.3)';
-    notification.style.overflow = 'hidden';
-    notification.style.zIndex = '9999';
-    notification.style.animation = 'slideIn 0.3s ease';
-    
-    // Style header
-    notification.querySelector('.notification-header').style.padding = '10px 15px';
-    notification.querySelector('.notification-header').style.backgroundColor = 'var(--background-light)';
-    notification.querySelector('.notification-header').style.display = 'flex';
-    notification.querySelector('.notification-header').style.justifyContent = 'space-between';
-    notification.querySelector('.notification-header').style.alignItems = 'center';
-    notification.querySelector('.notification-header strong').style.color = 'var(--primary-color)';
-    
-    // Style close button
-    notification.querySelector('.close-notification').style.background = 'none';
-    notification.querySelector('.close-notification').style.border = 'none';
-    notification.querySelector('.close-notification').style.color = 'var(--text-secondary)';
-    notification.querySelector('.close-notification').style.fontSize = '20px';
-    notification.querySelector('.close-notification').style.cursor = 'pointer';
-    
-    // Style body
-    notification.querySelector('.notification-body').style.padding = '15px';
-    
-    // Add keyframes for animation
+
+    // Add keyframes for animation if not already present
     if (!document.getElementById('notification-keyframes')) {
         const style = document.createElement('style');
         style.id = 'notification-keyframes';
         style.innerHTML = `
+            .notification {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                width: 300px;
+                background-color: var(--background-medium);
+                border-radius: 8px;
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+                overflow: hidden;
+                z-index: 9999;
+                animation: slideIn 0.3s ease forwards;
+                color: var(--text-primary); /* Ensure text is visible */
+            }
+             .notification.closing {
+                animation: slideOut 0.3s ease forwards;
+             }
+            .notification-header {
+                padding: 10px 15px;
+                background-color: var(--background-light);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 1px solid var(--border-color); /* Add separator */
+            }
+            .notification-header strong { color: var(--primary-color); }
+            .close-notification {
+                background: none;
+                border: none;
+                color: var(--text-secondary);
+                font-size: 20px;
+                cursor: pointer;
+                padding: 0 5px; /* Easier to click */
+                line-height: 1; /* Prevent extra spacing */
+            }
+            .close-notification:hover { color: var(--primary-color); } /* Hover effect */
+            .notification-body { padding: 15px; }
+
             @keyframes slideIn {
-                from { transform: translateX(100%); opacity: 0; }
+                from { transform: translateX(110%); opacity: 0; } /* Start further off-screen */
                 to { transform: translateX(0); opacity: 1; }
             }
-            
             @keyframes slideOut {
                 from { transform: translateX(0); opacity: 1; }
-                to { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(110%); opacity: 0; } /* Move further off-screen */
             }
         `;
         document.head.appendChild(style);
     }
-    
-    // Close notification on click
-    notification.querySelector('.close-notification').addEventListener('click', () => {
-        closeNotification(notification);
-    });
-    
+
+    // Close notification function
+    const close = () => {
+        notification.classList.add('closing');
+        // Remove after animation completes
+        notification.addEventListener('animationend', () => {
+             notification.remove();
+        }, { once: true });
+         // Fallback removal
+         setTimeout(() => {
+            if(notification.parentNode) {
+                 notification.remove();
+            }
+         }, 350);
+    };
+
+
+    // Close on button click
+    notification.querySelector('.close-notification').addEventListener('click', close);
+
     // Auto close after 5 seconds
-    setTimeout(() => {
-        closeNotification(notification);
-    }, 5000);
+    setTimeout(close, 5000);
 }
 
-function closeNotification(notification) {
-    notification.style.animation = 'slideOut 0.3s ease forwards';
-    
-    setTimeout(() => {
-        notification.remove();
-    }, 300);
-}
 
+// Fisher-Yates (aka Knuth) Shuffle algorithm
 function shuffleArray(array) {
-    const newArray = [...array];
-    for (let i = newArray.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    let currentIndex = array.length, randomIndex;
+
+    // While there remain elements to shuffle.
+    while (currentIndex !== 0) {
+
+        // Pick a remaining element.
+        randomIndex = Math.floor(Math.random() * currentIndex);
+        currentIndex--;
+
+        // And swap it with the current element.
+        [array[currentIndex], array[randomIndex]] = [
+            array[randomIndex], array[currentIndex]];
     }
-    return newArray;
+
+    return array;
 }
 
-// Expose some functions to global scope for button onclick handlers
+// Expose necessary functions to global scope for button onclick handlers etc.
 window.showRoundDetails = function(roundId) {
-    // Implement round details modal
-    showNotification('Round Details', `Round details for #${roundId} would be shown here`);
+    // Basic implementation: Fetch round details and show in a modal or notification
+    // Replace with a proper modal implementation later
+     fetch(`/api/round/${roundId}`)
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok.');
+            return response.json();
+        })
+        .then(round => {
+            // Simple alert for now, replace with modal
+            alert(`Round Details #${round.roundId}:\nWinner: ${round.winner ? round.winner.username : 'N/A'}\nValue: $${round.totalValue.toFixed(2)}\nServer Seed Hash: ${round.serverSeedHash}\nEnded: ${new Date(round.endTime).toLocaleString()}`);
+        })
+        .catch(error => {
+            console.error("Error fetching round details:", error);
+            showNotification('Error', `Could not load details for round #${roundId}.`);
+        });
 };
+
+// Make verifyRound globally accessible if the button uses onclick="verifyRound()"
+window.verifyRound = verifyRound;
