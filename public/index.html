@@ -42,21 +42,18 @@
                 <button class="close-btn" id="closeDepositModal">&times;</button>
             </div>
             <div class="modal-body">
-                <div id="inventory-loading" class="loading-indicator">
-                    <div class="spinner"></div>
+                <div id="inventory-loading" class="loading-indicator" style="display: none;"> <div class="spinner"></div>
                     <p>Loading your inventory...</p>
                 </div>
                 <div class="inventory-container">
                     <h3>Your Inventory</h3>
                     <div class="inventory-items" id="inventory-items">
-                        <!-- Inventory items will be loaded dynamically -->
-                    </div>
+                        </div>
                 </div>
                 <div class="selected-items">
                     <h3>Selected Items</h3>
                     <div class="selected-items-container" id="selectedItems">
-                        <!-- Selected items will appear here -->
-                    </div>
+                        </div>
                     <div class="total-value">
                         <span>Total Value: </span>
                         <span id="totalValue">$0.00</span>
@@ -64,8 +61,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-primary" id="depositButton">Deposit Items</button>
-            </div>
+                <button class="btn btn-primary btn-deposit" id="depositButton" disabled>Deposit Items</button> </div>
         </div>
     </div>
 
@@ -78,39 +74,15 @@
             <div class="modal-body">
                 <p>Please enter your Steam Trade URL to complete deposits and receive winnings:</p>
                 <div class="form-group">
-                    <input type="text" id="tradeUrlInput" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...">
+                    <label for="tradeUrlInput" class="sr-only">Steam Trade URL</label> <input type="text" id="tradeUrlInput" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...">
                 </div>
                 <p class="help-text">
-                    You can find your trade URL in your 
-                    <a href="https://steamcommunity.com/my/tradeoffers/privacy" target="_blank">Steam Trade Privacy Settings</a>.
+                    You can find your trade URL in your
+                    <a href="https://steamcommunity.com/my/tradeoffers/privacy" target="_blank" rel="noopener noreferrer">Steam Trade Privacy Settings</a>.
                 </p>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-primary" id="saveTradeUrl">Save Trade URL</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal spin-wheel-modal" id="spinWheelModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Jackpot Winner</h2>
-                <button class="close-btn" id="closeSpinModal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="roulette-container">
-                    <div class="roulette-track" id="modalRouletteTrack">
-                        <!-- Roulette items will be added dynamically -->
-                    </div>
-                    <div class="roulette-ticker">
-                        <div class="ticker-line"></div>
-                        <div class="ticker-arrow"></div>
-                    </div>
-                </div>
-                <div class="winner-info" id="modalWinnerInfo">
-                    <!-- Winner info will be displayed here -->
-                </div>
-                <audio id="modalSpinSound" src="audio/spin-sound.mp3" preload="auto"></audio>
             </div>
         </div>
     </div>
@@ -141,7 +113,7 @@
 
     <main class="main-content">
         <div class="container">
-            <!-- Home/Jackpot Page -->
+
             <div id="home-page">
                 <div class="jackpot-section">
                     <div class="jackpot-header" id="jackpotHeader">
@@ -152,9 +124,7 @@
                         <div class="jackpot-timer">
                             <div class="timer-circle">
                                 <svg class="timer-progress" viewBox="0 0 100 100">
-                                    <circle class="timer-background" cx="50" cy="50" r="45"></circle>
-                                    <circle class="timer-foreground" cx="50" cy="50" r="45"></circle>
-                                </svg>
+                                    <circle class="timer-background" cx="50" cy="50" r="42"></circle> <circle class="timer-foreground" cx="50" cy="50" r="42"></circle> </svg>
                                 <div class="timer-text">
                                     <span id="timerValue">120</span>
                                 </div>
@@ -162,28 +132,22 @@
                             <span class="timer-label">SECONDS LEFT</span>
                         </div>
                         <div class="jackpot-stats">
-                            <div class="stat">
-                                <span class="stat-value" id="participantCount">0/200</span>
-                                <span class="stat-label">PARTICIPANTS</span>
-                            </div>
+                           <span class="stat-value" id="participantCount">0/200</span>
+                           <span class="stat-label">PARTICIPANTS</span>
                         </div>
-                        
-                        <!-- Inline roulette container (placed inside header) -->
+
                         <div class="inline-roulette" id="inlineRoulette">
                             <div class="roulette-container">
                                 <div class="roulette-track" id="rouletteTrack">
-                                    <!-- Roulette items will be added dynamically -->
-                                </div>
+                                    </div>
                                 <div class="roulette-ticker">
                                     <div class="ticker-line"></div>
                                     <div class="ticker-arrow"></div>
                                 </div>
                             </div>
-                            
-                            <!-- Winner info overlay -->
                             <div class="winner-info" id="winnerInfo">
                                 <div class="winner-header">
-                                    <img src="" alt="Winner Avatar" class="winner-avatar" id="winnerAvatar">
+                                    <img src="/img/default-avatar.png" alt="Winner Avatar" class="winner-avatar" id="winnerAvatar">
                                     <h3 id="winnerName">WINNER NAME</h3>
                                 </div>
                                 <div class="winner-details">
@@ -193,182 +157,158 @@
                                 </div>
                                 <div class="confetti-container" id="confettiContainer"></div>
                             </div>
-                            
-                            <!-- Sound effect for spin animation -->
-                            <audio id="spinSound" src="audio/spin-sound.mp3" preload="auto"></audio>
-                            
-                            <!-- Return button (can be hidden as animation auto-resets) -->
-                            <button class="btn btn-primary return-btn" id="returnToJackpot">Return to Jackpot</button>
+                            <audio id="spinSound" src="/audio/spin-sound.mp3" preload="auto"></audio>
+                            <button class="btn btn-primary return-btn" id="returnToJackpot" style="display: none;">Return</button>
                         </div>
                     </div>
 
                     <div class="deposit-button-container" id="depositBtnContainer">
                         <button class="btn btn-deposit" id="showDepositModal">DEPOSIT SKINS</button>
-                        <button class="btn btn-secondary" id="testSpinButton" style="margin-top: 10px;">Test Roulette Animation</button>
+                        <button class="btn btn-secondary" id="testSpinButton" style="margin-top: 10px; display: inline-block; width: auto;">Test Roulette</button>
                     </div>
 
                     <div class="current-items-section" id="currentItems">
                         <h3 class="section-title">CURRENT ITEMS IN POT</h3>
                         <div class="participants-container" id="participantsContainer">
-                            <!-- Participants will be loaded dynamically -->
-                            <div class="empty-pot-message" id="emptyPotMessage">
+                            <div class="empty-pot-message" id="emptyPotMessage" style="display: block;">
                                 <p>No items in the current pot. Be the first to deposit!</p>
                             </div>
-                        </div>
+                            </div>
                     </div>
                 </div>
-            </div>
-
-            <!-- FAQ Page -->
-            <div id="faq-page" style="display: none;">
+            </div> <div id="faq-page" style="display: none;">
                 <div class="content-card">
                     <h1>Frequently Asked Questions</h1>
-                    
+
                     <div class="faq-item">
                         <div class="faq-question">How does Rusty Degen work?</div>
                         <div class="faq-answer">
-                            Rusty Degen is a Rust skin jackpot site where players can deposit their skins into a pool. When the timer runs out, a winner is randomly selected. The winner takes all skins in the pot. Your chance of winning is proportional to the value of skins you've deposited compared to the total pot value.
+                            <p>Rusty Degen is a Rust skin jackpot site where players can deposit their skins into a pool. When the timer runs out, a winner is randomly selected using our Provably Fair system. The winner takes all skins in the pot (minus a small site fee). Your chance of winning is proportional to the value of skins you've deposited compared to the total pot value.</p>
                         </div>
                     </div>
-                    
+
                     <div class="faq-item">
                         <div class="faq-question">How do I deposit skins?</div>
                         <div class="faq-answer">
-                            First, log in with your Steam account. Then click the "Deposit Skins" button, which will open a window showing your Rust inventory. Select the skins you want to deposit and confirm. You'll then receive a trade offer that you must accept to complete the deposit.
+                            <p>First, log in with your Steam account using the "Sign in" button. Then click the "Deposit Skins" button. A modal window will show your available Rust inventory. Select the skins you wish to deposit (ensure they meet the minimum value requirements) and click the final "Deposit Items" button. You'll then receive a Steam trade offer that you must accept within Steam to complete the deposit.</p>
                         </div>
                     </div>
-                    
+
                     <div class="faq-item">
                         <div class="faq-question">How is the winner selected?</div>
                         <div class="faq-answer">
-                            The winner is selected using a provably fair system. Each player gets tickets proportional to the value of their deposited skins. A random ticket is selected as the winner. See our "Provably Fair" page for more details.
+                            <p>The winner is selected using a provably fair system based on cryptographic hashing. Each player gets virtual 'tickets' proportional to the value of their deposited skins (e.g., 1 ticket per $0.01). A random winning ticket number is generated using a combination of a secret server seed (hashed and shown before the round starts) and a public client seed (based on round info). See our "Provably Fair" page for a detailed explanation and verification tool.</p>
                         </div>
                     </div>
-                    
+
                     <div class="faq-item">
                         <div class="faq-question">How do I receive my winnings?</div>
                         <div class="faq-answer">
-                            If you win, all items in the pot will be automatically sent to you via a Steam trade offer. Make sure your trade URL is set correctly in your profile and that your inventory is public.
+                            <p>If you win the jackpot, all items in the pot (minus the site fee) will be automatically sent to you via a Steam trade offer from one of our site bots. Ensure your Trade URL is correctly set in your profile (you'll be prompted if it's missing) and that your Steam inventory privacy is set to "Public" so we can send the offer.</p>
                         </div>
                     </div>
-                    
+
                     <div class="faq-item">
                         <div class="faq-question">Is there a minimum deposit value?</div>
                         <div class="faq-answer">
-                            Yes, the minimum deposit value is $1.00. Items worth less than this amount cannot be deposited.
+                            <p>Yes, the minimum value for a single deposit transaction is typically $1.00 (this may be subject to change). Individual items below a certain threshold might also be excluded. The total value of items you select must meet the minimum deposit requirement.</p>
                         </div>
                     </div>
-                    
+
                     <div class="faq-item">
                         <div class="faq-question">What is your fee?</div>
                         <div class="faq-answer">
-                            Rusty Degen takes a 5% fee from each pot to cover operational costs and ensure the long-term sustainability of the site.
+                            <p>Rusty Degen takes a small percentage fee (typically 5-10%, check current rate) from each jackpot pot. This fee is essential to cover server costs, bot maintenance, development, and ensure the long-term operation and improvement of the site.</p>
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <!-- Provably Fair Page -->
-            <div id="fair-page" style="display: none;">
+            </div> <div id="fair-page" style="display: none;">
                 <div class="content-card">
                     <h1>Provably Fair System</h1>
-                    
+
                     <div class="fair-section">
                         <div class="fair-title">How Our System Works</div>
                         <div class="fair-content">
-                            Rusty Degen uses a provably fair system to ensure complete transparency and fairness in winner selection. Our system uses cryptographic methods to guarantee that the results cannot be manipulated and can be independently verified by anyone.
+                            <p>Rusty Degen uses a provably fair system to ensure complete transparency and fairness in winner selection. Our system uses cryptographic methods (specifically SHA256 hashing) to guarantee that the results cannot be manipulated by the site operators and can be independently verified by anyone after the round concludes.</p>
                         </div>
                     </div>
-                    
+
                     <div class="fair-section">
                         <div class="fair-title">The Process</div>
                         <div class="fair-content">
                             <ol>
-                                <li>When a round begins, the server generates a random string called the "server seed" and creates a SHA256 hash of it. This hash is publicly displayed before any deposits are made.</li>
-                                <li>As players deposit items, they are assigned ticket numbers proportional to the value of their deposits.</li>
-                                <li>When the round ends, we combine the server seed with a "client seed" (which is the round ID plus timestamp) to generate a random number.</li>
-                                <li>This random number determines which ticket wins the pot.</li>
+                                <li><strong>Seed Generation:</strong> Before a round begins, the server generates a long, random, secret string called the "Server Seed".</li>
+                                <li><strong>Hashing:</strong> The server calculates the SHA256 hash of this Server Seed. This hash (e.g., <code>a1b2c3d4...</code>) is publicly displayed for the round *before* any deposits are accepted. Hashing is a one-way process; you cannot get the original Seed from the Hash, but you can later verify that a revealed Seed produces the same Hash.</li>
+                                <li><strong>Deposits & Tickets:</strong> Players deposit items. Each $0.01 of value deposited grants the player 1 ticket. Tickets are numbered sequentially (e.g., Player A deposits $1.00 gets tickets 0-99, Player B deposits $2.50 gets tickets 100-349).</li>
+                                <li><strong>Round End & Client Seed:</strong> When the round ends (timer reaches zero or max items), a "Client Seed" is determined. This is typically a combination of public data like the Round ID and the end timestamp, making it unique and unpredictable beforehand.</li>
+                                <li><strong>Combined Hashing:</strong> The server combines the secret Server Seed and the public Client Seed (usually as <code>ServerSeed-ClientSeed</code>). It then calculates the SHA256 hash of this combined string.</li>
+                                <li><strong>Winning Ticket Calculation:</strong> The resulting hash is converted into a number. We use the modulo operator (%) with the total number of tickets in the round to determine the winning ticket number. (e.g., <code>WinningTicket = HashedNumber % TotalTickets</code>).</li>
+                                <li><strong>Winner Selection:</strong> The player whose ticket range includes the calculated Winning Ticket number wins the pot.</li>
+                                <li><strong>Seed Reveal:</strong> After the winner is determined and announced, the original secret Server Seed for that round is revealed publicly.</li>
                             </ol>
                         </div>
                     </div>
-                    
-                    <div class="fair-section">
-                        <div class="fair-title">Verification</div>
-                        <div class="fair-content">
-                            After each round, we publish the original server seed that was used to create the hash. You can verify that:
-                            <ul>
-                                <li>The hash displayed at the beginning of the round matches the server seed revealed at the end.</li>
-                                <li>The winning ticket was correctly determined using our formula.</li>
-                            </ul>
-                            This ensures that we cannot manipulate the outcome, as the server seed is committed before any deposits are made.
-                        </div>
-                    </div>
-                    
-                    <div class="fair-section">
+
+                    <div class="fair-section" id="provably-fair-verification">
                         <div class="fair-title">Verification Tool</div>
                         <div class="fair-content">
-                            You can use our verification tool below to check any past round:
+                            <p>After a round is complete and the Server Seed is revealed (check Past Rounds table), you can use this tool (or any external SHA256 tool) to verify the outcome:</p>
                             <div class="verify-form">
                                 <div class="form-group">
-                                    <label>Round ID: </label>
-                                    <input type="text" id="round-id" placeholder="Enter round ID">
+                                    <label for="round-id">Round ID:</label>
+                                    <input type="text" id="round-id" placeholder="Enter round ID from history">
                                 </div>
                                 <div class="form-group">
-                                    <label>Server Seed: </label>
-                                    <input type="text" id="server-seed" placeholder="Enter server seed">
+                                    <label for="server-seed">Server Seed (Revealed):</label>
+                                    <input type="text" id="server-seed" placeholder="Enter the revealed Server Seed">
                                 </div>
                                 <div class="form-group">
-                                    <label>Client Seed: </label>
-                                    <input type="text" id="client-seed" placeholder="Enter client seed">
+                                    <label for="client-seed">Client Seed (e.g., RoundID-Timestamp):</label>
+                                    <input type="text" id="client-seed" placeholder="Enter the Client Seed for the round">
                                 </div>
-                                <button class="btn btn-primary" id="verify-btn">Verify</button>
+                                <button class="btn btn-primary" id="verify-btn">Verify Round</button>
                             </div>
-                            <div id="verification-result"></div>
+                            <div id="verification-result">
+                                </div>
+                            <p><small>Note: You may need to obtain the exact Client Seed format used for the round from the round details.</small></p>
                         </div>
                     </div>
-                    
+
                     <div class="fair-section">
                         <div class="fair-title">Past Rounds</div>
                         <div class="fair-content">
+                            <p>Check the history of past rounds, view winners, and get the necessary data for verification.</p>
                             <div class="rounds-table-container">
                                 <table class="rounds-table">
                                     <thead>
                                         <tr>
                                             <th>Round ID</th>
-                                            <th>Date</th>
+                                            <th>Date Ended</th>
                                             <th>Total Value</th>
                                             <th>Winner</th>
-                                            <th>Details</th>
+                                            <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody id="rounds-table-body">
-                                        <tr>
-                                            <td colspan="5">Loading past rounds...</td>
-                                        </tr>
+                                        <tr><td colspan="5">Loading...</td></tr>
                                     </tbody>
                                 </table>
                             </div>
                             <div class="pagination" id="rounds-pagination">
-                                <!-- Pagination will be added dynamically -->
-                            </div>
+                                </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            
-        </div>
-    </main>
+            </div> </div> </main>
 
     <footer class="main-footer">
         <div class="container">
-            <p>&copy; 2025 Rusty Degen. All rights reserved. Gambling can be addictive. Play responsibly.</p>
+            <p>&copy; 2025 Rusty Degen. All rights reserved. Gambling can be addictive. Play responsibly. 18+</p>
         </div>
     </footer>
 
-    <!-- Socket.io -->
     <script src="/socket.io/socket.io.js"></script>
-    
-    <!-- Main JavaScript -->
+
     <script src="/js/main.js"></script>
 </body>
 </html>
