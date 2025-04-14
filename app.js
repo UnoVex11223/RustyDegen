@@ -146,7 +146,7 @@ const manager = new TradeOfferManager({
 });
 
 // Load Steam API credentials
-/* 
+ 
 community.login({
     accountName: process.env.STEAM_USERNAME,
     password: process.env.STEAM_PASSWORD,
@@ -163,7 +163,7 @@ community.login({
     // Set cookies for manager
     manager.setCookies(cookies);
 });
-*/
+
 
 // Function to generate Steam auth code (you'll need to implement this with your 2FA shared secret)
 function generateAuthCode() {
