@@ -274,6 +274,7 @@ a:hover {
     position: relative;
 }
 
+/* Updated jackpot header for roulette animation */
 .jackpot-header {
     display: flex;
     justify-content: space-between;
@@ -287,6 +288,12 @@ a:hover {
     position: relative;
     overflow: hidden;
     z-index: 5;
+    transition: height 0.3s ease;
+}
+
+/* Special styling for when roulette is active */
+.jackpot-header.roulette-mode {
+    background: linear-gradient(135deg, var(--background-dark), var(--background-medium));
 }
 
 .jackpot-value {
@@ -371,6 +378,272 @@ a:hover {
     font-weight: 700;
     color: var(--text-primary);
     display: block;
+}
+
+/* Inline Roulette */
+.inline-roulette {
+    display: none; /* Hidden by default */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent; /* Make background transparent to blend with header */
+    z-index: 10;
+    overflow: hidden;
+}
+
+/* Roulette Container */
+.roulette-container {
+    position: relative;
+    width: 100%;
+    height: 90px; /* Reduced height to fit in header */
+    overflow: hidden;
+    background-color: rgba(13, 17, 23, 0.5); /* Semi-transparent background */
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    margin: 30px 0 0 0; /* Top margin to center vertically */
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Roulette Track */
+.roulette-track {
+    display: flex;
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    will-change: transform; /* Improve performance */
+}
+
+/* Roulette Items */
+.roulette-item {
+    flex: 0 0 auto;
+    width: 90px; /* Smaller width to fit more items visible */
+    height: 80px; /* Smaller height */
+    margin: 5px;
+    background: rgba(30, 35, 40, 0.7);
+    border-radius: 6px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border: 2px solid transparent;
+    position: relative;
+    box-sizing: border-box;
+}
+
+/* Item border colors for visual distinction */
+.roulette-item.item-1 { border-color: #00ffaa; }
+.roulette-item.item-2 { border-color: #ff3366; }
+.roulette-item.item-3 { border-color: #9933ff; }
+.roulette-item.item-4 { border-color: #33ccff; }
+.roulette-item.item-5 { border-color: #ffcc00; }
+
+/* Profile container */
+.profile-pic-container {
+    width: 100%;
+    height: 45px; /* Smaller image area */
+    overflow: hidden;
+    background: #1a1e23;
+    flex-shrink: 0;
+}
+
+.roulette-avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.3s ease;
+}
+
+/* Item info */
+.roulette-info {
+    padding: 3px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(20, 25, 30, 0.9);
+    flex-grow: 1;
+    text-align: center;
+    width: 100%;
+}
+
+.roulette-name {
+    font-size: 10px;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 80px;
+}
+
+.roulette-percentage {
+    font-size: 9px;
+    color: #00ffaa;
+    font-weight: 500;
+}
+
+/* Winning item highlight */
+.roulette-item.winner {
+    animation: winnerPulse 1.5s infinite;
+    box-shadow: 0 0 25px rgba(0, 255, 170, 1);
+    z-index: 5;
+    border-width: 3px;
+}
+
+@keyframes winnerPulse {
+    0% { box-shadow: 0 0 20px rgba(0, 255, 170, 0.8); border-color: #00ffaa; transform: scale(1); }
+    50% { box-shadow: 0 0 30px rgba(51, 204, 255, 0.9); border-color: #33ccff; transform: scale(1.05);}
+    100% { box-shadow: 0 0 20px rgba(0, 255, 170, 0.8); border-color: #00ffaa; transform: scale(1);}
+}
+
+/* Center Ticker Line */
+.roulette-ticker {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 100%;
+    z-index: 10;
+}
+
+.ticker-line {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom, 
+                               rgba(0, 255, 170, 0), 
+                               rgba(0, 255, 170, 1), 
+                               rgba(0, 255, 170, 0));
+    box-shadow: 0 0 10px rgba(0, 255, 170, 0.8);
+}
+
+.ticker-arrow {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 10px solid rgba(0, 255, 170, 1);
+    filter: drop-shadow(0 0 5px rgba(0, 255, 170, 0.8));
+}
+
+/* Winner Info Box */
+.winner-info {
+    display: none; /* Hidden by default */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(13, 17, 23, 0.85);
+    padding: 10px;
+    text-align: center;
+    box-sizing: border-box;
+    z-index: 20;
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.winner-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 5px;
+}
+
+.winner-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--primary-color);
+    box-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
+    margin-right: 10px;
+    object-fit: cover;
+}
+
+.winner-details {
+    margin-top: 5px;
+    font-size: 0.9rem;
+}
+
+.winner-details p {
+    margin: 3px 0;
+    font-size: 0.9rem;
+}
+
+.congrats {
+    font-size: 1.2rem !important;
+    color: var(--primary-color);
+    font-weight: 700;
+    margin-top: 5px !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    animation: colorCycle 3s infinite;
+}
+
+@keyframes colorCycle {
+    0% { color: var(--primary-color); }
+    50% { color: var(--secondary-color); }
+    100% { color: var(--primary-color); }
+}
+
+/* Return Button */
+.return-btn {
+    display: none; /* Hidden by default */
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 30;
+    padding: 5px 10px;
+    font-size: 0.9rem;
+}
+
+/* Confetti Container */
+.confetti-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 15;
+}
+
+.confetti {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background-color: var(--color);
+    top: -20px;
+    opacity: 0.9;
+    animation: confettiFall 3s linear infinite;
+}
+
+@keyframes confettiFall {
+    0% {
+        transform: translateY(0) rotateZ(0deg);
+        opacity: 0.9;
+    }
+    100% {
+        transform: translateY(150px) rotateZ(720deg);
+        opacity: 0;
+    }
 }
 
 .deposit-button-container {
@@ -511,260 +784,6 @@ a:hover {
     font-size: 0.9rem;
     font-weight: 600;
     text-align: center;
-}
-
-/* Roulette Animation */
-.inline-roulette {
-    display: none; /* Hide by default */
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 600px; /* Increased height for better visibility */
-    background-color: var(--background-medium);
-    z-index: 10;
-    border-radius: 12px;
-    overflow: hidden;
-}
-
-.roulette-container {
-    position: relative;
-    width: 100%;
-    height: 150px; /* Fixed height for the roulette track */
-    overflow: hidden;
-    background-color: var(--background-light);
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
-    margin-top: 50px;
-}
-
-.roulette-track {
-    display: flex;
-    position: absolute;
-    left: 0;
-    top: 0;
-    height: 100%;
-    transition: transform 8s cubic-bezier(0.08, 0.82, 0.17, 1); /* Smoother animation */
-}
-
-.roulette-item {
-    flex: 0 0 auto;
-    width: 120px;
-    height: 140px;
-    margin: 5px;
-    background: rgba(30, 35, 40, 0.9);
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    border: 2px solid transparent;
-    position: relative;
-    box-sizing: border-box;
-}
-
-/* Add border colors based on item class */
-.roulette-item.item-1 { border-color: #00ffaa; }
-.roulette-item.item-2 { border-color: #ff3366; }
-.roulette-item.item-3 { border-color: #9933ff; }
-.roulette-item.item-4 { border-color: #33ccff; }
-.roulette-item.item-5 { border-color: #ffcc00; }
-
-.profile-pic-container {
-    width: 100%;
-    height: 90px;
-    overflow: hidden;
-    background: #1a1e23;
-    flex-shrink: 0;
-}
-
-.roulette-avatar {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    transition: transform 0.3s ease;
-}
-
-.roulette-item:hover .roulette-avatar {
-    transform: scale(1.05);
-}
-
-.roulette-info {
-    padding: 5px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    background: rgba(20, 25, 30, 0.9);
-    flex-grow: 1;
-    text-align: center;
-    width: 100%;
-}
-
-.roulette-name {
-    font-size: 12px;
-    font-weight: 600;
-    color: #ffffff;
-    margin-bottom: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100px;
-}
-
-.roulette-percentage {
-    font-size: 11px;
-    color: #00ffaa;
-    font-weight: 500;
-}
-
-.roulette-item.winner {
-    animation: winnerPulse 1.5s infinite;
-    box-shadow: 0 0 25px rgba(0, 255, 170, 1);
-    z-index: 5;
-    border-width: 3px;
-}
-
-@keyframes winnerPulse {
-    0% { box-shadow: 0 0 20px rgba(0, 255, 170, 0.8); border-color: #00ffaa; transform: scale(1); }
-    50% { box-shadow: 0 0 30px rgba(51, 204, 255, 0.9); border-color: #33ccff; transform: scale(1.03);}
-    100% { box-shadow: 0 0 20px rgba(0, 255, 170, 0.8); border-color: #00ffaa; transform: scale(1);}
-}
-
-.roulette-ticker {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 4px;
-    height: 100%;
-    z-index: 10;
-}
-
-.ticker-line {
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(to bottom, rgba(0, 255, 170, 0.2), rgba(0, 255, 170, 1), rgba(0, 255, 170, 0.2));
-    box-shadow: 0 0 10px rgba(0, 255, 170, 0.8);
-}
-
-.ticker-arrow {
-    content: '';
-    position: absolute;
-    top: -12px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border-left: 10px solid transparent;
-    border-right: 10px solid transparent;
-    border-bottom: 12px solid rgba(0, 255, 170, 1);
-    filter: drop-shadow(0 2px 3px rgba(0, 255, 170, 0.6));
-}
-
-.winner-info {
-    display: none; /* Hide by default */
-    position: relative;
-    width: 400px;
-    margin: 30px auto;
-    padding: 30px;
-    background: rgba(30, 35, 40, 0.95);
-    border-radius: 10px;
-    text-align: center;
-    box-shadow: 0 0 30px rgba(0, 255, 170, 0.5);
-    border: 2px solid rgba(0, 255, 170, 0.5);
-    animation: fadeIn 0.5s ease-out;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.winner-header {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.winner-avatar {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    border: 3px solid var(--primary-color);
-    box-shadow: 0 0 20px rgba(0, 230, 118, 0.5);
-    margin-bottom: 10px;
-    object-fit: cover;
-}
-
-.winner-details {
-    margin-bottom: 15px;
-}
-
-.winner-details p {
-    margin: 5px 0;
-    font-size: 1.1rem;
-}
-
-.congrats {
-    font-size: 1.5rem !important;
-    color: var(--primary-color);
-    font-weight: 700;
-    margin-top: 15px !important;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    animation: colorCycle 3s infinite;
-}
-
-@keyframes colorCycle {
-    0% { color: var(--primary-color); }
-    50% { color: var(--secondary-color); }
-    100% { color: var(--primary-color); }
-}
-
-/* Confetti styles */
-.confetti-container {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    overflow: hidden;
-    z-index: 100;
-}
-
-.confetti {
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    background-color: var(--color);
-    top: -20px;
-    opacity: 1;
-    animation: confettiFall 3s linear infinite;
-}
-
-@keyframes confettiFall {
-    0% {
-        transform: translateY(0) rotateZ(0deg);
-        opacity: 1;
-    }
-    100% {
-        transform: translateY(500px) rotateZ(720deg);
-        opacity: 0;
-    }
-}
-
-.return-btn {
-    display: none; /* Hide by default */
-    position: absolute;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 30;
 }
 
 /* Form Elements */
@@ -1004,6 +1023,28 @@ a:hover {
     100% { transform: rotate(360deg); }
 }
 
+/* Timer animations */
+.timer-pulse {
+    animation: timerPulse 2s infinite;
+}
+
+.urgent-pulse {
+    animation: urgentPulse 0.5s infinite;
+    color: #ff3366 !important;
+}
+
+@keyframes timerPulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+@keyframes urgentPulse {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.1); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
 /* FAQ & Provably Fair styles */
 .faq-item, .fair-section {
     margin-bottom: 30px;
@@ -1161,28 +1202,6 @@ a:hover {
     text-align: right;
 }
 
-/* Timer animations */
-.timer-pulse {
-    animation: timerPulse 2s infinite;
-}
-
-.urgent-pulse {
-    animation: urgentPulse 0.5s infinite;
-    color: #ff3366 !important;
-}
-
-@keyframes timerPulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.7; }
-    100% { opacity: 1; }
-}
-
-@keyframes urgentPulse {
-    0% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.8; transform: scale(1.1); }
-    100% { opacity: 1; transform: scale(1); }
-}
-
 /* Footer */
 .main-footer {
     background-color: var(--background-medium);
@@ -1214,6 +1233,37 @@ a:hover {
     
     .inventory-items {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+
+    .roulette-item {
+        width: 70px;
+        height: 70px;
+    }
+    
+    .profile-pic-container {
+        height: 40px;
+    }
+    
+    .roulette-name {
+        font-size: 9px;
+        max-width: 60px;
+    }
+    
+    .roulette-percentage {
+        font-size: 8px;
+    }
+    
+    .winner-avatar {
+        width: 30px;
+        height: 30px;
+    }
+    
+    .winner-details p {
+        font-size: 0.8rem;
+    }
+    
+    .congrats {
+        font-size: 1rem !important;
     }
 }
 
