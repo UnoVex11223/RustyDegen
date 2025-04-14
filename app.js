@@ -145,23 +145,26 @@ const manager = new TradeOfferManager({
     pollInterval: 10000
 });
 
-// Load Steam API credentials
-community.login({
-    accountName: process.env.STEAM_USERNAME,
-    password: process.env.STEAM_PASSWORD,
-    twoFactorCode: generateAuthCode()
-}, function(err, sessionID, cookies, steamguard) {
-    if (err) {
-        console.log('Steam login error:', err);
-        // Comment out or remove this line to continue even if Steam login fails
-        // process.exit(1);
-    } else {
-        console.log('Steam bot logged in successfully');
-        
-        // Set cookies for manager
-        manager.setCookies(cookies);
-    }
-});
+/*
+ // Load Steam API credentials
+ community.login({
+     accountName: process.env.STEAM_USERNAME,
+     password: process.env.STEAM_PASSWORD,
+     twoFactorCode: generateAuthCode()
+ }, function(err, sessionID, cookies, steamguard) {
+     if (err) {
+         console.log('Steam login error:', err);
+         // Comment out or remove this line to continue even if Steam login fails
+         // process.exit(1);
+     } else {
+         console.log('Steam bot logged in successfully');
+         
+         // Set cookies for manager
+         manager.setCookies(cookies);
+     }
+ });
+*/
+
 
 // Function to generate Steam auth code (you'll need to implement this with your 2FA shared secret)
 function generateAuthCode() {
