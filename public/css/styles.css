@@ -82,6 +82,7 @@ a:hover {
     cursor: not-allowed;
     transform: none;
     box-shadow: none;
+    opacity: 0.6;
 }
 
 .btn-primary {
@@ -89,7 +90,7 @@ a:hover {
     color: var(--background-dark);
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) { /* Only apply hover effect if not disabled */
     background-color: var(--primary-dark);
 }
 
@@ -117,7 +118,7 @@ a:hover {
     transition: 0.5s;
 }
 
-.btn-deposit:hover:before {
+.btn-deposit:hover:not(:disabled):before {
     left: 100%;
 }
 
@@ -132,7 +133,7 @@ a:hover {
     padding: 12px 30px;
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover:not(:disabled) {
     background-color: var(--background-medium);
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
@@ -153,6 +154,21 @@ a:hover {
     background-color: var(--primary-color);
     color: var(--background-dark);
 }
+
+.btn-details, .btn-verify {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    margin-right: 5px; /* Add some space between buttons */
+}
+
+.btn-verify {
+    background-color: var(--secondary-color);
+    color: var(--background-dark);
+}
+.btn-verify:hover {
+    background-color: var(--secondary-dark);
+}
+
 
 /* Header */
 .main-header {
@@ -197,6 +213,10 @@ a:hover {
 .main-nav li {
     margin-right: 20px;
 }
+.main-nav li:last-child {
+    margin-right: 0;
+}
+
 
 .main-nav a {
     font-weight: 600;
@@ -205,6 +225,7 @@ a:hover {
     border-radius: 4px;
     transition: all 0.3s ease;
     position: relative;
+    color: var(--text-secondary); /* Default color */
 }
 
 .main-nav a:after {
@@ -227,6 +248,10 @@ a:hover {
 .main-nav a.active {
     color: var(--primary-color);
 }
+.main-nav a:hover {
+    color: var(--text-primary); /* Hover color */
+}
+
 
 .user-controls {
     margin-left: auto;
@@ -274,65 +299,63 @@ a:hover {
     position: relative;
 }
 
-/* Updated jackpot header for roulette animation */
+/* ----- UPDATED JACKPOT HEADER STYLES ----- */
 .jackpot-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: space-around; /* Changed for better spacing */
     align-items: center;
     padding: 20px;
     background: linear-gradient(135deg, var(--background-medium), var(--background-light));
     border-bottom: 1px solid var(--border-color);
     border-radius: 12px 12px 0 0;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    height: 150px; /* Fixed height for consistent transitions */
+    min-height: 150px; /* Use min-height instead of fixed height */
     position: relative;
     overflow: hidden;
     z-index: 5;
-    transition: height 0.3s ease;
+    transition: height 0.3s ease, background 0.3s ease;
+    gap: 20px; /* Added gap */
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
 }
 
-/* Special styling for when roulette is active */
 .jackpot-header.roulette-mode {
     background: linear-gradient(135deg, var(--background-dark), var(--background-medium));
 }
 
-.jackpot-value {
-    flex: 1;
-    text-align: left;
+.jackpot-value, .jackpot-timer, .jackpot-stats {
+    display: flex; /* Use flex for content alignment */
+    flex-direction: column; /* Stack label below value */
+    align-items: center; /* Center items horizontally */
+    /* flex: 1; Removed */
 }
 
 .jackpot-value h2 {
-    font-size: 3rem;
+    font-size: 2.8rem; /* Slightly smaller */
     font-weight: 700;
     color: var(--primary-color);
     margin: 0;
     text-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
     font-family: 'JetBrains Mono', monospace;
+    line-height: 1.1; /* Adjust line height */
 }
 
 .value-label, .timer-label, .stat-label {
-    font-size: 0.9rem;
+    font-size: 0.85rem; /* Slightly smaller */
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 1px;
     display: block;
-    text-align: center;
-}
-
-.jackpot-timer {
-    flex: 1;
-    text-align: center;
-    margin-left: -50px; /* Shift to the left as requested */
+    margin-top: 5px; /* Add space between value and label */
 }
 
 .timer-circle {
     position: relative;
-    width: 100px;
-    height: 100px;
+    width: 90px; /* Slightly smaller */
+    height: 90px;
     display: flex;
     justify-content: center;
     align-items: center;
-    margin: 0 auto;
+    margin: 0 auto; /* Keep centered within its block */
 }
 
 .timer-progress {
@@ -344,17 +367,18 @@ a:hover {
 .timer-background {
     fill: none;
     stroke: var(--background-light);
-    stroke-width: 8;
+    stroke-width: 6; /* Thinner stroke */
 }
 
 .timer-foreground {
     fill: none;
     stroke: var(--primary-color);
-    stroke-width: 8;
-    stroke-dasharray: 283;
+    stroke-width: 6; /* Thinner stroke */
+    stroke-linecap: round; /* Rounded ends */
+    stroke-dasharray: 264; /* Adjusted for radius 42 (2*PI*42) */
     stroke-dashoffset: 0;
     transition: stroke-dashoffset 1s linear;
-    filter: drop-shadow(0 0 5px var(--primary-color));
+    filter: drop-shadow(0 0 4px var(--primary-color));
 }
 
 .timer-text {
@@ -362,23 +386,22 @@ a:hover {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 2rem;
+    font-size: 1.8rem; /* Slightly smaller */
     font-weight: 700;
     color: var(--primary-color);
     font-family: 'JetBrains Mono', monospace;
 }
 
-.jackpot-stats {
-    flex: 1;
-    text-align: right;
-}
-
 .stat-value {
-    font-size: 1.5rem;
+    font-size: 1.6rem; /* Slightly larger */
     font-weight: 700;
     color: var(--text-primary);
     display: block;
+    line-height: 1.1; /* Adjust line height */
 }
+
+/* ----- END UPDATED JACKPOT HEADER STYLES ----- */
+
 
 /* Inline Roulette */
 .inline-roulette {
@@ -403,7 +426,7 @@ a:hover {
     border-radius: 8px;
     border: 1px solid var(--border-color);
     margin: 30px 0 0 0; /* Top margin to center vertically */
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.4); /* Inner shadow */
 }
 
 /* Roulette Track */
@@ -414,6 +437,8 @@ a:hover {
     top: 0;
     height: 100%;
     will-change: transform; /* Improve performance */
+    padding-left: calc(50% - 45px); /* Offset start for centering first item */
+    padding-right: calc(50% - 45px); /* Offset end for centering last item */
 }
 
 /* Roulette Items */
@@ -435,11 +460,11 @@ a:hover {
 }
 
 /* Item border colors for visual distinction */
-.roulette-item.item-1 { border-color: #00ffaa; }
-.roulette-item.item-2 { border-color: #ff3366; }
-.roulette-item.item-3 { border-color: #9933ff; }
-.roulette-item.item-4 { border-color: #33ccff; }
-.roulette-item.item-5 { border-color: #ffcc00; }
+.roulette-item.item-color-1 { border-color: #00ffaa; }
+.roulette-item.item-color-2 { border-color: #ff3366; }
+.roulette-item.item-color-3 { border-color: #9933ff; }
+.roulette-item.item-color-4 { border-color: #33ccff; }
+.roulette-item.item-color-5 { border-color: #ffcc00; }
 
 /* Profile container */
 .profile-pic-container {
@@ -489,7 +514,7 @@ a:hover {
 }
 
 /* Winning item highlight */
-.roulette-item.winner {
+.roulette-item.winner-highlight { /* Changed class name */
     animation: winnerPulse 1.5s infinite;
     box-shadow: 0 0 25px rgba(0, 255, 170, 1);
     z-index: 5;
@@ -511,15 +536,16 @@ a:hover {
     width: 4px;
     height: 100%;
     z-index: 10;
+    pointer-events: none; /* Make sure it doesn't interfere with clicks */
 }
 
 .ticker-line {
     width: 100%;
     height: 100%;
-    background: linear-gradient(to bottom, 
-                               rgba(0, 255, 170, 0), 
-                               rgba(0, 255, 170, 1), 
-                               rgba(0, 255, 170, 0));
+    background: linear-gradient(to bottom,
+                            rgba(0, 255, 170, 0),
+                            rgba(0, 255, 170, 1),
+                            rgba(0, 255, 170, 0));
     box-shadow: 0 0 10px rgba(0, 255, 170, 0.8);
 }
 
@@ -545,8 +571,12 @@ a:hover {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(13, 17, 23, 0.85);
+    background: rgba(13, 17, 23, 0.9); /* Slightly more opaque */
     padding: 10px;
+    display: flex; /* Use flex for layout */
+    flex-direction: column; /* Stack elements vertically */
+    justify-content: center; /* Center vertically */
+    align-items: center; /* Center horizontally */
     text-align: center;
     box-sizing: border-box;
     z-index: 20;
@@ -554,8 +584,8 @@ a:hover {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
 }
 
 .winner-header {
@@ -574,6 +604,10 @@ a:hover {
     margin-right: 10px;
     object-fit: cover;
 }
+.winner-header h3 { /* Style winner name */
+    margin: 0;
+    font-size: 1.1rem;
+}
 
 .winner-details {
     margin-top: 5px;
@@ -584,6 +618,11 @@ a:hover {
     margin: 3px 0;
     font-size: 0.9rem;
 }
+.winner-details span { /* Style values */
+    color: var(--primary-light);
+    font-weight: bold;
+}
+
 
 .congrats {
     font-size: 1.2rem !important;
@@ -596,9 +635,9 @@ a:hover {
 }
 
 @keyframes colorCycle {
-    0% { color: var(--primary-color); }
-    50% { color: var(--secondary-color); }
-    100% { color: var(--primary-color); }
+    0% { color: var(--primary-color); text-shadow: 0 0 5px var(--primary-color); }
+    50% { color: var(--secondary-light); text-shadow: 0 0 5px var(--secondary-light); }
+    100% { color: var(--primary-color); text-shadow: 0 0 5px var(--primary-color); }
 }
 
 /* Return Button */
@@ -629,7 +668,7 @@ a:hover {
     position: absolute;
     width: 8px;
     height: 8px;
-    background-color: var(--color);
+    background-color: var(--color); /* Color set dynamically */
     top: -20px;
     opacity: 0.9;
     animation: confettiFall 3s linear infinite;
@@ -641,16 +680,19 @@ a:hover {
         opacity: 0.9;
     }
     100% {
-        transform: translateY(150px) rotateZ(720deg);
+        transform: translateY(160px) rotateZ(720deg); /* Fall further */
         opacity: 0;
     }
 }
+
 
 .deposit-button-container {
     padding: 20px;
     background-color: var(--background-medium);
     z-index: 5;
     position: relative;
+    border-top: 1px solid var(--border-color); /* Add separator */
+    border-radius: 0 0 12px 12px; /* Match main section rounding */
 }
 
 .current-items-section {
@@ -672,12 +714,13 @@ a:hover {
 
 .empty-pot-message {
     text-align: center;
-    padding: 20px;
+    padding: 40px 20px; /* More padding */
     color: var(--text-secondary);
     font-size: 1.1rem;
     background-color: var(--background-light);
     border-radius: 8px;
     border: 1px dashed var(--border-color);
+    display: block; /* Ensure it's visible when needed */
 }
 
 .participants-container {
@@ -722,14 +765,20 @@ a:hover {
 
 .participant-details {
     flex: 1;
+    min-width: 0; /* Prevent flex item overflow */
 }
+
 
 .participant-name {
     font-weight: 600;
     font-size: 1.1rem;
     color: var(--text-primary);
     display: block;
+    white-space: nowrap; /* Prevent wrapping */
+    overflow: hidden; /* Hide overflow */
+    text-overflow: ellipsis; /* Add ellipsis */
 }
+
 
 .participant-stats {
     display: flex;
@@ -755,6 +804,7 @@ a:hover {
 
 .item {
     position: relative;
+    width: 80px; /* Smaller items */
     border-radius: 4px;
     overflow: hidden;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
@@ -763,14 +813,17 @@ a:hover {
     border: 1px solid var(--border-color);
 }
 
+
 .item:hover {
     transform: scale(1.05);
 }
 
 .item img {
-    width: 100px;
-    height: auto;
+    width: 100%;
+    height: 60px; /* Smaller image */
+    object-fit: contain; /* Use contain to see full image */
     display: block;
+    background-color: var(--background-dark); /* Darker bg for items */
 }
 
 .item-value {
@@ -780,8 +833,8 @@ a:hover {
     right: 0;
     background-color: rgba(0, 0, 0, 0.7);
     color: var(--primary-color);
-    padding: 4px 8px;
-    font-size: 0.9rem;
+    padding: 3px 5px; /* Smaller padding */
+    font-size: 0.8rem; /* Smaller font */
     font-weight: 600;
     text-align: center;
 }
@@ -833,6 +886,10 @@ a:hover {
     width: 18px;
     height: 18px;
     accent-color: var(--primary-color);
+    cursor: pointer;
+}
+.checkbox-container label {
+    cursor: pointer;
 }
 
 .verify-form {
@@ -848,8 +905,27 @@ a:hover {
     padding: 15px;
     border-radius: 4px;
     background-color: var(--background-light);
-    display: none;
+    display: none; /* Hidden until populated */
+    border: 1px solid var(--border-color);
+    line-height: 1.5;
 }
+#verification-result.loading { background-color: var(--background-medium); border-color: var(--secondary-light); }
+#verification-result.success { background-color: rgba(0, 230, 118, 0.1); border-color: var(--success-color); }
+#verification-result.error { background-color: rgba(244, 67, 54, 0.1); border-color: var(--error-color); }
+
+#verification-result h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: var(--primary-color);
+}
+#verification-result p {
+    margin-bottom: 8px;
+    word-wrap: break-word; /* Wrap long seeds/hashes */
+}
+#verification-result strong {
+    color: var(--text-primary);
+}
+
 
 /* Inventory styles */
 .inventory-container {
@@ -858,7 +934,7 @@ a:hover {
 
 .inventory-items {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); /* Slightly smaller min */
     gap: 10px;
     max-height: 300px;
     overflow-y: auto;
@@ -873,33 +949,42 @@ a:hover {
     border-radius: 4px;
     overflow: hidden;
     cursor: pointer;
-    transition: transform 0.3s ease, border-color 0.3s ease;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
     border: 2px solid transparent;
+    display: flex; /* Flex column for better layout */
+    flex-direction: column;
 }
 
+
 .inventory-item:hover {
-    transform: translateY(-2px);
+    transform: translateY(-3px); /* Slightly more lift */
 }
 
 .inventory-item.selected {
     border-color: var(--primary-color);
-    box-shadow: 0 0 15px rgba(0, 230, 118, 0.3);
+    box-shadow: 0 0 15px rgba(0, 230, 118, 0.4);
+    transform: scale(1.03); /* Slight scale */
 }
 
 .inventory-item img {
     width: 100%;
-    height: 100px;
+    height: 80px; /* Fixed height */
     object-fit: contain;
-    background-color: var(--background-light);
+    background-color: var(--background-dark); /* Darker background */
     display: block;
+    border-bottom: 1px solid var(--border-color); /* Separator */
 }
 
 .item-details {
     padding: 8px;
+    flex-grow: 1; /* Allow details to take remaining space */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Push value to bottom */
 }
 
 .item-name {
-    font-size: 0.9rem;
+    font-size: 0.85rem; /* Slightly smaller */
     font-weight: 600;
     color: var(--text-primary);
     white-space: nowrap;
@@ -908,15 +993,24 @@ a:hover {
     margin-bottom: 3px;
 }
 
-.item-value {
+.item-value { /* This class is used in multiple places, ensure specificity if needed */
     font-size: 0.85rem;
     font-weight: 700;
     color: var(--primary-color);
+    text-align: right; /* Align value to right */
 }
+
 
 .selected-items {
     margin-top: 20px;
 }
+.selected-items h3 { /* Style the heading */
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+
 
 .selected-items-container {
     display: flex;
@@ -932,7 +1026,7 @@ a:hover {
 
 .selected-item {
     position: relative;
-    width: 100px;
+    width: 80px; /* Smaller selected items */
     border-radius: 4px;
     overflow: hidden;
     background-color: var(--background-medium);
@@ -941,9 +1035,9 @@ a:hover {
 
 .selected-item img {
     width: 100%;
-    height: 70px;
+    height: 60px;
     object-fit: contain;
-    background-color: var(--background-light);
+    background-color: var(--background-dark);
     display: block;
 }
 
@@ -969,15 +1063,17 @@ a:hover {
     border-radius: 50%;
     border: none;
     font-size: 10px;
+    line-height: 18px; /* Center the 'x' */
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.2s ease;
+    transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .remove-item:hover {
     background-color: var(--error-color);
+    transform: scale(1.1);
 }
 
 .total-value {
@@ -989,6 +1085,7 @@ a:hover {
     border: 1px solid var(--border-color);
     margin-top: 10px;
     font-weight: 600;
+    font-size: 1.1rem; /* Slightly larger */
 }
 
 .total-value span:last-child {
@@ -1003,10 +1100,12 @@ a:hover {
     align-items: center;
     justify-content: center;
     padding: 30px;
-    background-color: var(--background-light);
+    background-color: transparent; /* Make background transparent */
     border-radius: 8px;
-    margin-bottom: 20px;
+    margin: 20px 0; /* Add margin */
+    color: var(--text-secondary);
 }
+
 
 .spinner {
     width: 40px;
@@ -1025,53 +1124,72 @@ a:hover {
 
 /* Timer animations */
 .timer-pulse {
-    animation: timerPulse 2s infinite;
+    animation: timerPulse 2s infinite ease-in-out;
 }
 
 .urgent-pulse {
-    animation: urgentPulse 0.5s infinite;
-    color: #ff3366 !important;
+    animation: urgentPulse 0.6s infinite ease-in-out;
+    color: var(--error-color) !important; /* Use error color */
 }
 
 @keyframes timerPulse {
-    0% { opacity: 1; }
+    0%, 100% { opacity: 1; }
     50% { opacity: 0.7; }
-    100% { opacity: 1; }
 }
 
 @keyframes urgentPulse {
-    0% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.8; transform: scale(1.1); }
-    100% { opacity: 1; transform: scale(1); }
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.08); } /* Slightly larger scale */
 }
+
 
 /* FAQ & Provably Fair styles */
 .faq-item, .fair-section {
     margin-bottom: 30px;
+    border-bottom: 1px solid var(--border-color); /* Add separator */
+    padding-bottom: 20px;
+}
+.faq-item:last-child, .fair-section:last-child {
+    border-bottom: none; /* Remove border on last item */
+    margin-bottom: 0;
+    padding-bottom: 0;
 }
 
 .faq-question, .fair-title {
     font-size: 1.2rem;
     font-weight: 700;
     color: var(--primary-color);
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border-color);
-    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: none; /* Remove double border */
+    margin-bottom: 10px;
     display: block;
+    cursor: pointer; /* Indicate clickable if using collapse */
 }
 
 .faq-answer, .fair-content {
     padding: 0 10px;
+    color: var(--text-secondary); /* Lighter text for content */
+}
+.faq-answer p, .fair-content p {
+    margin-bottom: 10px;
 }
 
 .fair-content ul, .fair-content ol {
     margin: 15px 0;
-    padding-left: 20px;
+    padding-left: 25px; /* More indentation */
 }
 
 .fair-content li {
     margin-bottom: 10px;
 }
+.fair-content code { /* Style code blocks */
+    background-color: var(--background-dark);
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--secondary-light);
+}
+
 
 /* Rounds table */
 .rounds-table-container {
@@ -1082,12 +1200,14 @@ a:hover {
 .rounds-table {
     width: 100%;
     border-collapse: collapse;
+    font-size: 0.9rem; /* Slightly smaller table font */
 }
 
 .rounds-table th, .rounds-table td {
-    padding: 12px 15px;
+    padding: 10px 12px; /* Adjust padding */
     text-align: left;
     border-bottom: 1px solid var(--border-color);
+    white-space: nowrap; /* Prevent wrapping in cells */
 }
 
 .rounds-table th {
@@ -1095,39 +1215,56 @@ a:hover {
     color: var(--primary-color);
     font-weight: 600;
     text-transform: uppercase;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
 }
 
-.rounds-table tr:hover {
+.rounds-table tbody tr:hover {
     background-color: var(--background-light);
+}
+.rounds-table td:last-child {
+    white-space: normal; /* Allow buttons to wrap if needed */
 }
 
 .pagination {
     display: flex;
     justify-content: center;
-    gap: 10px;
+    align-items: center;
+    gap: 8px; /* Reduced gap */
     margin-top: 20px;
 }
 
 .page-button {
-    padding: 8px 12px;
+    padding: 6px 10px; /* Smaller buttons */
     background-color: var(--background-light);
     border: 1px solid var(--border-color);
     border-radius: 4px;
     color: var(--text-primary);
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
 }
 
-.page-button:hover {
+.page-button:hover:not(:disabled) {
     background-color: var(--primary-dark);
     color: var(--background-dark);
+    border-color: var(--primary-dark);
 }
 
 .page-button.active {
     background-color: var(--primary-color);
     color: var(--background-dark);
+    border-color: var(--primary-color);
+    cursor: default;
 }
+.page-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.page-ellipsis {
+    color: var(--text-secondary);
+    padding: 6px 0;
+}
+
 
 /* Modals */
 .modal {
@@ -1136,71 +1273,85 @@ a:hover {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.8);
-    display: none;
+    background-color: rgba(0, 0, 0, 0.85); /* Darker overlay */
+    display: none; /* Use JS to toggle */
     justify-content: center;
     align-items: center;
     z-index: 1000;
+    padding: 20px; /* Add padding for smaller screens */
 }
 
 .modal.active {
-    display: flex;
+    display: flex; /* Toggled by JS */
 }
+
 
 .modal-content {
     background-color: var(--background-medium);
     border-radius: 12px;
-    width: 90%;
-    max-width: 600px;
+    width: 100%; /* Full width on small screens */
+    max-width: 700px; /* Increased max width */
     max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    display: flex; /* Use flex */
+    flex-direction: column; /* Stack header/body/footer */
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
     border: 1px solid var(--border-color);
-    animation: modalIn 0.5s ease;
+    animation: modalIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 @keyframes modalIn {
-    from { opacity: 0; transform: translateY(-50px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: scale(0.9) translateY(-20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .modal-header {
-    padding: 20px;
+    padding: 15px 20px; /* Adjust padding */
     border-bottom: 1px solid var(--border-color);
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: linear-gradient(135deg, var(--background-medium), var(--background-light));
+    flex-shrink: 0; /* Prevent header shrinking */
 }
+
 
 .modal-header h2 {
     margin: 0;
     color: var(--primary-color);
-    font-size: 1.5rem;
+    font-size: 1.4rem; /* Adjust size */
 }
 
 .close-btn {
     background: none;
     border: none;
     color: var(--text-secondary);
-    font-size: 1.5rem;
+    font-size: 1.8rem; /* Larger close button */
+    line-height: 1; /* Align better */
     cursor: pointer;
-    transition: color 0.3s ease;
+    transition: color 0.3s ease, transform 0.3s ease;
 }
 
 .close-btn:hover {
     color: var(--primary-color);
+    transform: rotate(90deg);
 }
 
 .modal-body {
     padding: 20px;
+    overflow-y: auto; /* Scroll only body */
+    flex-grow: 1; /* Allow body to take available space */
 }
 
+
 .modal-footer {
-    padding: 20px;
+    padding: 15px 20px;
     border-top: 1px solid var(--border-color);
     text-align: right;
+    background-color: var(--background-light); /* Footer background */
+    border-radius: 0 0 12px 12px;
+    flex-shrink: 0; /* Prevent footer shrinking */
 }
+
 
 /* Footer */
 .main-footer {
@@ -1209,69 +1360,63 @@ a:hover {
     padding: 20px 0;
     margin-top: 50px;
     border-top: 1px solid var(--border-color);
+    font-size: 0.9rem;
+    color: var(--text-secondary);
 }
+
 
 /* Responsive styles */
 @media (max-width: 768px) {
     .jackpot-header {
-        flex-direction: column;
-        height: auto;
-        gap: 15px;
-    }
-    
-    .jackpot-timer {
-        margin-left: 0;
-    }
-    
-    .jackpot-stats {
-        text-align: center;
-    }
-    
-    .winner-info {
-        width: 90%;
-    }
-    
-    .inventory-items {
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        /* Keep flex-row but allow wrap */
+        /* min-height is already set */
+        padding: 15px;
+        gap: 10px;
     }
 
-    .roulette-item {
-        width: 70px;
-        height: 70px;
+    .jackpot-value h2 { font-size: 2rem; }
+    .timer-circle { width: 70px; height: 70px; }
+    .timer-text { font-size: 1.4rem; }
+    .stat-value { font-size: 1.3rem; }
+    .value-label, .timer-label, .stat-label { font-size: 0.75rem; }
+
+    .winner-info { width: 90%; }
+
+    .inventory-items {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     }
-    
-    .profile-pic-container {
-        height: 40px;
-    }
-    
-    .roulette-name {
-        font-size: 9px;
-        max-width: 60px;
-    }
-    
-    .roulette-percentage {
-        font-size: 8px;
-    }
-    
-    .winner-avatar {
-        width: 30px;
-        height: 30px;
-    }
-    
-    .winner-details p {
-        font-size: 0.8rem;
-    }
-    
-    .congrats {
-        font-size: 1rem !important;
-    }
+    .inventory-item img { height: 70px; }
+
+    .roulette-item { width: 70px; height: 70px; }
+    .profile-pic-container { height: 40px; }
+    .roulette-name { font-size: 9px; max-width: 60px; }
+    .roulette-percentage { font-size: 8px; }
+
+    .winner-avatar { width: 30px; height: 30px; }
+    .winner-details p { font-size: 0.8rem; }
+    .congrats { font-size: 1rem !important; }
+
+    .modal-content { max-width: 95%; }
+    .modal-header h2 { font-size: 1.2rem; }
+    .main-nav { justify-content: flex-start; overflow-x: auto; } /* Allow nav scroll */
+    .user-controls { margin-left: 10px; } /* Reduce margin */
+}
+
+@media (max-width: 480px) {
+    .logo h1 { font-size: 1.5rem; }
+    .main-header .container { flex-wrap: wrap; } /* Allow header wrap */
+    .main-nav { order: 3; width: 100%; justify-content: center; margin-top: 10px; }
+    .user-controls { order: 2; margin-left: auto; }
+    .btn-deposit, .btn-secondary { font-size: 1rem; padding: 10px 20px; }
+    .item { width: 70px; }
+    .item img { height: 50px; }
+    .item-value { font-size: 0.7rem; padding: 2px 4px; }
+    .rounds-table th, .rounds-table td { padding: 8px 6px; font-size: 0.8rem;}
+    .btn-details, .btn-verify { font-size: 0.7rem; padding: 4px 6px;}
 }
 
 /* Make active page visible, others hidden */
 #home-page, #faq-page, #fair-page {
-    display: none;
+    display: none; /* JS controls visibility */
 }
-
-#home-page {
-    display: block;
-}
+/* Ensure the default page is displayed by JS using showPage() */
