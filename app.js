@@ -41,34 +41,31 @@ passport.use(new SteamStrategy({
     returnURL: `${process.env.SITE_URL}/auth/steam/return`,
     realm: process.env.SITE_URL,
     apiKey: process.env.STEAM_API_KEY
-}, function(identifier, profile, done) {
-    process.nextTick(function() {
-        // Find or create user in database
-        User.findOne({ steamId: profile.id }, function(err, user) {
-            if (err) return done(err);
-            
-            if (!user) {
-                user = new User({
-                    steamId: profile.id,
-                    username: profile.displayName,
-                    avatar: profile._json.avatarfull,
-                    tradeUrl: ''
-                });
-                user.save(function(err) {
-                    if (err) console.log(err);
-                    return done(err, user);
-                });
-            } else {
-                // Update user info if it changed
-                user.username = profile.displayName;
-                user.avatar = profile._json.avatarfull;
-                user.save(function(err) {
-                    if (err) console.log(err);
-                    return done(err, user);
-                });
-            }
-        });
-    });
+}, async function(identifier, profile, done) {
+    try {
+        const user = await User.findOne({ steamId: profile.id });
+        
+        if (!user) {
+            // Create new user
+            const newUser = new User({
+                steamId: profile.id,
+                username: profile.displayName,
+                avatar: profile._json.avatarfull,
+                tradeUrl: ''
+            });
+            await newUser.save();
+            return done(null, newUser);
+        } else {
+            // Update user info if it changed
+            user.username = profile.displayName;
+            user.avatar = profile._json.avatarfull;
+            await user.save();
+            return done(null, user);
+        }
+    } catch (err) {
+        console.error('Error during user lookup:', err);
+        return done(err);
+    }
 }));
 
 // Serialize user
@@ -77,10 +74,13 @@ passport.serializeUser(function(user, done) {
 });
 
 // Deserialize user
-passport.deserializeUser(function(id, done) {
-    User.findById(id, function(err, user) {
-        done(err, user);
-    });
+passport.deserializeUser(async function(id, done) {
+    try {
+        const user = await User.findById(id);
+        done(null, user);
+    } catch (err) {
+        done(err);
+    }
 });
 
 // Connect to MongoDB
@@ -146,7 +146,6 @@ const manager = new TradeOfferManager({
 });
 
 // Load Steam API credentials
- 
 community.login({
     accountName: process.env.STEAM_USERNAME,
     password: process.env.STEAM_PASSWORD,
@@ -156,14 +155,13 @@ community.login({
         console.log('Steam login error:', err);
         // Comment out or remove this line to continue even if Steam login fails
         // process.exit(1);
+    } else {
+        console.log('Steam bot logged in successfully');
+        
+        // Set cookies for manager
+        manager.setCookies(cookies);
     }
-    
-    console.log('Steam bot logged in successfully');
-    
-    // Set cookies for manager
-    manager.setCookies(cookies);
 });
-
 
 // Function to generate Steam auth code (you'll need to implement this with your 2FA shared secret)
 function generateAuthCode() {
@@ -383,8 +381,10 @@ app.get('/auth/steam/return',
 );
 
 app.get('/logout', function(req, res) {
-    req.logout();
-    res.redirect('/');
+    req.logout(function(err) {
+        if (err) { return next(err); }
+        res.redirect('/');
+    });
 });
 
 // API Routes
