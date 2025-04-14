@@ -1,4 +1,178 @@
-if (e.target === depositModal) {
+// Connect to socket.io server
+const socket = io();
+
+// DOM Elements - Navigation
+const homeLink = document.querySelector('.main-nav a.active');
+const faqLink = document.getElementById('faq-link');
+const fairLink = document.getElementById('fair-link');
+const homePage = document.getElementById('home-page');
+const faqPage = document.getElementById('faq-page');
+const fairPage = document.getElementById('fair-page');
+
+// DOM Elements - User
+const loginButton = document.getElementById('loginButton');
+const userProfile = document.getElementById('userProfile');
+const userAvatar = document.getElementById('userAvatar');
+const userName = document.getElementById('userName');
+
+// DOM Elements - Jackpot
+const potValue = document.getElementById('potValue');
+const timerValue = document.getElementById('timerValue');
+const timerForeground = document.querySelector('.timer-foreground');
+const participantCount = document.getElementById('participantCount');
+const participantsContainer = document.getElementById('participantsContainer');
+const emptyPotMessage = document.getElementById('emptyPotMessage');
+
+// DOM Elements - Deposit
+const showDepositModal = document.getElementById('showDepositModal');
+const depositModal = document.getElementById('depositModal');
+const closeDepositModal = document.getElementById('closeDepositModal');
+const depositButton = document.getElementById('depositButton');
+const inventoryItems = document.getElementById('inventory-items');
+const selectedItems = document.getElementById('selectedItems');
+const totalValue = document.getElementById('totalValue');
+const inventoryLoading = document.getElementById('inventory-loading');
+
+// DOM Elements - Trade URL
+const tradeUrlModal = document.getElementById('tradeUrlModal');
+const closeTradeUrlModal = document.getElementById('closeTradeUrlModal');
+const tradeUrlInput = document.getElementById('tradeUrlInput');
+const saveTradeUrl = document.getElementById('saveTradeUrl');
+
+// DOM Elements - Roulette
+const jackpotHeader = document.getElementById('jackpotHeader');
+const inlineRoulette = document.getElementById('inlineRoulette');
+const rouletteTrack = document.getElementById('rouletteTrack');
+const winnerInfo = document.getElementById('winnerInfo');
+const winnerAvatar = document.getElementById('winnerAvatar');
+const winnerName = document.getElementById('winnerName');
+const winnerDeposit = document.getElementById('winnerDeposit');
+const winnerChance = document.getElementById('winnerChance');
+const returnToJackpot = document.getElementById('returnToJackpot');
+const confettiContainer = document.getElementById('confettiContainer');
+const spinSound = document.getElementById('spinSound');
+
+// DOM Elements - Test Button
+const testSpinButton = document.getElementById('testSpinButton');
+
+// DOM Elements - Provably Fair
+const verifyBtn = document.getElementById('verify-btn');
+const roundsTableBody = document.getElementById('rounds-table-body');
+const roundsPagination = document.getElementById('rounds-pagination');
+
+// Age Verification
+const ageVerificationModal = document.getElementById('ageVerificationModal');
+const agreeCheckbox = document.getElementById('agreeCheckbox');
+const agreeButton = document.getElementById('agreeButton');
+
+// Constants
+const ROULETTE_REPETITIONS = 30; // How many times to repeat participant list
+const SPIN_DURATION_SECONDS = 8; // How long the spin animation lasts
+const CONFETTI_COUNT = 100; // Number of confetti particles
+
+// App State
+let currentUser = null;
+let currentRound = null;
+let selectedItemsList = [];
+let userInventory = [];
+let isSpinning = false;
+
+// Initialize the application
+document.addEventListener('DOMContentLoaded', function() {
+    // Check for age verification in local storage
+    if (!localStorage.getItem('ageVerified')) {
+        showModal(ageVerificationModal);
+    }
+    
+    // Check if user is logged in
+    checkLoginStatus();
+    
+    // Setup event listeners
+    setupEventListeners();
+    
+    // Connect to socket for real-time updates
+    setupSocketConnection();
+});
+
+// Setup event listeners
+function setupEventListeners() {
+    // Navigation
+    homeLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        showPage(homePage);
+    });
+    
+    faqLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        showPage(faqPage);
+    });
+    
+    fairLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        showPage(fairPage);
+    });
+    
+    // Login
+    loginButton.addEventListener('click', () => {
+        window.location.href = '/auth/steam';
+    });
+    
+    // Deposit
+    showDepositModal.addEventListener('click', () => {
+        if (!currentUser) {
+            alert('Please log in first');
+            return;
+        }
+        
+        // Check if user has set trade URL
+        if (!currentUser.tradeUrl) {
+            showModal(tradeUrlModal);
+            return;
+        }
+        
+        showModal(depositModal);
+        loadUserInventory();
+    });
+    
+    closeDepositModal.addEventListener('click', () => {
+        hideModal(depositModal);
+    });
+    
+    depositButton.addEventListener('click', submitDeposit);
+    
+    // Trade URL
+    closeTradeUrlModal.addEventListener('click', () => {
+        hideModal(tradeUrlModal);
+    });
+    
+    saveTradeUrl.addEventListener('click', saveUserTradeUrl);
+    
+    // Age Verification
+    agreeCheckbox.addEventListener('change', () => {
+        agreeButton.disabled = !agreeCheckbox.checked;
+    });
+    
+    agreeButton.addEventListener('click', () => {
+        localStorage.setItem('ageVerified', 'true');
+        hideModal(ageVerificationModal);
+    });
+    
+    // Roulette
+    returnToJackpot.addEventListener('click', resetToJackpotView);
+    
+    // Test Spin Button
+    if (testSpinButton) {
+        testSpinButton.addEventListener('click', testRouletteAnimation);
+    }
+    
+    // Provably Fair
+    if (verifyBtn) {
+        verifyBtn.addEventListener('click', verifyRound);
+    }
+    
+    // Handle clicks outside modals
+    window.addEventListener('click', (e) => {
+        if (e.target === depositModal) {
             hideModal(depositModal);
         }
         if (e.target === tradeUrlModal) {
@@ -129,7 +303,7 @@ function displayInventoryItems() {
             <img src="${item.image}" alt="${item.name}" onerror="this.src='/img/default-item.png'">
             <div class="item-details">
                 <div class="item-name">${item.name}</div>
-                <div class="item-value">${item.price.toFixed(2)}</div>
+                <div class="item-value">$${item.price.toFixed(2)}</div>
             </div>
         `;
         
@@ -157,7 +331,7 @@ function toggleItemSelection(element, item) {
             <button class="remove-item" data-asset-id="${item.assetId}">&times;</button>
             <img src="${item.image}" alt="${item.name}" onerror="this.src='/img/default-item.png'">
             <div class="selected-item-details">
-                <div class="selected-item-value">${item.price.toFixed(2)}</div>
+                <div class="selected-item-value">$${item.price.toFixed(2)}</div>
             </div>
         `;
         
@@ -197,7 +371,7 @@ function removeSelectedItem(assetId) {
 // Update total value display
 function updateTotalValue() {
     const total = selectedItemsList.reduce((sum, item) => sum + item.price, 0);
-    totalValue.textContent = `${total.toFixed(2)}`;
+    totalValue.textContent = `$${total.toFixed(2)}`;
     
     // Update deposit button state
     depositButton.disabled = selectedItemsList.length === 0;
@@ -297,7 +471,7 @@ function updateRoundUI() {
     if (!currentRound) return;
     
     // Update pot value
-    potValue.textContent = `${currentRound.totalValue.toFixed(2)}`;
+    potValue.textContent = `$${currentRound.totalValue.toFixed(2)}`;
     
     // Update timer
     updateTimerUI(currentRound.timeLeft);
@@ -363,7 +537,7 @@ function updateParticipantsUI() {
 function updateParticipantUI(data) {
     // Update total pot value
     currentRound.totalValue = data.totalValue;
-    potValue.textContent = `${data.totalValue.toFixed(2)}`;
+    potValue.textContent = `$${data.totalValue.toFixed(2)}`;
     
     // Check if participant already exists
     let found = false;
@@ -417,7 +591,7 @@ function createParticipantElement(participant, items) {
             <div class="participant-details">
                 <span class="participant-name">${participant.user.username}</span>
                 <div class="participant-stats">
-                    <span class="participant-value">${participant.itemsValue.toFixed(2)}</span>
+                    <span class="participant-value">$${participant.itemsValue.toFixed(2)}</span>
                     <span class="participant-percentage">${percentage}%</span>
                 </div>
             </div>
@@ -435,7 +609,7 @@ function createParticipantElement(participant, items) {
             itemElement.className = 'item';
             itemElement.innerHTML = `
                 <img src="${item.image}" alt="${item.name}" onerror="this.src='/img/default-item.png'">
-                <span class="item-value">${item.price.toFixed(2)}</span>
+                <span class="item-value">$${item.price.toFixed(2)}</span>
             `;
             itemsElement.appendChild(itemElement);
         });
@@ -506,7 +680,7 @@ function testRouletteAnimation() {
         };
         
         // Update UI to reflect test data
-        potValue.textContent = `${currentRound.totalValue.toFixed(2)}`;
+        potValue.textContent = `$${currentRound.totalValue.toFixed(2)}`;
         participantCount.textContent = `${currentRound.participants.length}/200`;
         
         // Update participants container
@@ -644,7 +818,7 @@ function handleSpinEnd(winningElement, winner) {
         winnerAvatar.src = winner.user.avatar || '/img/default-avatar.png';
         winnerAvatar.alt = winner.user.username;
         winnerName.textContent = winner.user.username;
-        winnerDeposit.textContent = `${winner.value.toFixed(2)}`;
+        winnerDeposit.textContent = `$${winner.value.toFixed(2)}`;
         winnerChance.textContent = `${winner.percentage.toFixed(2)}%`;
         
         // Show winner info and return button
@@ -720,7 +894,7 @@ function createRouletteItems() {
             const picContainer = document.createElement('div');
             picContainer.className = 'profile-pic-container';
             
-            const img = document.createElement('img');
+            const img = document..createElement('img');
             img.className = 'roulette-avatar';
             img.src = participant.user.avatar || '/img/default-avatar.png';
             img.alt = participant.user.username;
@@ -890,7 +1064,7 @@ function createPagination(currentPage, totalPages) {
 }
 
 // Verify round fairness
-function verifyRound() {
+async function verifyRound() {
     const roundId = document.getElementById('round-id').value;
     const serverSeed = document.getElementById('server-seed').value;
     const clientSeed = document.getElementById('client-seed').value;
@@ -1090,178 +1264,5 @@ function shuffleArray(array) {
 window.showRoundDetails = function(roundId) {
     // Implement round details modal
     showNotification('Round Details', `Round details for #${roundId} would be shown here`);
-};// Connect to socket.io server
-const socket = io();
+};
 
-// DOM Elements - Navigation
-const homeLink = document.querySelector('.main-nav a.active');
-const faqLink = document.getElementById('faq-link');
-const fairLink = document.getElementById('fair-link');
-const homePage = document.getElementById('home-page');
-const faqPage = document.getElementById('faq-page');
-const fairPage = document.getElementById('fair-page');
-
-// DOM Elements - User
-const loginButton = document.getElementById('loginButton');
-const userProfile = document.getElementById('userProfile');
-const userAvatar = document.getElementById('userAvatar');
-const userName = document.getElementById('userName');
-
-// DOM Elements - Jackpot
-const potValue = document.getElementById('potValue');
-const timerValue = document.getElementById('timerValue');
-const timerForeground = document.querySelector('.timer-foreground');
-const participantCount = document.getElementById('participantCount');
-const participantsContainer = document.getElementById('participantsContainer');
-const emptyPotMessage = document.getElementById('emptyPotMessage');
-
-// DOM Elements - Deposit
-const showDepositModal = document.getElementById('showDepositModal');
-const depositModal = document.getElementById('depositModal');
-const closeDepositModal = document.getElementById('closeDepositModal');
-const depositButton = document.getElementById('depositButton');
-const inventoryItems = document.getElementById('inventory-items');
-const selectedItems = document.getElementById('selectedItems');
-const totalValue = document.getElementById('totalValue');
-const inventoryLoading = document.getElementById('inventory-loading');
-
-// DOM Elements - Trade URL
-const tradeUrlModal = document.getElementById('tradeUrlModal');
-const closeTradeUrlModal = document.getElementById('closeTradeUrlModal');
-const tradeUrlInput = document.getElementById('tradeUrlInput');
-const saveTradeUrl = document.getElementById('saveTradeUrl');
-
-// DOM Elements - Roulette
-const jackpotHeader = document.getElementById('jackpotHeader');
-const inlineRoulette = document.getElementById('inlineRoulette');
-const rouletteTrack = document.getElementById('rouletteTrack');
-const winnerInfo = document.getElementById('winnerInfo');
-const winnerAvatar = document.getElementById('winnerAvatar');
-const winnerName = document.getElementById('winnerName');
-const winnerDeposit = document.getElementById('winnerDeposit');
-const winnerChance = document.getElementById('winnerChance');
-const returnToJackpot = document.getElementById('returnToJackpot');
-const confettiContainer = document.getElementById('confettiContainer');
-const spinSound = document.getElementById('spinSound');
-
-// DOM Elements - Test Button
-const testSpinButton = document.getElementById('testSpinButton');
-
-// DOM Elements - Provably Fair
-const verifyBtn = document.getElementById('verify-btn');
-const roundsTableBody = document.getElementById('rounds-table-body');
-const roundsPagination = document.getElementById('rounds-pagination');
-
-// Age Verification
-const ageVerificationModal = document.getElementById('ageVerificationModal');
-const agreeCheckbox = document.getElementById('agreeCheckbox');
-const agreeButton = document.getElementById('agreeButton');
-
-// Constants
-const ROULETTE_REPETITIONS = 30; // How many times to repeat participant list
-const SPIN_DURATION_SECONDS = 8; // How long the spin animation lasts
-const CONFETTI_COUNT = 100; // Number of confetti particles
-
-// App State
-let currentUser = null;
-let currentRound = null;
-let selectedItemsList = [];
-let userInventory = [];
-let isSpinning = false;
-
-// Initialize the application
-document.addEventListener('DOMContentLoaded', function() {
-    // Check for age verification in local storage
-    if (!localStorage.getItem('ageVerified')) {
-        showModal(ageVerificationModal);
-    }
-    
-    // Check if user is logged in
-    checkLoginStatus();
-    
-    // Setup event listeners
-    setupEventListeners();
-    
-    // Connect to socket for real-time updates
-    setupSocketConnection();
-});
-
-// Setup event listeners
-function setupEventListeners() {
-    // Navigation
-    homeLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        showPage(homePage);
-    });
-    
-    faqLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        showPage(faqPage);
-    });
-    
-    fairLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        showPage(fairPage);
-    });
-    
-    // Login
-    loginButton.addEventListener('click', () => {
-        window.location.href = '/auth/steam';
-    });
-    
-    // Deposit
-    showDepositModal.addEventListener('click', () => {
-        if (!currentUser) {
-            alert('Please log in first');
-            return;
-        }
-        
-        // Check if user has set trade URL
-        if (!currentUser.tradeUrl) {
-            showModal(tradeUrlModal);
-            return;
-        }
-        
-        showModal(depositModal);
-        loadUserInventory();
-    });
-    
-    closeDepositModal.addEventListener('click', () => {
-        hideModal(depositModal);
-    });
-    
-    depositButton.addEventListener('click', submitDeposit);
-    
-    // Trade URL
-    closeTradeUrlModal.addEventListener('click', () => {
-        hideModal(tradeUrlModal);
-    });
-    
-    saveTradeUrl.addEventListener('click', saveUserTradeUrl);
-    
-    // Age Verification
-    agreeCheckbox.addEventListener('change', () => {
-        agreeButton.disabled = !agreeCheckbox.checked;
-    });
-    
-    agreeButton.addEventListener('click', () => {
-        localStorage.setItem('ageVerified', 'true');
-        hideModal(ageVerificationModal);
-    });
-    
-    // Roulette
-    returnToJackpot.addEventListener('click', resetToJackpotView);
-    
-    // Test Spin Button
-    if (testSpinButton) {
-        testSpinButton.addEventListener('click', testRouletteAnimation);
-    }
-    
-    // Provably Fair
-    if (verifyBtn) {
-        verifyBtn.addEventListener('click', verifyRound);
-    }
-    
-    // Handle clicks outside modals
-    window.addEventListener('click', (e) => {
-        if (e.target === depositModal) {
