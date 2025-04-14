@@ -167,32 +167,39 @@
                                 <span class="stat-label">PARTICIPANTS</span>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="inline-roulette" id="inlineRoulette">
-                         <div class="roulette-container">
-                            <div class="roulette-track" id="rouletteTrack">
-                                <!-- Roulette items will be added dynamically -->
+                        
+                        <!-- Inline roulette container (placed inside header) -->
+                        <div class="inline-roulette" id="inlineRoulette">
+                            <div class="roulette-container">
+                                <div class="roulette-track" id="rouletteTrack">
+                                    <!-- Roulette items will be added dynamically -->
+                                </div>
+                                <div class="roulette-ticker">
+                                    <div class="ticker-line"></div>
+                                    <div class="ticker-arrow"></div>
+                                </div>
                             </div>
-                            <div class="roulette-ticker">
-                                <div class="ticker-line"></div>
-                                <div class="ticker-arrow"></div>
-                             </div>
-                         </div>
-                         <div class="winner-info" id="winnerInfo" style="display: none;">
-                            <div class="winner-header">
-                                <img src="" alt="Winner Avatar" class="winner-avatar" id="winnerAvatar">
-                                <h3 id="winnerName">WINNER NAME</h3>
+                            
+                            <!-- Winner info overlay -->
+                            <div class="winner-info" id="winnerInfo">
+                                <div class="winner-header">
+                                    <img src="" alt="Winner Avatar" class="winner-avatar" id="winnerAvatar">
+                                    <h3 id="winnerName">WINNER NAME</h3>
+                                </div>
+                                <div class="winner-details">
+                                    <p>Deposited: <span id="winnerDeposit">$0.00</span></p>
+                                    <p>Chance: <span id="winnerChance">0.00%</span></p>
+                                    <p class="congrats">Congratulations!</p>
+                                </div>
+                                <div class="confetti-container" id="confettiContainer"></div>
                             </div>
-                            <div class="winner-details">
-                                <p>Deposited: <span id="winnerDeposit">$0.00</span></p>
-                                <p>Chance: <span id="winnerChance">0.00%</span></p>
-                                <p class="congrats">Congratulations!</p>
-                            </div>
-                            <div class="confetti-container" id="confettiContainer"></div>
+                            
+                            <!-- Sound effect for spin animation -->
+                            <audio id="spinSound" src="audio/spin-sound.mp3" preload="auto"></audio>
+                            
+                            <!-- Return button (can be hidden as animation auto-resets) -->
+                            <button class="btn btn-primary return-btn" id="returnToJackpot">Return to Jackpot</button>
                         </div>
-                         <audio id="spinSound" src="audio/spin-sound.mp3" preload="auto"></audio>
-                         <button class="btn btn-primary return-btn" id="returnToJackpot" style="display: none;">Return to Jackpot</button>
                     </div>
 
                     <div class="deposit-button-container" id="depositBtnContainer">
