@@ -66,9 +66,16 @@ const agreeButton = document.getElementById('agreeButton');
 
 // Constants
 const ROULETTE_REPETITIONS = 20; // How many times to repeat participant list
-const SPIN_DURATION_SECONDS = 10; // Changed to 10 seconds as requested
-const WINNER_DISPLAY_DURATION = 7000; // Changed to 7 seconds as requested
+const SPIN_DURATION_SECONDS = 15; // Increased from 10 to 15 seconds for a more dramatic effect
+const WINNER_DISPLAY_DURATION = 7000; // 7 seconds as requested
 const CONFETTI_COUNT = 120; // Number of confetti particles
+
+// Animation constants for enhanced roulette
+const INITIAL_SPEED_PHASE = 0.15; // First 15% is acceleration
+const CONSTANT_SPEED_PHASE = 0.65; // Middle 65% is constant speed
+const SLOWDOWN_PHASE = 0.20;     // Final 20% is dramatic slowdown
+const BOUNCE_COUNT = 3;          // Number of small bounces at the end
+const BOUNCE_AMPLITUDE = 0.05;   // Size of the bounces (5% of the animation distance)
 
 // User Color Map - 20 distinct colors for players
 const userColorMap = new Map();
@@ -104,6 +111,7 @@ let isSpinning = false;
 let timerActive = false;
 let roundTimer = null;
 let animationFrameId = null; // To store the requestAnimationFrame ID
+let spinStartTime = 0; // Track when the spin animation starts
 
 // --- Helper Functions ---
 function showModal(modalElement) {
@@ -167,31 +175,42 @@ async function showRoundDetails(roundId) {
     }
 }
 
-// Improved, smoother easing function inspired by Rustypots
-function enhancedEasing(t) {
-  // More pronounced easing for a smoother, slower animation
-  // This combines multiple easing functions for a more natural feel
+// Completely redesigned easing function for more dramatic and smooth animation
+function improvedEasing(t) {
+  // Phase 1: Acceleration (0-15% of time)
+  if (t < INITIAL_SPEED_PHASE) {
+    // Quadratic ease-in for smooth acceleration
+    return Math.pow(t / INITIAL_SPEED_PHASE, 2) * 0.2;
+  }
   
-  // Phase 1: Fast start (0-10%)
-  if (t < 0.1) {
-    return t * 10 * 0.5; // Accelerate quickly but not too fast
+  // Phase 2: Constant high speed (15-80% of time)
+  else if (t < INITIAL_SPEED_PHASE + CONSTANT_SPEED_PHASE) {
+    // Linear movement with normalized progress
+    const phaseProgress = (t - INITIAL_SPEED_PHASE) / CONSTANT_SPEED_PHASE;
+    return 0.2 + phaseProgress * 0.6; // Move from 20% to 80% during this phase
   }
-  // Phase 2: Constant speed (10-75%)
-  else if (t < 0.75) {
-    // Linear movement with slight acceleration
-    return 0.5 + (t - 0.1) * (0.85 / 0.65);
-  }
-  // Phase 3: Slow down (75-95%)
-  else if (t < 0.95) {
-    // Slow down gradually
-    const p = (t - 0.75) / 0.2;
-    return 0.85 + Math.sin(p * Math.PI / 2) * 0.13;
-  }
-  // Phase 4: Final settle with small bounce (95-100%)
+  
+  // Phase 3: Dramatic slowdown with bounces (80-100%)
   else {
-    const p = (t - 0.95) / 0.05;
-    // Small bounce at the end (very subtle)
-    return 0.98 + Math.sin(p * Math.PI) * 0.02;
+    // Calculate progress within slowdown phase
+    const phaseProgress = (t - (INITIAL_SPEED_PHASE + CONSTANT_SPEED_PHASE)) / SLOWDOWN_PHASE;
+    
+    // Base progress with cubic ease-out for natural slowdown
+    const baseProgress = 0.8 + (1 - Math.pow(1 - phaseProgress, 3)) * 0.2;
+    
+    // Add bouncing effect with decreasing amplitude
+    if (phaseProgress > 0.5) {
+      // Only add bounces in the latter half of the slowdown
+      const bounceFactor = (phaseProgress - 0.5) * 2; // Normalize to 0-1 range
+      const bounceDecay = 1 - bounceFactor; // Bounces get smaller over time
+      
+      // Create sine wave oscillation with decreasing amplitude
+      const bounceValue = Math.sin(bounceFactor * Math.PI * BOUNCE_COUNT) * BOUNCE_AMPLITUDE * bounceDecay;
+      
+      return baseProgress + bounceValue;
+    }
+    
+    return baseProgress;
   }
 }
 
@@ -314,6 +333,16 @@ function setupEventListeners() {
             // Optional: hide age modal on outside click only if already verified?
             // hideModal(ageVerificationModal);
          }
+    });
+
+    // Add keyboard event listeners for spinning
+    document.addEventListener('keydown', function(event) {
+        // Easter egg: Press spacebar to test the roulette while on home page
+        if (event.code === 'Space' && homePage.style.display === 'block' && !isSpinning) {
+            // Only if not already spinning
+            testRouletteAnimation();
+            event.preventDefault(); // Prevent page scrolling
+        }
     });
 }
 
@@ -615,7 +644,7 @@ function createParticipantElement(participant, items, totalPotValue) {
 
 // =================== ENHANCED ROULETTE ANIMATION ===================
 
-// Enhanced roulette item creation with consistent colors per user
+// Enhanced roulette item creation with consistent colors per user and more items for smoother animation
 function createRouletteItems() {
   if (!rouletteTrack || !inlineRoulette) { 
     console.error("Track or inline roulette element missing."); 
@@ -635,7 +664,9 @@ function createRouletteItems() {
   // Calculate tickets based on value ($0.01 = 1 ticket) or use server-provided tickets
   currentRound.participants.forEach(p => {
     const t = p.tickets !== undefined ? p.tickets : Math.max(1, Math.floor((p.itemsValue || 0) * 100));
-    for (let i = 0; i < t; i++) ticketPool.push(p);
+    // Create proportional representation for smoother animation
+    const ticketCount = Math.max(5, Math.ceil((t / Math.max(1, currentRound.totalValue * 100)) * 100));
+    for (let i = 0; i < ticketCount; i++) ticketPool.push(p);
   });
   
   if (ticketPool.length === 0) { 
@@ -643,19 +674,27 @@ function createRouletteItems() {
     return; 
   }
   
+  // Shuffle the initial pool for more randomness and visual interest
   ticketPool = shuffleArray([...ticketPool]);
 
-  // Estimate items needed based on view and duration
+  // Estimate items needed for smooth animation
   const container = inlineRoulette.querySelector('.roulette-container');
-  const containerWidth = container?.offsetWidth || 1000; // Estimate if needed
-  const estimatedItemWidth = 90 + 10; // Item width + margin
-  const minItemsToCreate = Math.max(Math.ceil(containerWidth / estimatedItemWidth) * 3, 200); // Ensure enough for visuals
-  const maxItemsToCreate = 1200; // Increased limit for better animation with longer duration
-
-  const totalItemsToCreate = Math.max(minItemsToCreate, Math.min(ticketPool.length * ROULETTE_REPETITIONS, maxItemsToCreate));
-
-  const fragment = document.createDocumentFragment();
-  for (let i = 0; i < totalItemsToCreate; i++) {
+  const containerWidth = container?.offsetWidth || 1000; // Fallback width if needed
+  const itemWidth = 90 + 10; // Item width + margin
+  
+  // Create significantly more items for the enhanced animation
+  // More items = smoother animation and more dramatic effect
+  const minItemsNeeded = Math.ceil(containerWidth / itemWidth) * 4; // At least 4 times the viewport width
+  const itemsForAnimation = Math.max(minItemsNeeded, 500); // At least 500 items for smooth animation
+  
+  console.log(`Creating ${itemsForAnimation} roulette items for smooth animation`);
+  
+  // Create items with optimal batching
+  const batchSize = 100; // Batch DOM updates for performance
+  let currentBatch = document.createDocumentFragment();
+  let batchCount = 0;
+  
+  for (let i = 0; i < itemsForAnimation; i++) {
     const participant = ticketPool[i % ticketPool.length]; 
     if (!participant || !participant.user) continue;
     
@@ -666,7 +705,7 @@ function createRouletteItems() {
     item.className = 'roulette-item';
     item.dataset.userId = userId;
     
-    // Apply user-specific color as custom style
+    // Apply user-specific color
     item.style.borderColor = userColor;
     
     const percentage = currentRound.totalValue > 0 ? 
@@ -685,11 +724,17 @@ function createRouletteItems() {
       </div>
     `;
     
-    fragment.appendChild(item);
+    currentBatch.appendChild(item);
+    
+    // Append batch when full or on last item
+    if (++batchCount === batchSize || i === itemsForAnimation - 1) {
+      rouletteTrack.appendChild(currentBatch);
+      currentBatch = document.createDocumentFragment();
+      batchCount = 0;
+    }
   }
   
-  rouletteTrack.appendChild(fragment); 
-  console.log(`Created ${totalItemsToCreate} items with consistent user colors.`);
+  console.log(`Created ${itemsForAnimation} items for smooth roulette animation.`);
 }
 
 function handleWinnerAnnouncement(data) {
@@ -698,7 +743,12 @@ function handleWinnerAnnouncement(data) {
     if (!data || !data.winner || !data.winner.id) { console.error("Invalid winner data."); resetToJackpotView(); return; }
     console.log(`Winner announced: ${data.winner.username}`);
     if (timerActive) { timerActive = false; clearInterval(roundTimer); roundTimer = null; console.log("Stopped client timer."); }
-    switchToRouletteView(); startRouletteAnimation(data);
+    switchToRouletteView(); 
+    
+    // Small delay before starting animation for dramatic effect
+    setTimeout(() => {
+      startRouletteAnimation(data);
+    }, 500);
 }
 
 // Initialize enhanced styles when switching to roulette view
@@ -712,29 +762,45 @@ function switchToRouletteView() {
   const timer = jackpotHeader.querySelector('.jackpot-timer');
   const stats = jackpotHeader.querySelector('.jackpot-stats');
   
-  if (value) value.style.display = 'none'; 
-  if (timer) timer.style.display = 'none'; 
-  if (stats) stats.style.display = 'none';
+  // Fade out the jackpot header elements first
+  if (value) {
+    value.style.transition = 'opacity 0.5s ease';
+    value.style.opacity = '0';
+    setTimeout(() => value.style.display = 'none', 500);
+  }
   
+  if (timer) {
+    timer.style.transition = 'opacity 0.5s ease';
+    timer.style.opacity = '0';
+    setTimeout(() => timer.style.display = 'none', 500);
+  }
+  
+  if (stats) {
+    stats.style.transition = 'opacity 0.5s ease';
+    stats.style.opacity = '0';
+    setTimeout(() => stats.style.display = 'none', 500);
+  }
+  
+  // Add roulette mode class for background changes
   jackpotHeader.classList.add('roulette-mode');
-  inlineRoulette.style.display = 'block'; // Make roulette area visible
   
-  // Add a subtle entrance animation
+  // Prepare roulette container but keep hidden
+  inlineRoulette.style.display = 'block';
   inlineRoulette.style.opacity = '0';
   inlineRoulette.style.transform = 'translateY(20px)';
   
-  // Animate in
+  // Fade in the roulette container after the header elements fade out
   setTimeout(() => {
-    inlineRoulette.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+    inlineRoulette.style.transition = 'opacity 0.7s ease, transform 0.7s ease';
     inlineRoulette.style.opacity = '1';
     inlineRoulette.style.transform = 'translateY(0)';
-  }, 50);
+  }, 600);
   
   // Hide return button
   if (returnToJackpot) returnToJackpot.style.display = 'none';
 }
 
-// Enhanced roulette animation
+// Completely rewritten roulette animation
 function startRouletteAnimation(winnerData) {
   if (!rouletteTrack || !winnerInfo) { 
     console.error("Missing animation elements."); 
@@ -743,11 +809,18 @@ function startRouletteAnimation(winnerData) {
     return; 
   }
   
-  if (animationFrameId) cancelAnimationFrame(animationFrameId);
+  // Cancel any ongoing animation
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
 
-  isSpinning = true; 
-  winnerInfo.style.display = 'none'; 
-  clearConfetti(); 
+  isSpinning = true;
+  spinStartTime = performance.now();
+  winnerInfo.style.display = 'none';
+  clearConfetti();
+  
+  // Create roulette items with better distribution
   createRouletteItems();
 
   const winner = findWinnerFromData(winnerData);
@@ -760,12 +833,26 @@ function startRouletteAnimation(winnerData) {
   
   console.log('Starting enhanced animation for Winner:', winner.user.username);
 
-  if (spinSound) { 
-    spinSound.currentTime = 0; 
-    spinSound.play().catch(e => console.error('Error playing sound:', e)); 
+  // Play sound with fade-in effect
+  if (spinSound) {
+    spinSound.volume = 0;
+    spinSound.currentTime = 0;
+    spinSound.play().catch(e => console.error('Error playing sound:', e));
+    
+    // Fade in sound
+    let volume = 0;
+    const fadeIn = setInterval(() => {
+      volume += 0.05;
+      if (volume >= 1) {
+        spinSound.volume = 1;
+        clearInterval(fadeIn);
+      } else {
+        spinSound.volume = volume;
+      }
+    }, 50);
   }
 
-  // Animation setup with variable phases
+  // Give time for DOM to render all items before starting animation
   setTimeout(() => {
     const items = rouletteTrack.querySelectorAll('.roulette-item');
     if (items.length === 0) { 
@@ -775,109 +862,231 @@ function startRouletteAnimation(winnerData) {
       return; 
     }
     
-    const targetIndex = findTargetItemIndex(items, winner.user.id);
-    if (targetIndex === -1 || !items[targetIndex]) { 
-      console.error('Could not find winning element.'); 
-      isSpinning = false; 
-      resetToJackpotView(); 
-      return; 
-    }
+    // Find suitable winning element - aiming for end of animation
+    // Target the latter part of the strip but not too close to the end
+    const minIndex = Math.floor(items.length * 0.65);
+    const maxIndex = Math.floor(items.length * 0.85);
+    const winnerItems = [];
     
-    const winningElement = items[targetIndex]; 
-    console.log(`Targeting index ${targetIndex}`);
-    
-    const container = inlineRoulette.querySelector('.roulette-container'); 
-    if (!container) { 
-      console.error("Roulette container missing."); 
-      isSpinning = false; 
-      resetToJackpotView(); 
-      return; 
-    }
-    
-    const containerWidth = container.offsetWidth;
-    const itemWidth = winningElement.offsetWidth || 90;
-    const itemOffsetLeft = winningElement.offsetLeft;
-
-    // Calculate position to center the winning item under the ticker
-    const targetScrollPosition = -(itemOffsetLeft + (itemWidth / 2) - (containerWidth / 2));
-
-    // Add small random offset for natural feel (reduced for more precision)
-    const randomOffset = (Math.random() - 0.5) * itemWidth * 0.3;
-    const finalTargetPosition = targetScrollPosition + randomOffset;
-
-    // Remove any CSS transition
-    rouletteTrack.style.transition = 'none';
-
-    // Create the multi-phase animation
-    const startTime = performance.now();
-    const startPosition = 0;
-    
-    // Add slight randomness to duration for unpredictability
-    const actualDuration = SPIN_DURATION_SECONDS * (0.97 + Math.random() * 0.06); 
-    
-    // Animation function with enhanced easing
-    function animateRoulette(currentTime) {
-      const elapsedTime = currentTime - startTime;
-      let progress = Math.min(1, elapsedTime / (actualDuration * 1000));
-      
-      // Apply enhanced easing function
-      const easedProgress = enhancedEasing(progress);
-      
-      // Calculate current position with easing
-      const currentPosition = startPosition + (finalTargetPosition - startPosition) * easedProgress;
-      rouletteTrack.style.transform = `translateX(${currentPosition}px)`;
-
-      // Continue animation if not finished
-      if (progress < 1) {
-        animationFrameId = requestAnimationFrame(animateRoulette);
-      } else {
-        // Animation completed
-        console.log("Enhanced animation finished");
-        rouletteTrack.style.transform = `translateX(${finalTargetPosition}px)`;
-        animationFrameId = null;
-        
-        // Highlight winner with user-specific color
-        if (winningElement) {
-          const userColor = getUserColor(winner.user.id);
-          winningElement.classList.add('winner-highlight');
-          
-          // Apply pulsing animation with user color
-          const style = document.createElement('style');
-          style.id = 'winner-pulse-style';
-          style.textContent = `
-            .winner-highlight {
-              animation: winnerPulse 1.5s infinite;
-              box-shadow: 0 0 25px ${userColor};
-              z-index: 5;
-              border-width: 3px;
-            }
-            @keyframes winnerPulse {
-              0% { box-shadow: 0 0 20px ${userColor}; border-color: ${userColor}; transform: scale(1); }
-              50% { box-shadow: 0 0 30px ${userColor}; border-color: ${userColor}; transform: scale(1.05);}
-              100% { box-shadow: 0 0 20px ${userColor}; border-color: ${userColor}; transform: scale(1);}
-            }
-          `;
-          
-          // Remove any existing winner pulse style
-          const existingStyle = document.getElementById('winner-pulse-style');
-          if (existingStyle) existingStyle.remove();
-          
-          document.head.appendChild(style);
-        }
-        
-        handleSpinEnd(winningElement, winner);
+    // Find all items matching the winner ID within our target range
+    for (let i = minIndex; i <= maxIndex; i++) {
+      if (items[i] && items[i].dataset.userId === winner.user.id) {
+        winnerItems.push(i);
       }
     }
+    
+    // If no matching items in preferred range, expand search
+    if (winnerItems.length === 0) {
+      console.warn(`No winner items found in preferred range. Expanding search.`);
+      for (let i = 0; i < items.length; i++) {
+        if (items[i] && items[i].dataset.userId === winner.user.id) {
+          winnerItems.push(i);
+        }
+      }
+    }
+    
+    // Still no matching items? Fall back to a random item
+    if (winnerItems.length === 0) {
+      console.error(`No items found matching winner ID ${winner.user.id}. Using fallback.`);
+      const randomIndex = Math.floor(items.length * 0.75); // Target 3/4 through the list
+      const winningElement = items[randomIndex];
+      handleRouletteSpinAnimation(winningElement, winner);
+      return;
+    }
+    
+    // Choose a random item from our collected winner items
+    const targetIndex = winnerItems[Math.floor(Math.random() * winnerItems.length)];
+    const winningElement = items[targetIndex];
+    
+    console.log(`Selected winning element at index ${targetIndex} of ${items.length} total items`);
+    handleRouletteSpinAnimation(winningElement, winner);
+  }, 100); // Small delay to ensure DOM is ready
+}
 
-    // Start animation
-    animationFrameId = requestAnimationFrame(animateRoulette);
-  }, 100); // Small delay to ensure items are rendered
+// Separate function to handle the actual animation
+function handleRouletteSpinAnimation(winningElement, winner) {
+  if (!winningElement || !rouletteTrack || !inlineRoulette) {
+    console.error("Missing elements for animation");
+    isSpinning = false;
+    resetToJackpotView();
+    return;
+  }
+  
+  const container = inlineRoulette.querySelector('.roulette-container');
+  if (!container) {
+    console.error("Roulette container missing");
+    isSpinning = false;
+    resetToJackpotView();
+    return;
+  }
+  
+  // Calculate positioning
+  const containerWidth = container.offsetWidth;
+  const itemWidth = winningElement.offsetWidth || 90;
+  const itemMargin = 10; // Account for margin between items
+  const itemOffsetLeft = winningElement.offsetLeft;
+  
+  // Center the winning item under the ticker line
+  const centerOffset = (containerWidth / 2) - (itemWidth / 2);
+  const targetScrollPosition = -(itemOffsetLeft - centerOffset);
+  
+  // Add tiny random offset for natural feel (but keep it small for precision)
+  const randomOffset = (Math.random() - 0.5) * (itemWidth * 0.15);
+  const finalTargetPosition = targetScrollPosition + randomOffset;
+  
+  // Remember our starting position
+  rouletteTrack.style.transition = 'none';
+  const startPosition = 0;
+  
+  // Animation variables
+  const duration = SPIN_DURATION_SECONDS * 1000; // Convert to milliseconds
+  
+  // Add initial shake animation
+  let shakePhase = true;
+  let shakeDuration = 1000; // 1 second of shaking
+  let shakeStartTime = performance.now();
+  let lastShakeTime = shakeStartTime;
+  let shakeAmount = 3; // pixels
+  
+  function shakeAnimation(timestamp) {
+    if (!shakePhase) return false;
+    
+    const elapsed = timestamp - shakeStartTime;
+    if (elapsed >= shakeDuration) {
+      shakePhase = false;
+      return false;
+    }
+    
+    // Only update position every 16ms (approx. 60fps) for performance
+    if (timestamp - lastShakeTime > 16) {
+      lastShakeTime = timestamp;
+      
+      // Decrease shake amount as we progress
+      const remainingShakeFactor = 1 - (elapsed / shakeDuration);
+      const currentShakeAmount = shakeAmount * remainingShakeFactor;
+      
+      // Random shake amount
+      const shake = (Math.random() - 0.5) * currentShakeAmount * 2;
+      rouletteTrack.style.transform = `translateX(${shake}px)`;
+    }
+    
+    return true;
+  }
+  
+  // Main animation function
+  function animateRoulette(timestamp) {
+    // If we're still in shake phase, handle that first
+    if (shakeAnimation(timestamp)) {
+      animationFrameId = requestAnimationFrame(animateRoulette);
+      return;
+    }
+    
+    // Calculate progress based on time elapsed since the main animation started
+    // (after the shake phase)
+    let elapsed;
+    if (!spinStartTime || spinStartTime === 0) {
+      // If this is the first frame after shaking, set the spin start time
+      spinStartTime = timestamp;
+      elapsed = 0;
+    } else {
+      elapsed = timestamp - spinStartTime;
+    }
+    
+    // Calculate normalized progress (0 to 1)
+    let progress = Math.min(1, elapsed / duration);
+    
+    // Apply our improved easing function
+    const easedProgress = improvedEasing(progress);
+    
+    // Calculate current position with easing
+    const currentPosition = startPosition + (finalTargetPosition - startPosition) * easedProgress;
+    rouletteTrack.style.transform = `translateX(${currentPosition}px)`;
+    
+    // Update sound pitch/speed based on animation phase
+    if (spinSound && !spinSound.paused) {
+      // For first 20% of animation, gradually increase playback rate
+      if (progress < 0.2) {
+        spinSound.playbackRate = 0.8 + (progress * 1.5);
+      }
+      // For last 30% of animation, gradually decrease playback rate
+      else if (progress > 0.7) {
+        const slowdownProgress = (progress - 0.7) / 0.3;
+        spinSound.playbackRate = Math.max(0.5, 1.6 - (slowdownProgress * 1.1));
+      }
+      // Middle section stays at slightly faster rate
+      else {
+        spinSound.playbackRate = 1.5;
+      }
+    }
+    
+    // Continue animation if not finished
+    if (progress < 1) {
+      animationFrameId = requestAnimationFrame(animateRoulette);
+    } else {
+      // Animation completed
+      console.log("Enhanced animation finished");
+      rouletteTrack.style.transform = `translateX(${finalTargetPosition}px)`;
+      animationFrameId = null;
+      
+      // Highlight winner with user-specific color
+      if (winningElement) {
+        const userColor = getUserColor(winner.user.id);
+        winningElement.classList.add('winner-highlight');
+        
+        // Apply dynamic pulsing animation with user color
+        const style = document.createElement('style');
+        style.id = 'winner-pulse-style';
+        style.textContent = `
+          .winner-highlight {
+            animation: winnerPulse 1.5s infinite;
+            box-shadow: 0 0 25px ${userColor};
+            z-index: 5;
+            border-width: 3px;
+          }
+          @keyframes winnerPulse {
+            0% { box-shadow: 0 0 20px ${userColor}; border-color: ${userColor}; transform: scale(1); }
+            50% { box-shadow: 0 0 30px ${userColor}; border-color: ${userColor}; transform: scale(1.05);}
+            100% { box-shadow: 0 0 20px ${userColor}; border-color: ${userColor}; transform: scale(1);}
+          }
+        `;
+        
+        // Remove any existing winner pulse style
+        const existingStyle = document.getElementById('winner-pulse-style');
+        if (existingStyle) existingStyle.remove();
+        
+        document.head.appendChild(style);
+      }
+      
+      // Fade out audio
+      if (spinSound && !spinSound.paused) {
+        let volume = spinSound.volume;
+        const fadeOut = setInterval(() => {
+          volume -= 0.05;
+          if (volume <= 0) {
+            spinSound.pause();
+            spinSound.volume = 1.0; // Reset for next time
+            clearInterval(fadeOut);
+          } else {
+            spinSound.volume = volume;
+          }
+        }, 60);
+      }
+      
+      // Show winner info after a short pause
+      setTimeout(() => {
+        handleSpinEnd(winningElement, winner);
+      }, 800);
+    }
+  }
+  
+  // Start animation
+  animationFrameId = requestAnimationFrame(animateRoulette);
 }
 
 // Enhanced winner celebration
 function handleSpinEnd(winningElement, winner) {
-  if (!isSpinning && !animationFrameId && !winningElement) {
-    console.warn("handleSpinEnd called but spin seems already reset or cancelled.");
+  if (!isSpinning) {
+    console.warn("handleSpinEnd called but spin seems already reset");
     return;
   }
   
@@ -887,20 +1096,7 @@ function handleSpinEnd(winningElement, winner) {
   }
   
   isSpinning = false;
-  console.log("Handling spin end with enhanced winner celebration.");
-
-  if (spinSound && !spinSound.paused) { 
-    // Fade out sound instead of abrupt stop
-    const fadeOut = setInterval(() => {
-      if (spinSound.volume > 0.05) {
-        spinSound.volume -= 0.05;
-      } else {
-        spinSound.pause();
-        spinSound.volume = 1.0; // Reset volume for next time
-        clearInterval(fadeOut);
-      }
-    }, 100);
-  }
+  console.log("Handling spin end with enhanced winner celebration");
 
   // Staggered winner reveal for more dramatic effect
   setTimeout(() => {
@@ -911,63 +1107,71 @@ function handleSpinEnd(winningElement, winner) {
       winnerAvatar.src = winner.user.avatar || '/img/default-avatar.png';
       winnerAvatar.alt = winner.user.username || 'Winner';
       winnerAvatar.style.borderColor = userColor;
+      winnerAvatar.style.boxShadow = `0 0 15px ${userColor}`;
       
       winnerName.textContent = winner.user.username || 'Winner';
+      winnerName.style.color = userColor;
       
-      // Reveal content with staggered animation
+      // Prepare dynamic content
+      const depositValue = `$${(winner.value || 0).toFixed(2)}`;
+      const chanceValue = `${(winner.percentage || 0).toFixed(2)}%`;
+      
+      // Initial empty state
+      winnerDeposit.textContent = '';
+      winnerChance.textContent = '';
+      
+      // Reveal winner info with fade in
       winnerInfo.style.display = 'flex';
       winnerInfo.style.opacity = '0';
       
-      // Animate in
+      // Animate in with a smooth fade
       let opacity = 0;
+      const fadeStep = 0.05;
       const fadeIn = setInterval(() => {
-        opacity += 0.05;
+        opacity += fadeStep;
         winnerInfo.style.opacity = opacity.toString();
+        
         if (opacity >= 1) {
           clearInterval(fadeIn);
           
-          // Now animate in the details with typing effect
-          setTimeout(() => {
-            winnerDeposit.textContent = '';
-            winnerChance.textContent = '';
+          // Now do typing effect for values
+          let depositIndex = 0;
+          let chanceIndex = 0;
+          
+          // Type deposit value
+          const typeDeposit = setInterval(() => {
+            winnerDeposit.textContent += depositValue[depositIndex];
+            depositIndex++;
             
-            const depositValue = `$${(winner.value || 0).toFixed(2)}`;
-            const chanceValue = `${(winner.percentage || 0).toFixed(2)}%`;
-            
-            let depositIndex = 0;
-            let chanceIndex = 0;
-            
-            // Type deposit value
-            const typeDeposit = setInterval(() => {
-              winnerDeposit.textContent += depositValue[depositIndex];
-              depositIndex++;
-              if (depositIndex >= depositValue.length) {
-                clearInterval(typeDeposit);
+            if (depositIndex >= depositValue.length) {
+              clearInterval(typeDeposit);
+              
+              // Type chance value after deposit completes
+              const typeChance = setInterval(() => {
+                winnerChance.textContent += chanceValue[chanceIndex];
+                chanceIndex++;
                 
-                // Type chance value after deposit completes
-                const typeChance = setInterval(() => {
-                  winnerChance.textContent += chanceValue[chanceIndex];
-                  chanceIndex++;
-                  if (chanceIndex >= chanceValue.length) {
-                    clearInterval(typeChance);
-                    
-                    // Launch confetti after all animations complete
+                if (chanceIndex >= chanceValue.length) {
+                  clearInterval(typeChance);
+                  
+                  // Launch confetti with winning color
+                  setTimeout(() => {
                     launchConfetti(userColor);
-                  }
-                }, 50);
-              }
-            }, 50);
-          }, 200);
+                  }, 300);
+                }
+              }, 40); // Faster typing
+            }
+          }, 40); // Faster typing
         }
-      }, 30);
+      }, 20); // Smoother fade
       
-      // Auto-reset after duration
+      // Auto-reset after display duration
       setTimeout(resetToJackpotView, WINNER_DISPLAY_DURATION);
     } else {
-      console.error("Winner data/elements incomplete for display.");
+      console.error("Winner data/elements incomplete for display");
       resetToJackpotView();
     }
-  }, 800); // Longer delay for dramatic effect after spin ends
+  }, 500); // Shorter delay to keep momentum
 }
 
 // Enhanced confetti with user color
@@ -976,123 +1180,214 @@ function launchConfetti(mainColor = '#00ffaa') {
   
   clearConfetti();
   
-  // Create a color palette based on the main user color
+  // Create a color palette based on the winning user's color
   const baseColor = mainColor;
   const complementaryColor = getComplementaryColor(baseColor);
+  const lighterColor = lightenColor(baseColor, 30);
+  const darkerColor = darkenColor(baseColor, 30);
   
   const colors = [
     baseColor,
-    lightenColor(baseColor, 20),
-    darkenColor(baseColor, 20),
+    lighterColor,
+    darkerColor,
     complementaryColor,
-    '#ffffff',
+    '#ffffff', // White for contrast
     lightenColor(complementaryColor, 20)
   ];
   
+  // Create more confetti with varying sizes and shapes
   for (let i = 0; i < CONFETTI_COUNT; i++) {
-    const c = document.createElement('div');
-    c.className = 'confetti';
-    c.style.left = `${Math.random() * 100}%`;
-    c.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    const confetti = document.createElement('div');
+    confetti.className = 'confetti';
     
-    const s = Math.random() * 8 + 5;
-    c.style.width = `${s}px`;
-    c.style.height = `${s}px`;
+    // Randomize positioning
+    confetti.style.left = `${Math.random() * 100}%`;
     
-    // More varied confetti shapes
+    // Randomize the delay for more natural effect
+    confetti.style.animationDelay = `${Math.random() * 1.5}s`;
+    
+    // Randomize the duration for varying fall speeds
+    confetti.style.animationDuration = `${2 + Math.random() * 3}s`;
+    
+    // Randomize the color from our palette
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    confetti.style.backgroundColor = color;
+    
+    // Randomize size
+    const size = Math.random() * 10 + 5; // 5-15px
+    confetti.style.width = `${size}px`;
+    confetti.style.height = `${size}px`;
+    
+    // Randomize shape
     const shape = Math.random();
     if (shape < 0.33) {
-      c.style.borderRadius = '50%'; // Circle
+      confetti.style.borderRadius = '50%'; // Circle
     } else if (shape < 0.66) {
-      c.style.borderRadius = '0'; // Square
+      confetti.style.borderRadius = '0'; // Square
+      confetti.style.transform = `rotate(${Math.random() * 360}deg)`; // Random rotation
     } else {
-      c.style.borderRadius = '0';
-      c.style.transform = 'rotate(45deg)'; // Diamond
+      // Stars and custom shapes
+      if (Math.random() > 0.5) {
+        confetti.style.clipPath = 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)'; // Star
+      } else {
+        confetti.style.borderRadius = '0';
+        confetti.style.transform = 'rotate(45deg)'; // Diamond
+      }
     }
     
-    // More dynamic animation
-    c.style.animationDuration = `${Math.random() * 3 + 2}s`;
-    c.style.animationDelay = `${Math.random() * 0.5}s`;
-    
-    confettiContainer.appendChild(c);
+    confettiContainer.appendChild(confetti);
   }
 }
 
 function resetToJackpotView() {
-    console.log("Resetting to jackpot view.");
-    // Cancel any ongoing animation frame loop
+    console.log("Resetting to jackpot view");
+    
+    // Cancel any ongoing animation
     if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
         animationFrameId = null;
-        console.log("Cancelled animation frame on reset.");
     }
 
-    if (!jackpotHeader || !inlineRoulette || !winnerInfo || !rouletteTrack) { console.error("Missing elements for reset."); return; }
-    jackpotHeader.classList.remove('roulette-mode');
-    const value = jackpotHeader.querySelector('.jackpot-value'), timer = jackpotHeader.querySelector('.jackpot-timer'), stats = jackpotHeader.querySelector('.jackpot-stats');
-    if (value) value.style.display = 'flex'; if (timer) timer.style.display = 'flex'; if (stats) stats.style.display = 'flex';
-    inlineRoulette.style.display = 'none'; winnerInfo.style.display = 'none'; 
+    if (!jackpotHeader || !inlineRoulette || !winnerInfo || !rouletteTrack) { 
+        console.error("Missing elements for reset"); 
+        return; 
+    }
     
-    // Keep return button hidden
-    if (returnToJackpot) returnToJackpot.style.display = 'none';
+    // Fade out roulette first
+    inlineRoulette.style.transition = 'opacity 0.5s ease';
+    inlineRoulette.style.opacity = '0';
     
-    clearConfetti();
-    const winnerElement = rouletteTrack.querySelector('.roulette-item.winner-highlight'); if (winnerElement) winnerElement.classList.remove('winner-highlight');
-    rouletteTrack.style.transition = 'none'; rouletteTrack.style.transform = 'translateX(0)'; // Important: reset transform directly
-    setTimeout(() => { if(rouletteTrack) rouletteTrack.innerHTML = ''; }, 50); // Clear items after transition settles
-    isSpinning = false; timerActive = false; if (roundTimer) { clearInterval(roundTimer); roundTimer = null; }
-    initiateNewRoundVisualReset();
-     // Fetch latest round data after reset to ensure sync
-     socket.emit('requestRoundData');
+    // After roulette fades out, reset everything
+    setTimeout(() => {
+        // Return header to normal state
+        jackpotHeader.classList.remove('roulette-mode');
+        
+        // Reset roulette track
+        rouletteTrack.style.transition = 'none';
+        rouletteTrack.style.transform = 'translateX(0)'; 
+        clearConfetti();
+        
+        // Clear roulette items to free memory
+        rouletteTrack.innerHTML = '';
+        
+        // Hide roulette and winner info
+        inlineRoulette.style.display = 'none';
+        winnerInfo.style.display = 'none';
+        
+        // Show jackpot UI elements
+        const value = jackpotHeader.querySelector('.jackpot-value');
+        const timer = jackpotHeader.querySelector('.jackpot-timer');
+        const stats = jackpotHeader.querySelector('.jackpot-stats');
+        
+        if (value) {
+            value.style.display = 'flex';
+            value.style.opacity = '0';
+            setTimeout(() => {
+                value.style.transition = 'opacity 0.5s ease';
+                value.style.opacity = '1';
+            }, 50);
+        }
+        
+        if (timer) {
+            timer.style.display = 'flex';
+            timer.style.opacity = '0';
+            setTimeout(() => {
+                timer.style.transition = 'opacity 0.5s ease';
+                timer.style.opacity = '1';
+            }, 100);
+        }
+        
+        if (stats) {
+            stats.style.display = 'flex';
+            stats.style.opacity = '0';
+            setTimeout(() => {
+                stats.style.transition = 'opacity 0.5s ease';
+                stats.style.opacity = '1';
+            }, 150);
+        }
+        
+        // Reset state variables
+        isSpinning = false;
+        timerActive = false;
+        spinStartTime = 0;
+        
+        if (roundTimer) {
+            clearInterval(roundTimer);
+            roundTimer = null;
+        }
+        
+        // Reset UI for next round
+        initiateNewRoundVisualReset();
+        
+        // Get the latest round data
+        socket.emit('requestRoundData');
+    }, 500);
 }
 
 function initiateNewRoundVisualReset() {
-    console.log("Visual reset for next round."); updateTimerUI(120); if(timerValue) timerValue.classList.remove('urgent-pulse', 'timer-pulse');
+    console.log("Visual reset for next round"); 
+    updateTimerUI(120); 
+    
+    if(timerValue) {
+        timerValue.classList.remove('urgent-pulse', 'timer-pulse');
+    }
+    
     if (participantsContainer && emptyPotMessage) {
         participantsContainer.innerHTML = ''; // Clear participants
+        
         // Ensure empty message exists and is shown
         if (!participantsContainer.contains(emptyPotMessage)) {
              participantsContainer.appendChild(emptyPotMessage);
         }
         emptyPotMessage.style.display = 'block';
     }
-    if (potValue) potValue.textContent = "$0.00"; if (participantCount) participantCount.textContent = "0/200";
+    
+    if (potValue) potValue.textContent = "$0.00"; 
+    if (participantCount) participantCount.textContent = "0/200";
 }
 
 // Find winner details
 function findWinnerFromData(winnerData) {
-    if (!currentRound || !currentRound.participants || !winnerData || !winnerData.winner || !winnerData.winner.id) { console.error("Missing data for findWinner."); return null; }
-    const winnerId = winnerData.winner.id; const winnerParticipant = currentRound.participants.find(p => p.user && p.user.id === winnerId);
-    if (!winnerParticipant) { console.warn(`Winner ID ${winnerId} not found locally.`); return { user: { ...winnerData.winner }, percentage: 0, value: 0 }; }
-    const totalValue = currentRound.totalValue > 0 ? currentRound.totalValue : 1; // Avoid div by zero
+    if (!currentRound || !currentRound.participants || !winnerData || !winnerData.winner || !winnerData.winner.id) { 
+        console.error("Missing data for findWinner"); 
+        return null; 
+    }
+    
+    const winnerId = winnerData.winner.id; 
+    const winnerParticipant = currentRound.participants.find(p => p.user && p.user.id === winnerId);
+    
+    if (!winnerParticipant) { 
+        console.warn(`Winner ID ${winnerId} not found locally`); 
+        return { 
+            user: { ...winnerData.winner }, 
+            percentage: 0, 
+            value: 0 
+        }; 
+    }
+    
+    const totalValue = currentRound.totalValue > 0 ? currentRound.totalValue : 1; // Avoid division by zero
     const percentage = (winnerParticipant.itemsValue / totalValue) * 100;
-    return { user: { ...winnerParticipant.user }, percentage: percentage || 0, value: winnerParticipant.itemsValue || 0 };
-}
-
-// Find target item index
-function findTargetItemIndex(items, winnerId) {
-    if (!items || items.length === 0) return -1;
-    // Aim for a target zone in the latter part of the strip
-    const min = Math.floor(items.length * 0.60); // Start search later
-    const max = Math.floor(items.length * 0.85); // End search earlier
-    const potential = []; for (let i = min; i <= max; i++) { if (items[i] && items[i].dataset.userId === winnerId.toString()) potential.push(i); }
-    if (potential.length > 0) { const idx = Math.floor(Math.random() * potential.length); console.log(`Found ${potential.length} in range [${min}-${max}]. Choosing ${potential[idx]}`); return potential[idx]; }
-    // Fallback: search whole strip if not in preferred zone
-    console.warn(`No winner item for ID ${winnerId} in range [${min}-${max}]. Searching full track.`);
-    const fallback = []; for (let i = 0; i < items.length; i++) { if (items[i] && items[i].dataset.userId === winnerId.toString()) fallback.push(i); }
-    if (fallback.length > 0) { const idx = Math.floor(Math.random() * fallback.length); console.log(`Found ${fallback.length} total. Choosing ${fallback[idx]}`); return fallback[idx]; }
-    // Absolute fallback (shouldn't happen with valid data)
-    console.error(`FATAL: No item found for winner ID ${winnerId}! Defaulting to middle.`); return Math.floor(items.length / 2);
+    
+    return { 
+        user: { ...winnerParticipant.user }, 
+        percentage: percentage || 0, 
+        value: winnerParticipant.itemsValue || 0 
+    };
 }
 
 // Confetti
-function clearConfetti() { if (confettiContainer) confettiContainer.innerHTML = ''; }
+function clearConfetti() { 
+    if (confettiContainer) {
+        confettiContainer.innerHTML = ''; 
+    }
+}
 
-// Test function
+// Test function for the roulette animation
 function testRouletteAnimation() {
-  console.log("--- TESTING ENHANCED ROULETTE ---"); 
+  console.log("--- TESTING ENHANCED ROULETTE ANIMATION ---"); 
+  
   if (isSpinning) { 
-    console.log("Already spinning."); 
+    console.log("Already spinning"); 
     return; 
   }
   
@@ -1117,7 +1412,7 @@ function testRouletteAnimation() {
   }
 
   if (!testData.participants || testData.participants.length === 0) { 
-    showNotification('Test Error', 'No participants available for test.'); 
+    showNotification('Test Error', 'No participants available for test'); 
     return; 
   }
   
