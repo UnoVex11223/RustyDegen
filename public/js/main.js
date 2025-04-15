@@ -66,10 +66,10 @@ const agreeButton = document.getElementById('agreeButton');
 
 // Constants
 const ROULETTE_REPETITIONS = 20; // How many times to repeat participant list
-const SPIN_DURATION_SECONDS = 7;  // <<< Keeping duration at 8 seconds
-const SPIN_ACCELERATION = 0.01; // For cubic-bezier(0.65, 0, 0.25, 1) - Slower start/end emphasis
-const SPIN_DECELERATION = 0.65; // For cubic-bezier(0.65, 0, 0.25, 1) - Slower start/end emphasis
-const WINNER_DISPLAY_DURATION = 7000; // How long to show winner info (in ms)
+const SPIN_DURATION_SECONDS = 8;  // <<< Keeping duration at 8 seconds
+const SPIN_ACCELERATION = 0.76; // For cubic-bezier(0.76, 0, 0.24, 1) - Slower start/end
+const SPIN_DECELERATION = 0.24; // For cubic-bezier(0.76, 0, 0.24, 1) - Slower start/end
+const WINNER_DISPLAY_DURATION = 5000; // How long to show winner info (in ms)
 const CONFETTI_COUNT = 100; // Number of confetti particles
 
 // App State
@@ -1037,7 +1037,6 @@ function startRouletteAnimation(winnerData) {
 
         // Apply the CSS transition for the spin animation
         // Using 8s duration and the new slower-start cubic-bezier curve
-        // cubic-bezier(0.65, 0, 0.35, 1)
         rouletteTrack.style.transition = `transform ${SPIN_DURATION_SECONDS}s cubic-bezier(${SPIN_ACCELERATION}, 0, ${SPIN_DECELERATION}, 1)`;
         rouletteTrack.style.transform = `translateX(${finalTargetPosition}px)`;
 
@@ -1098,9 +1097,9 @@ function createRouletteItems() {
     const containerWidth = container?.offsetWidth || 1000;
     const estimatedItemWidth = 100; // Item width (90) + margin (10)
     const itemsNeededForView = Math.ceil(containerWidth / estimatedItemWidth);
-    // Adjust min items for 8s duration
-    const minItemsToCreate = itemsNeededForView * 2.5; // Revert to this for 8s?
-    const maxItemsToCreate = 400;
+    // Adjust min items for 8s duration with slower start/end
+    const minItemsToCreate = itemsNeededForView * 2.5; // Might need fewer items if speed is concentrated mid-spin
+    const maxItemsToCreate = 400; // Keep cap reasonable
 
     const totalItemsToCreate = Math.max(
         minItemsToCreate,
