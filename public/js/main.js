@@ -66,9 +66,9 @@ const agreeButton = document.getElementById('agreeButton');
 
 // Constants
 const ROULETTE_REPETITIONS = 20; // How many times to repeat participant list
-const SPIN_DURATION_SECONDS = 8;  // <<< Adjusted duration to 8 seconds
-const SPIN_ACCELERATION = 0.4;  // For cubic-bezier(0.4, 0, 0.2, 1) - Standard ease-in-out
-const SPIN_DECELERATION = 0.2;  // For cubic-bezier(0.4, 0, 0.2, 1) - Standard ease-in-out
+const SPIN_DURATION_SECONDS = 8;  // <<< Keeping duration at 8 seconds
+const SPIN_ACCELERATION = 0.65; // For cubic-bezier(0.65, 0, 0.35, 1) - Slower start/end emphasis
+const SPIN_DECELERATION = 0.35; // For cubic-bezier(0.65, 0, 0.35, 1) - Slower start/end emphasis
 const WINNER_DISPLAY_DURATION = 5000; // How long to show winner info (in ms)
 const CONFETTI_COUNT = 100; // Number of confetti particles
 
@@ -1036,7 +1036,8 @@ function startRouletteAnimation(winnerData) {
         const finalTargetPosition = targetScrollPosition + randomOffset;
 
         // Apply the CSS transition for the spin animation
-        // Using 8s duration and standard ease-in-out curve
+        // Using 8s duration and the new slower-start cubic-bezier curve
+        // cubic-bezier(0.65, 0, 0.35, 1)
         rouletteTrack.style.transition = `transform ${SPIN_DURATION_SECONDS}s cubic-bezier(${SPIN_ACCELERATION}, 0, ${SPIN_DECELERATION}, 1)`;
         rouletteTrack.style.transform = `translateX(${finalTargetPosition}px)`;
 
@@ -1098,8 +1099,8 @@ function createRouletteItems() {
     const estimatedItemWidth = 100; // Item width (90) + margin (10)
     const itemsNeededForView = Math.ceil(containerWidth / estimatedItemWidth);
     // Adjust min items for 8s duration
-    const minItemsToCreate = itemsNeededForView * 2.5; // Reduced for faster spin
-    const maxItemsToCreate = 400; // Reduced cap
+    const minItemsToCreate = itemsNeededForView * 2.5; // Revert to this for 8s?
+    const maxItemsToCreate = 400;
 
     const totalItemsToCreate = Math.max(
         minItemsToCreate,
