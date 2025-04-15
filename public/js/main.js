@@ -67,8 +67,8 @@ const agreeButton = document.getElementById('agreeButton');
 // Constants
 const ROULETTE_REPETITIONS = 20; // How many times to repeat participant list
 const SPIN_DURATION_SECONDS = 8;  // <<< Adjusted duration to 8 seconds
-const SPIN_ACCELERATION = 0.25; // For cubic-bezier(0.25, 0.1, 0.25, 1.0) - Controls ease-in
-const SPIN_DECELERATION = 0.25; // For cubic-bezier(0.25, 0.1, 0.25, 1.0) - Controls ease-out emphasis
+const SPIN_ACCELERATION = 0.4;  // For cubic-bezier(0.4, 0, 0.2, 1) - Standard ease-in-out
+const SPIN_DECELERATION = 0.2;  // For cubic-bezier(0.4, 0, 0.2, 1) - Standard ease-in-out
 const WINNER_DISPLAY_DURATION = 5000; // How long to show winner info (in ms)
 const CONFETTI_COUNT = 100; // Number of confetti particles
 
@@ -1036,9 +1036,8 @@ function startRouletteAnimation(winnerData) {
         const finalTargetPosition = targetScrollPosition + randomOffset;
 
         // Apply the CSS transition for the spin animation
-        // Using updated duration (8s) and custom ease-out curve
-        // cubic-bezier(0.25, 0.1, 0.25, 1.0) -> starts fast, ends slow
-        rouletteTrack.style.transition = `transform ${SPIN_DURATION_SECONDS}s cubic-bezier(0.25, 0.1, 0.25, 1.0)`;
+        // Using 8s duration and standard ease-in-out curve
+        rouletteTrack.style.transition = `transform ${SPIN_DURATION_SECONDS}s cubic-bezier(${SPIN_ACCELERATION}, 0, ${SPIN_DECELERATION}, 1)`;
         rouletteTrack.style.transform = `translateX(${finalTargetPosition}px)`;
 
         let spinEndHandled = false;
@@ -1098,9 +1097,9 @@ function createRouletteItems() {
     const containerWidth = container?.offsetWidth || 1000;
     const estimatedItemWidth = 100; // Item width (90) + margin (10)
     const itemsNeededForView = Math.ceil(containerWidth / estimatedItemWidth);
-    // Adjust min items for 8s duration - fewer items might be okay
-    const minItemsToCreate = itemsNeededForView * 2.5; // ~2.5 viewports
-    const maxItemsToCreate = 400; // Reduce cap slightly for shorter duration
+    // Adjust min items for 8s duration
+    const minItemsToCreate = itemsNeededForView * 2.5; // Reduced for faster spin
+    const maxItemsToCreate = 400; // Reduced cap
 
     const totalItemsToCreate = Math.max(
         minItemsToCreate,
