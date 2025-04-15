@@ -65,8 +65,8 @@ const agreeCheckbox = document.getElementById('agreeCheckbox');
 const agreeButton = document.getElementById('agreeButton');
 
 // Constants
-const ROULETTE_REPETITIONS = 10; // How many times to repeat participant list
-const SPIN_DURATION_SECONDS = 9; // Increased from 10 to 15 seconds for a more dramatic effect
+const ROULETTE_REPETITIONS = 20; // How many times to repeat participant list
+const SPIN_DURATION_SECONDS = 9; // 9 seconds
 const WINNER_DISPLAY_DURATION = 7000; // 7 seconds as requested
 const CONFETTI_COUNT = 120; // Number of confetti particles
 
