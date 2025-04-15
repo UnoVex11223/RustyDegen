@@ -12,7 +12,7 @@ const TradeOfferManager = require('steam-tradeoffer-manager');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const SteamTotp = require('steam-totp'); // Required for 2FA login
-// Added for pricing API
+// Added for real-time pricing API
 const axios = require('axios');
 const NodeCache = require('node-cache');
 require('dotenv').config(); // Loads .env file variables
@@ -58,7 +58,7 @@ passport.deserializeUser(async (id, done) => { try { const u = await User.findBy
 
 // --- MongoDB Connection ---
 if (!process.env.MONGODB_URI) { console.error("FATAL: MONGODB_URI missing."); process.exit(1); }
-mongoose.connect(process.env.MONGODB_URI).then(() => console.log('MongoDB Connected')).catch(err => { console.error('MongoDB Connect Err:', err); process.exit(1); });
+mongoose.connect(process.env.MONGODB_URI).then(() => console.log('Connected to MongoDB')).catch(err => { console.error('MongoDB Connect Err:', err); process.exit(1); });
 
 // --- MongoDB Schemas ---
 const userSchema = new mongoose.Schema({ steamId: { type: String, required: true, unique: true, index: true }, username: { type: String, required: true }, avatar: { type: String }, tradeUrl: { type: String, default: '' }, balance: { type: Number, default: 0 }, createdAt: { type: Date, default: Date.now }, banned: { type: Boolean, default: false } });
@@ -86,7 +86,7 @@ if (isBotConfigured) {
            if (err) { console.error('FATAL STEAM LOGIN ERROR:', err); isBotReady = false; }
            else {
                console.log(`Steam bot ${creds.accountName} logged in (ID: ${community.steamID}).`);
-               manager.setCookies(cookies, e => { if (e) { console.error('TOM cookie err:', e); isBotReady = false; return; } console.log('TOM cookies set.'); community.setCookies(cookies); community.gamesPlayed(process.env.SITE_NAME||'RustyDegen'); community.setPersona(SteamCommunity.EPersonaState.Online); isBotReady=true; console.log("Bot ready, creating round..."); createNewRound(); });
+               manager.setCookies(cookies, e => { if (e) { console.error('TOM cookie err:', e); isBotReady = false; return; } console.log('TOM cookies set.'); community.setCookies(cookies); community.gamesPlayed(process.env.SITE_NAME||'RustyDegen'); community.setPersona(SteamCommunity.EPersonaState.Online); isBotReady=true; console.log("Bot ready, creating initial round..."); createNewRound(); });
                community.on('friendRelationship',(id,rel)=>{if(rel===SteamCommunity.EFriendRelationship.RequestRecipient){console.log(`Accept friend: ${id}`); community.addFriend(id, e=>{if(e)console.error(`Friend add err ${id}:`,e);});}});
            }
        });
@@ -105,75 +105,51 @@ async function verifyDepositToken(token, partnerSteamId){const s=depositTokens[t
 
 // --- Pricing Cache and Functions ---
 const priceCache = new NodeCache({ stdTTL: PRICE_CACHE_TTL_SECONDS, checkperiod: PRICE_CACHE_TTL_SECONDS * 0.2 });
-function getFallbackPrice(marketHashName) { const ci={'Metal Chest Plate':5.20,'Semi-Automatic Rifle':10.00,'Garage Door':3.50,'Assault Rifle':8.50,'Metal Facemask':6.00,'Road Sign Kilt':1.50,'Coffee Can Helmet':1.20,'Double Barrel Shotgun':0.80,'Revolver':0.50,'Sheet Metal Door':0.75,'Medical Syringe':0.15,'MP5A4':2.50,'Python Revolver':1.80,'Satchel Charge':0.60,'Rocket Launcher':12.00,'Explosive 5.56 Rifle Ammo':0.20,'Timed Explosive Charge':4.50}; const fb=ci[marketHashName]; const minV=MIN_ITEM_VALUE>0?MIN_ITEM_VALUE:0; if(fb!==undefined){console.warn(`PRICE_INFO: Using fallback $${fb.toFixed(2)} for: ${marketHashName}`); return Math.max(fb,minV);}else{console.warn(`PRICE_INFO: No fallback for ${marketHashName}, using min $${minV.toFixed(2)}.`); return minV;}}
+function getFallbackPrice(marketHashName) { const ci={'AK-47 | Alien Red': 45.00, /* Added Alien Red */ 'Metal Chest Plate':5.20,'Semi-Automatic Rifle':10.00,'Garage Door':3.50,'Assault Rifle':8.50,'Metal Facemask':6.00,'Road Sign Kilt':1.50,'Coffee Can Helmet':1.20,'Double Barrel Shotgun':0.80,'Revolver':0.50,'Sheet Metal Door':0.75,'Medical Syringe':0.15,'MP5A4':2.50,'Python Revolver':1.80,'Satchel Charge':0.60,'Rocket Launcher':12.00,'Explosive 5.56 Rifle Ammo':0.20,'Timed Explosive Charge':4.50, 'Pump Shotgun': 1.00, 'Waterpipe Shotgun': 0.60, 'Thompson': 2.00,'Custom SMG': 1.50, 'Bolt Action Rifle': 9.00, 'L96 Rifle': 15.00,'M249': 18.00, 'Large Wood Box': 0.30, 'Small Oil Refinery': 1.00,'Furnace': 0.25, 'Blue Beenie Hat': 0.15, 'Blue Hoodie': 0.40, 'Wooden Door': 0.15 }; const fb=ci[marketHashName]; const minV=MIN_ITEM_VALUE>0?MIN_ITEM_VALUE:0; if(fb!==undefined){console.warn(`PRICE_INFO: Using fallback $${fb.toFixed(2)} for: ${marketHashName}`); return Math.max(fb,minV);}else{console.warn(`PRICE_INFO: No fallback for ${marketHashName}, using min $${minV.toFixed(2)}.`); return minV;}}
 
-// ** getItemPrice Function - Using SteamApis **
+// ** getItemPrice Function - Using SteamApis (with enhanced logging) **
 async function getItemPrice(marketHashName) {
-    const apiKey = process.env.STEAMAPIS_API_KEY; // <-- Use new API Key name
-    // 1. Check if API key is configured
-    if (!apiKey) {
-        console.error("PRICE_ERROR: STEAMAPIS_API_KEY not set in .env file. Using fallback pricing.");
-        return getFallbackPrice(marketHashName);
-    }
-
+    const apiKey = process.env.STEAMAPIS_API_KEY;
+    if (!apiKey) { console.error("PRICE_ERROR: STEAMAPIS_API_KEY not set. Using fallback."); return getFallbackPrice(marketHashName); }
     try {
-        // 2. Check cache
         const cachedPrice = priceCache.get(marketHashName);
-        if (cachedPrice !== undefined) {
-            return cachedPrice;
-        }
+        if (cachedPrice !== undefined) { return cachedPrice; }
 
-        // 3. Prepare API request for SteamApis
-        // URL encode the market_hash_name as it can contain special characters
         const encodedName = encodeURIComponent(marketHashName);
         const apiUrl = `https://api.steamapis.com/market/item/${RUST_APP_ID}/${encodedName}`;
-        const params = { api_key: apiKey, currency: 'USD' }; // Key as query param for SteamApis
-
+        const params = { api_key: apiKey, currency: 'USD' };
         console.log(`PRICE_INFO: Attempting SteamApis fetch for: ${marketHashName}`);
 
-        // 4. Make the API call
         const response = await axios.get(apiUrl, { params, timeout: 7000 });
 
-        // 5. Process successful response from SteamApis
-        // Check for data and prefer median_price, then lowest_price
         if (response.data) {
-             // Log the structure for debugging if needed
-             // console.log(`PRICE_DEBUG: SteamApis response for ${marketHashName}:`, JSON.stringify(response.data));
-
-            let priceValue = response.data.median_price || response.data.lowest_price || 0;
+            console.log(`PRICE_DEBUG: SteamApis response for ${marketHashName}:`, JSON.stringify(response.data));
+            let priceValue = response.data.median_price ?? response.data.lowest_price ?? response.data.market_value ?? 0;
             let parsedPrice = parseFloat(priceValue);
-
-            console.log(`PRICE_DEBUG: Extracted price value for ${marketHashName} from SteamApis: ${priceValue}, Parsed: ${parsedPrice}`);
+            console.log(`PRICE_DEBUG: Extracted price value (median/lowest/market): ${priceValue}, Parsed: ${parsedPrice}`);
 
             if (!isNaN(parsedPrice) && parsedPrice > 0) {
                 console.log(`PRICE_SUCCESS: Using SteamApis price $${parsedPrice.toFixed(2)} for ${marketHashName}`);
-                priceCache.set(marketHashName, parsedPrice); // Cache valid price
+                priceCache.set(marketHashName, parsedPrice);
                 return parsedPrice;
             } else {
-                 if (isNaN(parsedPrice)) { console.warn(`PRICE_WARN: SteamApis price value "${priceValue}" for ${marketHashName} is Not a Number. Using fallback.`); }
-                 else { console.warn(`PRICE_WARN: SteamApis price value $${parsedPrice.toFixed(2)} for ${marketHashName} is not positive. Using fallback.`); }
+                 if (isNaN(parsedPrice)) { console.warn(`PRICE_WARN: Parsed API price for ${marketHashName} is NaN (Original: ${priceValue}). Using fallback.`); }
+                 else { console.warn(`PRICE_WARN: API price $${parsedPrice.toFixed(2)} for ${marketHashName} is not positive. Using fallback.`); }
                  return getFallbackPrice(marketHashName);
             }
         }
-
-        // Fallback if response structure is unexpected
-        console.warn(`PRICE_WARN: No valid price data structure in SteamApis response for ${marketHashName}. Using fallback.`);
+        console.warn(`PRICE_WARN: Empty/invalid data structure in SteamApis response for ${marketHashName}. Using fallback.`);
         return getFallbackPrice(marketHashName);
 
     } catch (error) {
-        // 6. Handle errors during SteamApis call
         console.error(`PRICE_ERROR: Failed SteamApis call for ${marketHashName}.`);
-        if (error.response) {
-            console.error(` -> Status: ${error.response.status}`);
-            console.error(` -> Response Data:`, error.response.data || error.message);
-             if (error.response.status === 401 || error.response.status === 403) { console.error("PRICE_DIAGNOSIS: Received 401/403 - Check your STEAMAPIS_API_KEY validity/restrictions."); }
-             else if (error.response.status === 429) { console.error("PRICE_DIAGNOSIS: Received 429 - Check SteamApis rate limits."); }
-             else if (error.response.status === 404) { console.warn(`PRICE_WARN: Item ${marketHashName} not found by SteamApis.`); } // Specific handling for 404
-        } else if (error.request) { console.error(` -> Error: No response from SteamApis (Timeout/Network?).`, error.message); }
+        if (error.response) { console.error(` -> Status: ${error.response.status}, Response:`, error.response.data || error.message); if (error.response.status === 403 || error.response.status === 401) { console.error("PRICE_DIAGNOSIS: Check STEAMAPIS_API_KEY."); } else if (error.response.status === 429) { console.error("PRICE_DIAGNOSIS: Check SteamApis rate limits."); } else if (error.response.status === 404) { console.warn(`PRICE_WARN: Item ${marketHashName} not found by SteamApis (404).`); } }
+        else if (error.request) { console.error(` -> Error: No response from SteamApis (Timeout/Network?).`, error.message); }
         else { console.error(' -> Error setting up request:', error.message); }
-        return getFallbackPrice(marketHashName); // Fallback on any error
+        return getFallbackPrice(marketHashName);
     }
 }
+
 
 // --- Core Game Logic --- (No changes needed here)
 async function createNewRound() { if (isRolling) return; try { isRolling=false; const sS=crypto.randomBytes(32).toString('hex'); const sSH=crypto.createHash('sha256').update(sS).digest('hex'); const lR=await Round.findOne().sort('-rId'); const nId=lR?lR.rId+1:1; const r=new Round({rId:nId,s:'a',st:new Date(),sS,sSH,i:[],p:[],tV:0}); await r.save(); currentRound=r; startRoundTimer(); io.emit('rC',{rId:r.rId,sSH:r.sSH,tL:ROUND_DURATION,tV:0,p:[],i:[]}); console.log(`Round ${r.rId} created.`); return r; } catch (err) { console.error('Create round err:', err); setTimeout(createNewRound, 10000); } }
@@ -194,85 +170,26 @@ app.post('/api/user/tradeurl', ensureAuthenticated, async (req, res) => { const 
 // GET USER INVENTORY - Allows attempt even if bot isn't ready
 app.get('/api/inventory', ensureAuthenticated, async (req, res) => {
     try {
-       if (!manager) { // Still check if manager object exists
-             console.error("Inventory API cannot proceed: Trade Offer Manager is not initialized.");
-             return res.status(503).json({ error: "Trade service initialization failed. Cannot fetch inventory." });
-       }
+       if (!manager) { console.error("Inventory API cannot proceed: TOM not initialized."); return res.status(503).json({ error: "Trade service initialization failed." }); }
         const inventory = await new Promise((resolve, reject) => {
-            // This call MIGHT fail if bot isn't logged in
             manager.getUserInventoryContents(req.user.steamId, RUST_APP_ID, RUST_CONTEXT_ID, true, (err, inv) => {
-                if (err) {
-                    if (err.message?.includes('profile is private')) return reject(new Error('Your Steam inventory is private. Please set it to public.'));
-                    console.error(`Inventory Fetch Error (Manager): User ${req.user.steamId}:`, err.message || err);
-                    return reject(new Error(`Could not fetch inventory: ${err.message || 'Steam error'}. Bot might be offline or inventory private.`));
-                }
+                if (err) { if (err.message?.includes('profile is private')) return reject(new Error('Inventory private.')); console.error(`Inv Fetch Err (Mgr): User ${req.user.steamId}:`, err.message||err); return reject(new Error(`Could not fetch inventory: ${err.message||'Steam err'}. Bot offline/Inv private?`)); }
                 resolve(inv || []);
             });
         });
-
         if (!inventory?.length) return res.json([]);
-
-        // Get prices concurrently using NEW pricing function
-        const itemsWithPrices = await Promise.all(inventory.map(async (item) => {
-            const price = await getItemPrice(item.market_hash_name); // Uses SteamApis function
-            return {
-                assetId: item.assetid, name: item.market_hash_name, displayName: item.name,
-                image: `https://community.akamai.steamstatic.com/economy/image/${item.icon_url}`,
-                price: price || 0, // getItemPrice handles fallback
-                tradable: item.tradable, marketable: item.marketable,
-            };
-        }));
-
-        // Filter AFTER getting prices
+        const itemsWithPrices = await Promise.all(inventory.map(async (item) => { const price = await getItemPrice(item.market_hash_name); return { assetId: item.assetid, name: item.market_hash_name, displayName: item.name, image: `https://community.akamai.steamstatic.com/economy/image/${item.icon_url}`, price: price || 0, tradable: item.tradable, marketable: item.marketable }; }));
         const validItems = itemsWithPrices.filter(item => item.tradable && item.price >= MIN_ITEM_VALUE );
         res.json(validItems);
-
-    } catch (err) { // Catch errors from manager call OR pricing calls
-        console.error(`Error in /api/inventory for ${req.user?.username}:`, err.message);
-        res.status(500).json({ error: err.message || 'Server error fetching inventory. Bot might be offline.' });
-    }
+    } catch (err) { console.error(`Error in /api/inventory for ${req.user?.username}:`, err.message); res.status(500).json({ error: err.message || 'Server error fetching inventory.' }); }
 });
 
 // Initiate Deposit - REQUIRES BOT READY
-app.post('/api/deposit/initiate', ensureAuthenticated, (req, res) => {
-    if (!isBotReady || !process.env.BOT_TRADE_URL) { console.warn(`Deposit init fail ${req.user.username}: Bot unavailable.`); return res.status(503).json({ error: "Deposit service unavailable." }); }
-    if (!currentRound || currentRound.status !== 'active' || isRolling) { return res.status(400).json({ error: 'Deposits closed.' }); }
-    const token = generateDepositToken(req.user._id);
-    res.json({ success: true, depositToken: token, botTradeUrl: process.env.BOT_TRADE_URL });
-});
+app.post('/api/deposit/initiate', ensureAuthenticated, (req, res) => { if (!isBotReady || !process.env.BOT_TRADE_URL) { console.warn(`Deposit init fail ${req.user.username}: Bot unavailable.`); return res.status(503).json({ error: "Deposit service unavailable." }); } if (!currentRound || currentRound.status !== 'active' || isRolling) { return res.status(400).json({ error: 'Deposits closed.' }); } const token = generateDepositToken(req.user._id); res.json({ success: true, depositToken: token, botTradeUrl: process.env.BOT_TRADE_URL }); });
 
 // --- Trade Offer Manager Event Handling --- (Keep bot check inside)
 if (isBotConfigured) {
-   manager.on('newOffer', async (offer) => {
-       if (!isBotReady) return; // Silently ignore if bot not ready
-       // ... rest of newOffer handler using await getItemPrice ...
-        if (offer.isOurOffer || offer.itemsToReceive.length === 0 || !offer.message) return;
-        if (!currentRound || currentRound.status !== 'active' || isRolling) { console.log(`Offer ${offer.id} deposit closed. Declining.`); return offer.decline().catch(e => console.error(`Decline err ${offer.id}:`, e)); }
-        const token = offer.message.trim(); let user; try { user = await verifyDepositToken(token, offer.partner.getSteamID64()); if (!user) { console.log(`Offer ${offer.id} invalid token.`); return offer.decline().catch(e => console.error(`Decline err ${offer.id}:`, e)); } } catch (vErr) { console.error(`Token verify err ${offer.id}:`, vErr); return offer.decline().catch(e => console.error(`Decline err ${offer.id}:`, e)); }
-        // console.log(`Offer ${offer.id} valid deposit from ${user.username}. Pricing...`);
-        try {
-            const itemPricePromises = offer.itemsToReceive.map(async (item) => { if (!item.market_hash_name) { console.warn(`Asset ${item.assetid} missing name. Skip.`); return null; } const price = await getItemPrice(item.market_hash_name); const itemValue = parseFloat(price)||0; if (itemValue < MIN_ITEM_VALUE) { /* console.log(`Item ${item.market_hash_name} below min. Skip.`); */ return null; } return { assetId: item.assetid, name: item.market_hash_name, image: `https://community.akamai.steamstatic.com/economy/image/${item.icon_url}`, price: itemValue, owner: user._id, roundId: currentRound._id }; });
-            const itemsToProcess = (await Promise.all(itemPricePromises)).filter(i => i !== null); const depositTotalValue = itemsToProcess.reduce((sum, i) => sum + i.price, 0);
-            if (itemsToProcess.length === 0) { console.log(`Offer ${offer.id} no valid items > $${MIN_ITEM_VALUE}. Declining.`); return offer.decline().catch(e => console.error(`Decline err ${offer.id}:`, e)); }
-            // console.log(`Offer ${offer.id} value $${depositTotalValue.toFixed(2)}. Accepting...`);
-            offer.accept(async (err, status) => {
-                if (err) { console.error(`Accept err ${offer.id}:`, err.message||err); if (err.message?.includes('escrow')) console.warn(`Offer ${offer.id} escrow.`); return; }
-                console.log(`Offer ${offer.id} accepted: ${status}. DB Update...`);
-                const latestRound = await Round.findById(currentRound._id); if (!latestRound || latestRound.status !== 'active' || isRolling) { console.error(`CRITICAL: Round changed after accept ${offer.id}!`); return; }
-                try {
-                    const createdItems = await Item.insertMany(itemsToProcess); const createdItemIds = createdItems.map(i => i._id);
-                    latestRound.items.push(...createdItemIds); latestRound.totalValue += depositTotalValue;
-                    const tickets = Math.max(0, Math.floor(depositTotalValue / TICKET_VALUE_RATIO)); const pIndex = latestRound.participants.findIndex(p => p.user?.equals(user._id));
-                    if (pIndex > -1) { latestRound.participants[pIndex].itemsValue += depositTotalValue; latestRound.participants[pIndex].tickets += tickets; } else { latestRound.participants.push({ user: user._id, itemsValue: depositTotalValue, tickets: tickets }); }
-                    await latestRound.save(); currentRound = latestRound;
-                    const pData = latestRound.participants.find(p => p.user?.equals(user._id));
-                    io.emit('participantUpdated', { roundId: latestRound.roundId, userId: user._id, username: user.username, avatar: user.avatar, itemsValue: pData?.itemsValue||0, tickets: pData?.tickets||0, totalValue: latestRound.totalValue });
-                    createdItems.forEach(item => { io.emit('itemDeposited', { roundId: latestRound.roundId, item: { id: item._id, name: item.name, image: item.image, price: item.price }, user: { id: user._id, username: user.username, avatar: user.avatar } }); });
-                    console.log(`Deposit success ${offer.id}. User: ${user.username}, Val: ${depositTotalValue.toFixed(2)}`);
-                } catch (dbErr) { console.error(`CRITICAL DB error after accept ${offer.id}:`, dbErr); if(currentRound) { await Round.updateOne({_id:currentRound._id},{$set:{status:'error'}}).catch(e=>console.error("Failed save error status:",e)); io.emit('roundError',{roundId:currentRound.roundId, error:'Deposit error.'});}}
-            });
-        } catch (procErr) { console.error(`Price processing err ${offer.id}:`, procErr); return offer.decline().catch(e => { if(e) console.error(`Decline err ${offer.id}:`,e);}); }
-   });
+   manager.on('newOffer', async (offer) => { if (!isBotReady) return; /* ... rest of handler ... */ if(offer.isOurOffer||offer.itemsToReceive.length===0||!offer.message)return; if(!currentRound||currentRound.status!=='active'||isRolling){console.log(`Offer ${offer.id} dep closed.`);return offer.decline().catch(e=>console.error(`Decline err ${offer.id}:`,e));} const token=offer.message.trim(); let user; try{user=await verifyDepositToken(token,offer.partner.getSteamID64()); if(!user){console.log(`Offer ${offer.id} invalid token.`);return offer.decline().catch(e=>console.error(`Decline err ${offer.id}:`,e));}}catch(vErr){console.error(`Token verify err ${offer.id}:`,vErr);return offer.decline().catch(e=>console.error(`Decline err ${offer.id}:`,e));} /* console.log(`Offer ${offer.id} valid from ${user.username}. Pricing...`); */ try{const itemPs=offer.itemsToReceive.map(async(i)=>{if(!i.market_hash_name)return null;const p=await getItemPrice(i.market_hash_name);const v=parseFloat(p)||0;if(v<MIN_ITEM_VALUE)return null;return{assetId:i.assetid,name:i.market_hash_name,image:`https://community.akamai.steamstatic.com/economy/image/${i.icon_url}`,price:v,owner:user._id,roundId:currentRound._id};}); const items= (await Promise.all(itemPs)).filter(i=>i!==null); const totalV=items.reduce((s,i)=>s+i.price,0); if(items.length===0){console.log(`Offer ${offer.id} no valid items.`);return offer.decline().catch(e=>console.error(`Decline err ${offer.id}:`,e));} /* console.log(`Offer ${offer.id} value $${totalV.toFixed(2)}. Accepting...`); */ offer.accept(async(err,st)=>{if(err){console.error(`Accept err ${offer.id}:`,err.message||err);if(err.message?.includes('escrow'))console.warn(`Offer ${offer.id} escrow.`);return;} console.log(`Offer ${offer.id} accepted: ${st}. DB Update...`); const latestR=await Round.findById(currentRound._id); if(!latestR||latestR.status!=='active'||isRolling){console.error(`CRITICAL: Round changed after accept ${offer.id}!`);return;} try{const cItems=await Item.insertMany(items); const cIds=cItems.map(i=>i._id); latestR.items.push(...cIds); latestR.totalValue+=totalV; const tks=Math.max(0,Math.floor(totalV/TICKET_VALUE_RATIO)); const pIdx=latestR.participants.findIndex(p=>p.user?.equals(user._id)); if(pIdx>-1){latestR.participants[pIdx].itemsValue+=totalV;latestR.participants[pIdx].tickets+=tks;}else{latestR.participants.push({user:user._id,itemsValue:totalV,tickets:tks});} await latestR.save(); currentRound=latestR; const pData=latestR.participants.find(p=>p.user?.equals(user._id)); io.emit('participantUpdated',{roundId:latestR.roundId,userId:user._id,username:user.username,avatar:user.avatar,itemsValue:pData?.itemsValue||0,tickets:pData?.tickets||0,totalValue:latestR.totalValue}); cItems.forEach(item=>{io.emit('itemDeposited',{roundId:latestR.roundId,item:{id:item._id,name:item.name,image:item.image,price:item.price},user:{id:user._id,username:user.username,avatar:user.avatar}});}); console.log(`Deposit success ${offer.id}. User: ${user.username}, Val: ${totalV.toFixed(2)}`);}catch(dbErr){console.error(`CRITICAL DB error after accept ${offer.id}:`,dbErr);if(currentRound){await Round.updateOne({_id:currentRound._id},{$set:{status:'error'}}).catch(e=>console.error("Save err status:",e));io.emit('roundError',{roundId:currentRound.roundId, error:'Deposit error.'});}}});}catch(procErr){console.error(`Price proc err ${offer.id}:`,procErr);return offer.decline().catch(e=>{if(e)console.error(`Decline err ${offer.id}:`,e);});}} );
    manager.on('sentOfferChanged', (offer, oldState) => { console.log(`Offer #${offer.id} state change: ${TradeOfferManager.ETradeOfferState[oldState]}->${TradeOfferManager.ETradeOfferState[offer.state]}`); /* Handle winner payouts */ });
 } else { console.warn("Bot not configured. Trade listeners inactive."); }
 
@@ -290,13 +207,19 @@ server.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}`);
     if (!isBotConfigured) { console.log("Bot not configured. Trade features disabled. Initial round not created."); }
     else if (!isBotReady) { console.log("Waiting for bot login attempt... Initial round will start if successful."); }
-    // Pricing API Test
+    // Pricing API Test - Updated Item
     setTimeout(async () => {
        console.log("Testing Pricing API on startup...");
-       const testItem = "Metal Chest Plate";
-       try { const price = await getItemPrice(testItem); console.log(`TEST: Price for ${testItem}: ${price !== undefined ? `$${price.toFixed(2)}` : 'Error/Not Found'}`); }
+       const testItem1 = "AK-47 | Alien Red"; // Changed item
+       const testItem2 = "Blue Beenie Hat";   // Kept low-value item test
+       try {
+           const price1 = await getItemPrice(testItem1);
+           console.log(`TEST: Price for ${testItem1}: ${price1 !== undefined ? `$${price1.toFixed(2)}` : 'Error/Not Found'}`);
+           const price2 = await getItemPrice(testItem2);
+           console.log(`TEST: Price for ${testItem2}: ${price2 !== undefined ? `$${price2.toFixed(2)}` : 'Error/Not Found'}`);
+        }
        catch(e){ console.error("Error testing price API:", e);}
-    }, 7000);
+    }, 7000); // Test after 7 seconds
 });
 
 // Graceful shutdown handler
