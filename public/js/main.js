@@ -67,8 +67,8 @@ const agreeButton = document.getElementById('agreeButton');
 // Constants
 const ROULETTE_REPETITIONS = 20; // How many times to repeat participant list
 const SPIN_DURATION_SECONDS = 7;  // <<< Keeping duration at 8 seconds
-const SPIN_ACCELERATION = 0.15; // For cubic-bezier(0.65, 0, 0.25, 1) - Slower start/end emphasis
-const SPIN_DECELERATION = 0.10; // For cubic-bezier(0.65, 0, 0.25, 1) - Slower start/end emphasis
+const SPIN_ACCELERATION = 0.01; // For cubic-bezier(0.65, 0, 0.25, 1) - Slower start/end emphasis
+const SPIN_DECELERATION = 0.65; // For cubic-bezier(0.65, 0, 0.25, 1) - Slower start/end emphasis
 const WINNER_DISPLAY_DURATION = 7000; // How long to show winner info (in ms)
 const CONFETTI_COUNT = 100; // Number of confetti particles
 
