@@ -12,7 +12,7 @@ const TradeOfferManager = require('steam-tradeoffer-manager');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const SteamTotp = require('steam-totp'); // Required for 2FA login
-// Added for real-time pricing API
+// Added for pricing API
 const axios = require('axios');
 const NodeCache = require('node-cache');
 require('dotenv').config(); // Loads .env file variables
@@ -37,73 +37,28 @@ const io = socketIo(server, {
 });
 
 // Configure middleware
-app.use(cors({
-    origin: process.env.SITE_URL || "*", // Configure appropriately for production
-    credentials: true
-}));
+app.use(cors({ origin: process.env.SITE_URL || "*", credentials: true }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static('public')); // Serve static files (like CSS, frontend JS) from 'public' directory
+app.use(express.static('public'));
 app.use(session({
-    secret: process.env.SESSION_SECRET, // Ensure this is strong and secure in .env
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        maxAge: 3600000 // 1 hour
-        // secure: process.env.NODE_ENV === 'production', // Enable in production with HTTPS
-        // httpOnly: true // Good practice
-    }
+    secret: process.env.SESSION_SECRET, resave: false, saveUninitialized: false,
+    cookie: { maxAge: 3600000 /*, secure: process.env.NODE_ENV === 'production', httpOnly: true */ }
 }));
-
-// Initialize Passport
 app.use(passport.initialize());
 app.use(passport.session());
 
 // --- Steam Strategy ---
-// Ensure required env vars for Steam Auth are present
-if (!process.env.SITE_URL || !process.env.STEAM_API_KEY || !process.env.SESSION_SECRET) {
-   console.error("FATAL ERROR: Missing required environment variables for Steam Authentication (SITE_URL, STEAM_API_KEY, SESSION_SECRET).");
-   process.exit(1);
-}
-
-passport.use(new SteamStrategy({
-    returnURL: `${process.env.SITE_URL}/auth/steam/return`,
-    realm: process.env.SITE_URL,
-    apiKey: process.env.STEAM_API_KEY,
-    providerURL: 'https://steamcommunity.com/openid'
-}, async (identifier, profile, done) => {
-    try {
-        let user = await User.findOne({ steamId: profile.id });
-
-        if (!user) {
-            console.log(`Creating new user: ${profile.displayName} (${profile.id})`);
-            const newUser = new User({
-                steamId: profile.id, username: profile.displayName,
-                avatar: profile._json.avatarfull || '', tradeUrl: ''
-            });
-            await newUser.save(); return done(null, newUser);
-        } else {
-            let updated = false;
-            if (user.username !== profile.displayName) { user.username = profile.displayName; updated = true; }
-            if (profile._json.avatarfull && user.avatar !== profile._json.avatarfull) { user.avatar = profile._json.avatarfull; updated = true; }
-            if (updated) { await user.save(); console.log(`Updated user info for: ${user.username}`); }
-            return done(null, user);
-        }
-    } catch (err) { console.error('SteamStrategy Error:', err); return done(err); }
-}));
-
-// Serialize/Deserialize user
+if (!process.env.SITE_URL || !process.env.STEAM_API_KEY || !process.env.SESSION_SECRET) { console.error("FATAL: Missing Steam Auth env vars."); process.exit(1); }
+passport.use(new SteamStrategy({ returnURL: `${process.env.SITE_URL}/auth/steam/return`, realm: process.env.SITE_URL, apiKey: process.env.STEAM_API_KEY, providerURL: 'https://steamcommunity.com/openid' },
+    async (identifier, profile, done) => { try { let u = await User.findOne({ steamId: profile.id }); if (!u) { console.log(`Creating user: ${profile.displayName}`); u = await new User({ steamId: profile.id, username: profile.displayName, avatar: profile._json.avatarfull || '', tradeUrl: '' }).save(); } else { let upd = false; if (u.username !== profile.displayName) { u.username = profile.displayName; upd = true; } if (profile._json.avatarfull && u.avatar !== profile._json.avatarfull) { u.avatar = profile._json.avatarfull; upd = true; } if (upd) await u.save(); } return done(null, u); } catch (err) { console.error('SteamStrategy Error:', err); return done(err); } }
+));
 passport.serializeUser((user, done) => done(null, user.id));
-passport.deserializeUser(async (id, done) => {
-    try { const user = await User.findById(id); done(null, user); }
-    catch (err) { console.error("DeserializeUser Error:", err); done(err); }
-});
+passport.deserializeUser(async (id, done) => { try { const u = await User.findById(id); done(null, u); } catch (err) { console.error("DeserializeUser Err:", err); done(err); } });
 
 // --- MongoDB Connection ---
-if (!process.env.MONGODB_URI) { console.error("FATAL ERROR: MONGODB_URI not set."); process.exit(1); }
-mongoose.connect(process.env.MONGODB_URI)
-.then(() => console.log('Connected to MongoDB'))
-.catch(err => { console.error('MongoDB connection error:', err); process.exit(1); });
+if (!process.env.MONGODB_URI) { console.error("FATAL: MONGODB_URI missing."); process.exit(1); }
+mongoose.connect(process.env.MONGODB_URI).then(() => console.log('MongoDB Connected')).catch(err => { console.error('MongoDB Connect Err:', err); process.exit(1); });
 
 // --- MongoDB Schemas ---
 const userSchema = new mongoose.Schema({ steamId: { type: String, required: true, unique: true, index: true }, username: { type: String, required: true }, avatar: { type: String }, tradeUrl: { type: String, default: '' }, balance: { type: Number, default: 0 }, createdAt: { type: Date, default: Date.now }, banned: { type: Boolean, default: false } });
@@ -115,44 +70,28 @@ const Round = mongoose.model('Round', roundSchema);
 
 // --- Steam Bot Setup ---
 const community = new SteamCommunity();
-const manager = new TradeOfferManager({
-    steam: community,
-    domain: process.env.SITE_URL ? process.env.SITE_URL.replace(/^https?:\/\//, '') : 'localhost',
-    language: 'en', pollInterval: 15000, cancelTime: 10 * 60 * 1000,
-});
-let isBotReady = false; // Flag to track bot readiness
+const manager = new TradeOfferManager({ steam: community, domain: process.env.SITE_URL ? process.env.SITE_URL.replace(/^https?:\/\//, '') : 'localhost', language: 'en', pollInterval: 15000, cancelTime: 10 * 60 * 1000 });
+let isBotReady = false; // Track bot readiness
 
-// --- Function to generate Steam Guard code ---
-function generateAuthCode() {
-    const sharedSecret = process.env.STEAM_SHARED_SECRET;
-    if (!sharedSecret) { console.error("STEAM_SHARED_SECRET missing. Bot cannot log in."); return null; }
-    try { const code = SteamTotp.generateAuthCode(sharedSecret); return code; }
-    catch (err) { console.error("Error generating 2FA code:", err); return null; }
-}
-
-// Check if bot credentials are configured
+// --- 2FA Code Generation ---
+function generateAuthCode() { const s=process.env.STEAM_SHARED_SECRET; if(!s){console.error("STEAM_SHARED_SECRET missing.");return null;} try{return SteamTotp.generateAuthCode(s);} catch(e){console.error("2FA gen err:",e);return null;} }
 const isBotConfigured = process.env.STEAM_USERNAME && process.env.STEAM_PASSWORD && process.env.STEAM_SHARED_SECRET;
 
 // --- Steam Bot Login ---
 if (isBotConfigured) {
-   const steamLoginCredentials = { accountName: process.env.STEAM_USERNAME, password: process.env.STEAM_PASSWORD, twoFactorCode: generateAuthCode() };
-   if (steamLoginCredentials.twoFactorCode) {
-       console.log(`Attempting Steam login for bot: ${steamLoginCredentials.accountName}...`);
-       community.login(steamLoginCredentials, (err, sessionID, cookies, steamguard) => {
-           if (err) { console.error('FATAL STEAM LOGIN ERROR:', err); console.error("Bot login failed. Check credentials/2FA/Guard."); isBotReady = false; }
+   const creds = { accountName: process.env.STEAM_USERNAME, password: process.env.STEAM_PASSWORD, twoFactorCode: generateAuthCode() };
+   if (creds.twoFactorCode) {
+       console.log(`Attempting Steam login: ${creds.accountName}...`);
+       community.login(creds, (err, sessionID, cookies) => {
+           if (err) { console.error('FATAL STEAM LOGIN ERROR:', err); isBotReady = false; }
            else {
-               console.log(`Steam bot ${steamLoginCredentials.accountName} logged in (SteamID: ${community.steamID}).`);
-               manager.setCookies(cookies, err => {
-                   if (err) { console.error('Error setting TOM cookies:', err); isBotReady = false; return; }
-                   console.log('Trade Offer Manager cookies set.'); community.setCookies(cookies);
-                   community.gamesPlayed(process.env.SITE_NAME || 'RustyDegen'); community.setPersona(SteamCommunity.EPersonaState.Online);
-                   isBotReady = true; console.log("Bot is ready, creating initial round..."); createNewRound();
-               });
-               community.on('friendRelationship', (sId, rel) => { if (rel === SteamCommunity.EFriendRelationship.RequestRecipient) { console.log(`Accepting friend req: ${sId}`); community.addFriend(sId, e => { if(e) console.error(`Friend add err ${sId}:`, e); }); } });
+               console.log(`Steam bot ${creds.accountName} logged in (ID: ${community.steamID}).`);
+               manager.setCookies(cookies, e => { if (e) { console.error('TOM cookie err:', e); isBotReady = false; return; } console.log('TOM cookies set.'); community.setCookies(cookies); community.gamesPlayed(process.env.SITE_NAME||'RustyDegen'); community.setPersona(SteamCommunity.EPersonaState.Online); isBotReady=true; console.log("Bot ready, creating round..."); createNewRound(); });
+               community.on('friendRelationship',(id,rel)=>{if(rel===SteamCommunity.EFriendRelationship.RequestRecipient){console.log(`Accept friend: ${id}`); community.addFriend(id, e=>{if(e)console.error(`Friend add err ${id}:`,e);});}});
            }
        });
-   } else { console.warn("Could not generate 2FA code. Bot login skipped."); isBotReady = false; }
-} else { console.warn("Bot credentials incomplete. Trade features unavailable."); isBotReady = false; }
+   } else { console.warn("No 2FA code. Bot login skipped."); isBotReady = false; }
+} else { console.warn("Bot creds incomplete. Trade features disabled."); isBotReady = false; }
 
 // --- Active Round Data ---
 let currentRound = null;
@@ -161,83 +100,79 @@ let isRolling = false;
 
 // --- Deposit Security Token Store ---
 const depositTokens = {};
-function generateDepositToken(userId) { const token = crypto.randomBytes(16).toString('hex'); const expiry = Date.now() + DEPOSIT_TOKEN_EXPIRY_MS; depositTokens[token] = { userId: userId.toString(), expiry }; console.log(`Gen token ${token} for ${userId}`); setTimeout(() => { if (depositTokens[token]?.expiry <= Date.now()) { delete depositTokens[token]; console.log(`Expired token ${token}`); } }, DEPOSIT_TOKEN_EXPIRY_MS + 1000); return token; }
-async function verifyDepositToken(token, partnerSteamId) { const stored=depositTokens[token]; if (!stored || stored.expiry <= Date.now()) { if(stored) delete depositTokens[token]; console.log(`Token ${token} invalid/expired.`); return null; } try { const user = await User.findOne({ steamId: partnerSteamId }).lean(); if (!user || user._id.toString() !== stored.userId) { console.log(`Token ${token} verification fail.`); return null; } delete depositTokens[token]; console.log(`Verified token ${token} for ${user.username}`); return user; } catch (err) { console.error(`Token verify err ${token}:`, err); return null; } }
+function generateDepositToken(userId){const t=crypto.randomBytes(16).toString('hex'); const exp=Date.now()+DEPOSIT_TOKEN_EXPIRY_MS; depositTokens[t]={userId:userId.toString(),expiry:exp}; console.log(`Gen token ${t} for ${userId}`); setTimeout(()=>{if(depositTokens[t]?.expiry<=Date.now()){delete depositTokens[t];console.log(`Expired token ${t}`);}},DEPOSIT_TOKEN_EXPIRY_MS+1000); return t;}
+async function verifyDepositToken(token, partnerSteamId){const s=depositTokens[token]; if(!s||s.expiry<=Date.now()){if(s)delete depositTokens[token];console.log(`Token ${token} invalid/expired.`);return null;} try{const u=await User.findOne({steamId:partnerSteamId}).lean(); if(!u||u._id.toString()!==s.userId){console.log(`Token ${token} verify fail.`);return null;} delete depositTokens[token]; console.log(`Verified token ${token} for ${u.username}`); return u;} catch(err){console.error(`Token verify err ${token}:`,err);return null;}}
 
 // --- Pricing Cache and Functions ---
 const priceCache = new NodeCache({ stdTTL: PRICE_CACHE_TTL_SECONDS, checkperiod: PRICE_CACHE_TTL_SECONDS * 0.2 });
-function getFallbackPrice(marketHashName) { const commonItems = { 'Metal Chest Plate': 5.20, 'Semi-Automatic Rifle': 10.00, 'Garage Door': 3.50, 'Assault Rifle': 8.50, 'Metal Facemask': 6.00, 'Road Sign Kilt': 1.50, 'Coffee Can Helmet': 1.20, 'Double Barrel Shotgun': 0.80, 'Revolver': 0.50, 'Sheet Metal Door': 0.75, 'Medical Syringe': 0.15, 'MP5A4': 2.50, 'Python Revolver': 1.80, 'Satchel Charge': 0.60, 'Rocket Launcher': 12.00, 'Explosive 5.56 Rifle Ammo': 0.20, 'Timed Explosive Charge': 4.50 }; const fallback=commonItems[marketHashName]; if(fallback!==undefined) { console.warn(`PRICE_INFO: Using fallback $${fallback.toFixed(2)} for: ${marketHashName}`); return Math.max(fallback, MIN_ITEM_VALUE > 0 ? MIN_ITEM_VALUE : 0); } else { console.warn(`PRICE_INFO: No fallback for ${marketHashName}, using min $${MIN_ITEM_VALUE.toFixed(2)}.`); return MIN_ITEM_VALUE > 0 ? MIN_ITEM_VALUE : 0; } }
+function getFallbackPrice(marketHashName) { const ci={'Metal Chest Plate':5.20,'Semi-Automatic Rifle':10.00,'Garage Door':3.50,'Assault Rifle':8.50,'Metal Facemask':6.00,'Road Sign Kilt':1.50,'Coffee Can Helmet':1.20,'Double Barrel Shotgun':0.80,'Revolver':0.50,'Sheet Metal Door':0.75,'Medical Syringe':0.15,'MP5A4':2.50,'Python Revolver':1.80,'Satchel Charge':0.60,'Rocket Launcher':12.00,'Explosive 5.56 Rifle Ammo':0.20,'Timed Explosive Charge':4.50}; const fb=ci[marketHashName]; const minV=MIN_ITEM_VALUE>0?MIN_ITEM_VALUE:0; if(fb!==undefined){console.warn(`PRICE_INFO: Using fallback $${fb.toFixed(2)} for: ${marketHashName}`); return Math.max(fb,minV);}else{console.warn(`PRICE_INFO: No fallback for ${marketHashName}, using min $${minV.toFixed(2)}.`); return minV;}}
 
-// ** getItemPrice Function - Diagnosis Focus **
+// ** getItemPrice Function - Using SteamApis **
 async function getItemPrice(marketHashName) {
-   const apiKey = process.env.PRICEMPIRE_API_KEY; // Key referenced here
-   // 1. Check if API key is configured in .env
-   if (!apiKey) {
-       console.error("PRICE_ERROR: PRICEMPIRE_API_KEY not set in .env file. Using fallback pricing.");
-       return getFallbackPrice(marketHashName); // Cannot proceed without API key
-   }
+    const apiKey = process.env.STEAMAPIS_API_KEY; // <-- Use new API Key name
+    // 1. Check if API key is configured
+    if (!apiKey) {
+        console.error("PRICE_ERROR: STEAMAPIS_API_KEY not set in .env file. Using fallback pricing.");
+        return getFallbackPrice(marketHashName);
+    }
 
-   try {
-       // 2. Check cache
-       const cachedPrice = priceCache.get(marketHashName);
-       if (cachedPrice !== undefined) {
-           return cachedPrice; // Return cached value
-       }
+    try {
+        // 2. Check cache
+        const cachedPrice = priceCache.get(marketHashName);
+        if (cachedPrice !== undefined) {
+            return cachedPrice;
+        }
 
-       // 3. Prepare API request
-       const apiUrl = 'https://api.pricempire.com/v2/items/rust_item';
-       const params = { name: marketHashName, currency: 'USD' };
-       const headers = {
-           'X-API-Key': apiKey, // Using the key from environment variable
-           'Accept': 'application/json'
-       };
-       console.log(`PRICE_INFO: Attempting Pricempire fetch for: ${marketHashName}`); // Log the attempt
+        // 3. Prepare API request for SteamApis
+        // URL encode the market_hash_name as it can contain special characters
+        const encodedName = encodeURIComponent(marketHashName);
+        const apiUrl = `https://api.steamapis.com/market/item/${RUST_APP_ID}/${encodedName}`;
+        const params = { api_key: apiKey, currency: 'USD' }; // Key as query param for SteamApis
 
-       // 4. Make the API call
-       const response = await axios.get(apiUrl, { params, headers, timeout: 7000 }); // Increased timeout slightly
+        console.log(`PRICE_INFO: Attempting SteamApis fetch for: ${marketHashName}`);
 
-       // 5. Process successful response
-       if (response.data?.price) {
-           const priceData = response.data.price;
-           let price = parseFloat(priceData.steam || priceData.avg || priceData.suggested || 0);
-           if (!isNaN(price) && price > 0) {
-               console.log(`PRICE_SUCCESS: API price for ${marketHashName}: $${price.toFixed(2)}`);
-               priceCache.set(marketHashName, price); // Cache valid price
-               return price;
-           } else {
-               console.warn(`PRICE_WARN: API returned zero/invalid price for ${marketHashName}. Data:`, priceData, `Using fallback.`);
-               return getFallbackPrice(marketHashName);
-           }
-       }
+        // 4. Make the API call
+        const response = await axios.get(apiUrl, { params, timeout: 7000 });
 
-       // Fallback if response structure is unexpected
-       console.warn(`PRICE_WARN: No valid price data structure in API response for ${marketHashName}. Using fallback.`);
-       return getFallbackPrice(marketHashName);
+        // 5. Process successful response from SteamApis
+        // Check for data and prefer median_price, then lowest_price
+        if (response.data) {
+             // Log the structure for debugging if needed
+             // console.log(`PRICE_DEBUG: SteamApis response for ${marketHashName}:`, JSON.stringify(response.data));
 
-   } catch (error) {
-       // 6. Handle errors during API call - THIS IS LIKELY WHERE YOUR 403 IS CAUGHT
-       console.error(`PRICE_ERROR: Failed API call for ${marketHashName}.`);
-       if (error.response) {
-           // The request was made and the server responded with a status code outside 2xx
-           console.error(` -> Status: ${error.response.status}`); // e.g., 403, 401, 429, 500
-           console.error(` -> Headers:`, error.response.headers); // Can be useful
-           console.error(` -> Response Data:`, error.response.data || error.message); // Log the actual error body from Pricempire
-           if (error.response.status === 403) {
-               console.error("PRICE_DIAGNOSIS: Received 403 Forbidden - Check your PRICEMPIRE_API_KEY in .env. Is it correct, active, and unrestricted (e.g., IP whitelisting)?");
-           } else if (error.response.status === 401) {
-               console.error("PRICE_DIAGNOSIS: Received 401 Unauthorized - Check your PRICEMPIRE_API_KEY, it might be invalid or missing.");
-           } else if (error.response.status === 429) {
-               console.error("PRICE_DIAGNOSIS: Received 429 Too Many Requests - You might be exceeding API rate limits.");
-           }
-       } else if (error.request) {
-           // The request was made but no response was received
-           console.error(` -> Error: No response received. Check network connectivity, DNS, firewall, or Pricempire API status.`, error.message);
-       } else {
-           // Something happened in setting up the request that triggered an Error
-           console.error(' -> Error setting up request:', error.message);
-       }
-       return getFallbackPrice(marketHashName); // Fallback on any error
-   }
+            let priceValue = response.data.median_price || response.data.lowest_price || 0;
+            let parsedPrice = parseFloat(priceValue);
+
+            console.log(`PRICE_DEBUG: Extracted price value for ${marketHashName} from SteamApis: ${priceValue}, Parsed: ${parsedPrice}`);
+
+            if (!isNaN(parsedPrice) && parsedPrice > 0) {
+                console.log(`PRICE_SUCCESS: Using SteamApis price $${parsedPrice.toFixed(2)} for ${marketHashName}`);
+                priceCache.set(marketHashName, parsedPrice); // Cache valid price
+                return parsedPrice;
+            } else {
+                 if (isNaN(parsedPrice)) { console.warn(`PRICE_WARN: SteamApis price value "${priceValue}" for ${marketHashName} is Not a Number. Using fallback.`); }
+                 else { console.warn(`PRICE_WARN: SteamApis price value $${parsedPrice.toFixed(2)} for ${marketHashName} is not positive. Using fallback.`); }
+                 return getFallbackPrice(marketHashName);
+            }
+        }
+
+        // Fallback if response structure is unexpected
+        console.warn(`PRICE_WARN: No valid price data structure in SteamApis response for ${marketHashName}. Using fallback.`);
+        return getFallbackPrice(marketHashName);
+
+    } catch (error) {
+        // 6. Handle errors during SteamApis call
+        console.error(`PRICE_ERROR: Failed SteamApis call for ${marketHashName}.`);
+        if (error.response) {
+            console.error(` -> Status: ${error.response.status}`);
+            console.error(` -> Response Data:`, error.response.data || error.message);
+             if (error.response.status === 401 || error.response.status === 403) { console.error("PRICE_DIAGNOSIS: Received 401/403 - Check your STEAMAPIS_API_KEY validity/restrictions."); }
+             else if (error.response.status === 429) { console.error("PRICE_DIAGNOSIS: Received 429 - Check SteamApis rate limits."); }
+             else if (error.response.status === 404) { console.warn(`PRICE_WARN: Item ${marketHashName} not found by SteamApis.`); } // Specific handling for 404
+        } else if (error.request) { console.error(` -> Error: No response from SteamApis (Timeout/Network?).`, error.message); }
+        else { console.error(' -> Error setting up request:', error.message); }
+        return getFallbackPrice(marketHashName); // Fallback on any error
+    }
 }
 
 // --- Core Game Logic --- (No changes needed here)
@@ -277,13 +212,14 @@ app.get('/api/inventory', ensureAuthenticated, async (req, res) => {
 
         if (!inventory?.length) return res.json([]);
 
-        // Get prices concurrently using REAL pricing function
+        // Get prices concurrently using NEW pricing function
         const itemsWithPrices = await Promise.all(inventory.map(async (item) => {
-            const price = await getItemPrice(item.market_hash_name); // Uses updated function
+            const price = await getItemPrice(item.market_hash_name); // Uses SteamApis function
             return {
                 assetId: item.assetid, name: item.market_hash_name, displayName: item.name,
                 image: `https://community.akamai.steamstatic.com/economy/image/${item.icon_url}`,
-                price: price || 0, tradable: item.tradable, marketable: item.marketable,
+                price: price || 0, // getItemPrice handles fallback
+                tradable: item.tradable, marketable: item.marketable,
             };
         }));
 
@@ -308,7 +244,7 @@ app.post('/api/deposit/initiate', ensureAuthenticated, (req, res) => {
 // --- Trade Offer Manager Event Handling --- (Keep bot check inside)
 if (isBotConfigured) {
    manager.on('newOffer', async (offer) => {
-       if (!isBotReady) { /* console.warn(`Ignoring offer ${offer.id}: Bot not ready.`); */ return; }
+       if (!isBotReady) return; // Silently ignore if bot not ready
        // ... rest of newOffer handler using await getItemPrice ...
         if (offer.isOurOffer || offer.itemsToReceive.length === 0 || !offer.message) return;
         if (!currentRound || currentRound.status !== 'active' || isRolling) { console.log(`Offer ${offer.id} deposit closed. Declining.`); return offer.decline().catch(e => console.error(`Decline err ${offer.id}:`, e)); }
@@ -352,12 +288,8 @@ io.on('connection', (socket) => { /* ... unchanged ... */ console.log(`Client co
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}`);
-    // Initial round creation is handled within the bot login callback
-    if (!isBotConfigured) {
-       console.log("Bot not configured. Server running without trade features. Initial round not created.");
-    } else if (!isBotReady) { // If configured but login hasn't finished/failed
-       console.log("Waiting for bot login attempt... Initial round will be created if successful.");
-    }
+    if (!isBotConfigured) { console.log("Bot not configured. Trade features disabled. Initial round not created."); }
+    else if (!isBotReady) { console.log("Waiting for bot login attempt... Initial round will start if successful."); }
     // Pricing API Test
     setTimeout(async () => {
        console.log("Testing Pricing API on startup...");
