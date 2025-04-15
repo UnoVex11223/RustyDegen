@@ -569,25 +569,71 @@ async function sendWinningTradeOffer(round, winner) {
         // Implement retry logic or manual intervention steps
         // Notify admin/support
     }
+// --- Real-time Item Pricing Function ---
+// Cache price data with a 10-minute TTL
+const priceCache = new NodeCache({ stdTTL: 600 });
+
+/**
+ * Get real-time price for a Rust skin using Pricempire API
+ * @param {string} marketHashName - The market hash name of the item
+ * @returns {Promise<number>} - The item price in USD
+ */
+async function getItemPrice(marketHashName) {
+    try {
+        // Check cache first to avoid unnecessary API calls
+        const cachedPrice = priceCache.get(marketHashName);
+        if (cachedPrice !== undefined) {
+            return cachedPrice;
+        }
+
+        // No cached price, fetch from API
+        console.log(`Fetching price for: ${marketHashName}`);
+        
+        const response = await axios.get('https://api.pricempire.com/v2/items/rust_item', {
+            params: {
+                name: marketHashName,
+                currency: 'USD'
+            },
+            headers: {
+                'X-API-Key': process.env.PRICEMPIRE_API_KEY
+            }
+        });
+
+        if (response.data && response.data.price) {
+            const price = response.data.price.steam || 
+                          response.data.price.avg || 
+                          response.data.price.suggested || 
+                          0;
+            
+            // Cache the result
+            priceCache.set(marketHashName, price);
+            
+            return price;
+        }
+        
+        // Fallback to minimum price if item not found
+        console.warn(`No price data found for: ${marketHashName}, using fallback price`);
+        return getFallbackPrice(marketHashName);
+        
+    } catch (error) {
+        console.error(`Error fetching price for ${marketHashName}:`, error.message);
+        return getFallbackPrice(marketHashName);
+    }
 }
 
-// --- Placeholder Item Pricing Function ---
-// !!! IMPORTANT: Replace this with a real pricing API or database !!!
-function getItemPrice(marketHashName) {
-    console.warn(`Using placeholder pricing for: ${marketHashName}`);
-    // In a real implementation, you'd query an external API or internal price database
-    // Example: await PricingService.getPrice(marketHashName);
-    const priceMap = {
-        'AK-47 | Redline (Field-Tested)': 15.50,
-        'M4A4 | Howl (Minimal Wear)': 1500.75, // Example high tier
-        'AWP | Dragon Lore (Field-Tested)': 2000.25, // Example high tier
-        'MP9 | Sand Dashed (Field-Tested)': 0.15,
+/**
+ * Fallback pricing function for when API calls fail
+ */
+function getFallbackPrice(marketHashName) {
+    // Database of common items with baseline prices
+    const commonItems = {
         'Metal Chest Plate': 5.20,
         'Semi-Automatic Rifle': 10.00,
-        'Garage Door': 3.50
+        'Garage Door': 3.50,
+        // Add more common items
     };
-    // Return a random price for items not in map for testing
-    return priceMap[marketHashName] || (Math.random() * 10 + 0.10).toFixed(2);
+    
+    return commonItems[marketHashName] || 0.50; // Default minimum value
 }
 
 
