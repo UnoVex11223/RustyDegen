@@ -593,7 +593,7 @@ a:hover {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: scale(0.8); }
+    from { opacity: 0; transform: scale(0.9); }
     to { opacity: 1; transform: scale(1); }
 }
 
@@ -650,16 +650,9 @@ a:hover {
     50% { transform: scale(1.1); }
 }
 
-/* Return Button */
+/* Return Button - HIDDEN */
 .return-btn {
-    display: none; /* Hidden by default */
-    position: absolute;
-    bottom: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 30;
-    padding: 5px 10px;
-    font-size: 0.9rem;
+    display: none !important; /* Always hidden as requested */
 }
 
 /* Confetti Container - ENHANCED */
