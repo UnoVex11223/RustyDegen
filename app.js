@@ -12,7 +12,7 @@ const TradeOfferManager = require('steam-tradeoffer-manager');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const SteamTotp = require('steam-totp');
-const axios = require('axios'); // Still needed for the new API call
+const axios = require('axios'); // Still needed
 const NodeCache = require('node-cache');
 require('dotenv').config();
 
@@ -22,11 +22,10 @@ const RUST_CONTEXT_ID = 2;
 const ROUND_DURATION = parseInt(process.env.ROUND_DURATION_SECONDS) || 120;
 const TICKET_VALUE_RATIO = parseFloat(process.env.TICKET_VALUE) || 0.01;
 const DEPOSIT_TOKEN_EXPIRY_MS = 5 * 60 * 1000;
-// Price cache TTL: How long individual prices are considered valid in cache after a bulk refresh
-const PRICE_CACHE_TTL_SECONDS = parseInt(process.env.PRICE_CACHE_TTL_SECONDS) || 15 * 60; // 15 minutes default
-// Price refresh interval: How often we fetch ALL prices from SCMM API
-const PRICE_REFRESH_INTERVAL_MS = (parseInt(process.env.PRICE_REFRESH_MINUTES) || 10) * 60 * 1000; // Default 10 mins
+const PRICE_CACHE_TTL_SECONDS = parseInt(process.env.PRICE_CACHE_TTL_SECONDS) || 15 * 60; // 15 minutes default cache validity
+const PRICE_REFRESH_INTERVAL_MS = (parseInt(process.env.PRICE_REFRESH_MINUTES) || 10) * 60 * 1000; // Default 10 mins refresh interval
 const MIN_ITEM_VALUE = parseFloat(process.env.MIN_ITEM_VALUE) || 0.10;
+const PRICE_FETCH_TIMEOUT_MS = 30000; // ** Increased Timeout to 30 seconds **
 
 // Initialize Express app
 const app = express();
@@ -101,17 +100,17 @@ async function verifyDepositToken(token, partnerSteamId){const s=depositTokens[t
 const priceCache = new NodeCache({ stdTTL: PRICE_CACHE_TTL_SECONDS, checkperiod: PRICE_CACHE_TTL_SECONDS * 0.2 });
 
 // Fallback function remains the same
-function getFallbackPrice(marketHashName) { const ci={'AK-47 | Alien Red': 45.00, 'Metal Chest Plate':5.20,'Semi-Automatic Rifle':10.00,'Garage Door':3.50,'Assault Rifle':8.50,'Metal Facemask':6.00,'Road Sign Kilt':1.50,'Coffee Can Helmet':1.20,'Double Barrel Shotgun':0.80,'Revolver':0.50,'Sheet Metal Door':0.75,'Medical Syringe':0.15,'MP5A4':2.50,'Python Revolver':1.80,'Satchel Charge':0.60,'Rocket Launcher':12.00,'Explosive 5.56 Rifle Ammo':0.20,'Timed Explosive Charge':4.50, 'Pump Shotgun': 1.00, 'Waterpipe Shotgun': 0.60, 'Thompson': 2.00,'Custom SMG': 1.50, 'Bolt Action Rifle': 9.00, 'L96 Rifle': 15.00,'M249': 18.00, 'Large Wood Box': 0.30, 'Small Oil Refinery': 1.00,'Furnace': 0.25, 'Blue Beenie Hat': 0.15, 'Blue Hoodie': 0.40, 'Wooden Door': 0.15 }; const fb=ci[marketHashName]; const minV=MIN_ITEM_VALUE>0?MIN_ITEM_VALUE:0; if(fb!==undefined){console.warn(`PRICE_INFO: Using fallback $${fb.toFixed(2)} for: ${marketHashName}`); return Math.max(fb,minV);}else{console.warn(`PRICE_INFO: No specific fallback for ${marketHashName}, using min $${minV.toFixed(2)}.`); return minV;}}
+function getFallbackPrice(marketHashName) { const ci={'AK-47 | Alien Red': 45.00, 'Metal Chest Plate':5.20,'Semi-Automatic Rifle':10.00,'Garage Door':3.50,'Assault Rifle':8.50,'Metal Facemask':6.00,'Road Sign Kilt':1.50,'Coffee Can Helmet':1.20,'Double Barrel Shotgun':0.80,'Revolver':0.50,'Sheet Metal Door':0.75,'Medical Syringe':0.15,'MP5A4':2.50,'Python Revolver':1.80,'Satchel Charge':0.60,'Rocket Launcher':12.00,'Explosive 5.56 Rifle Ammo':0.20,'Timed Explosive Charge':4.50, 'Pump Shotgun': 1.00, 'Waterpipe Shotgun': 0.60, 'Thompson': 2.00,'Custom SMG': 1.50, 'Bolt Action Rifle': 9.00, 'L96 Rifle': 15.00,'M249': 18.00, 'Large Wood Box': 0.30, 'Small Oil Refinery': 1.00,'Furnace': 0.25, 'Blue Beenie Hat': 0.15, 'Blue Hoodie': 0.40, 'Wooden Door': 0.15 }; const fb=ci[marketHashName]; const minV=MIN_ITEM_VALUE>0?MIN_ITEM_VALUE:0; if(fb!==undefined){console.warn(`PRICE_INFO: Using fallback $${fb.toFixed(2)} for: ${marketHashName}`); return Math.max(fb,minV);}else{console.warn(`PRICE_INFO: No fallback for ${marketHashName}, using min $${minV.toFixed(2)}.`); return minV;}}
 
 /**
  * Fetches ALL item prices from rust.scmm.app and updates the local cache.
  */
 async function refreshPriceCache() {
     console.log("PRICE_INFO: Attempting to refresh price cache from rust.scmm.app...");
-    const apiUrl = `https://rust.scmm.app/api/item/prices?currency=USD`; // Use USD, adjust if needed
+    const apiUrl = `https://rust.scmm.app/api/item/prices?currency=USD`;
 
     try {
-        const response = await axios.get(apiUrl, { timeout: 15000 }); // Longer timeout for potentially large response
+        const response = await axios.get(apiUrl, { timeout: PRICE_FETCH_TIMEOUT_MS }); // Use configured timeout
 
         if (response.data && Array.isArray(response.data)) {
             const items = response.data;
@@ -119,52 +118,33 @@ async function refreshPriceCache() {
             let newItems = [];
 
             items.forEach(item => {
-                // Assuming the response item structure is { id: "...", name: "...", price: ..., basePrice: ... }
-                // We need the 'name' which should be the market_hash_name
-                if (item && item.name && typeof item.price === 'number' && item.price > 0) {
-                     // Use market_hash_name (item.name) as the key
-                    const key = item.name;
-                    const price = parseFloat(item.price); // Ensure it's a float
-
-                    if (!isNaN(price) && price > 0) {
-                         // Set cache with specified TTL
-                         // priceCache.set(key, price, PRICE_CACHE_TTL_SECONDS); // Set individual TTL (optional)
+                // Assuming structure: { name: "market_hash_name", price: number }
+                if (item?.name && typeof item.price === 'number') {
+                    const key = item.name; // market_hash_name
+                    const price = parseFloat(item.price);
+                    if (!isNaN(price) && price >= 0) { // Allow $0 price from API if returned explicitly
                          newItems.push({ key: key, val: price, ttl: PRICE_CACHE_TTL_SECONDS });
                          updatedCount++;
                     }
                 }
             });
 
-             // Bulk update cache (more efficient)
              if (newItems.length > 0) {
                 const success = priceCache.mset(newItems);
-                if (success) {
-                     console.log(`PRICE_SUCCESS: Refreshed price cache with ${updatedCount} items from rust.scmm.app.`);
-                } else {
-                     console.error("PRICE_ERROR: Failed to bulk set price cache.");
-                }
-             } else {
-                 console.warn("PRICE_WARN: No valid items found in the response from rust.scmm.app price refresh.");
-             }
-
-            // Optional: Clear old keys not present in the new list? (More complex, might remove valid items if API misses some)
-            // const currentKeys = priceCache.keys();
-            // const newKeys = new Set(newItems.map(i => i.key));
-            // const keysToDelete = currentKeys.filter(k => !newKeys.has(k));
-            // if (keysToDelete.length > 0) {
-            //     priceCache.del(keysToDelete);
-            //     console.log(`PRICE_INFO: Removed ${keysToDelete.length} stale items from cache.`);
-            // }
-
+                if (success) { console.log(`PRICE_SUCCESS: Refreshed price cache with ${updatedCount} items from rust.scmm.app.`); }
+                else { console.error("PRICE_ERROR: Failed to bulk set price cache."); }
+             } else { console.warn("PRICE_WARN: No valid items found in the response from rust.scmm.app price refresh."); }
         } else {
-            console.error("PRICE_ERROR: Invalid or empty response received from rust.scmm.app price refresh. Response:", response.data);
+            console.error("PRICE_ERROR: Invalid or empty array response received from rust.scmm.app price refresh. Response:", response.data);
         }
     } catch (error) {
-        console.error(`PRICE_ERROR: Failed to fetch prices from rust.scmm.app.`);
-        if (error.response) { console.error(` -> Status: ${error.response.status}, Response:`, error.response.data || error.message); }
-        else if (error.request) { console.error(` -> Error: No response received (Timeout/Network?).`, error.message); }
+        console.error(`PRICE_ERROR: Failed to fetch prices from ${apiUrl}.`);
+        if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+             console.error(` -> Error: Request timed out after ${PRICE_FETCH_TIMEOUT_MS}ms. The SCMM API might be slow or unreachable.`);
+        } else if (error.response) { console.error(` -> Status: ${error.response.status}, Response:`, error.response.data || error.message); }
+        else if (error.request) { console.error(` -> Error: No response received (Network issue?).`, error.message); }
         else { console.error(' -> Error setting up request:', error.message); }
-        // Do not clear cache on error, keep stale data
+        // Do not clear cache on error, keep using potentially stale data + fallback
     }
 }
 
@@ -176,11 +156,11 @@ async function refreshPriceCache() {
 function getItemPrice(marketHashName) {
     const cachedPrice = priceCache.get(marketHashName);
     if (cachedPrice !== undefined) {
-        // console.log(`PRICE_INFO: Cache hit for ${marketHashName}: $${cachedPrice.toFixed(2)}`); // Optional log
+        // console.log(`PRICE_INFO: Cache hit for ${marketHashName}: $${cachedPrice.toFixed(2)}`); // Optional
         return cachedPrice;
     } else {
-        // console.warn(`PRICE_WARN: Cache miss for ${marketHashName}. Using fallback.`); // Optional log
-        return getFallbackPrice(marketHashName); // Use fallback if not in cache
+        // console.warn(`PRICE_WARN: Cache miss for ${marketHashName}. Using fallback.`); // Optional
+        return getFallbackPrice(marketHashName);
     }
 }
 
@@ -201,7 +181,7 @@ function ensureAuthenticated(req, res, next) { if (req.isAuthenticated()) return
 app.get('/api/user', ensureAuthenticated, (req, res) => { const { _id, steamId, username, avatar, tradeUrl, balance, createdAt } = req.user; res.json({ _id, steamId, username, avatar, tradeUrl, balance, createdAt }); });
 app.post('/api/user/tradeurl', ensureAuthenticated, async (req, res) => { const { tradeUrl } = req.body; if (!tradeUrl?.includes('steamcommunity.com/tradeoffer/new/')) return res.status(400).json({e:'Invalid format'}); try { const url = new URL(tradeUrl); if (!url.searchParams.get('partner') || !url.searchParams.get('token')) return res.status(400).json({ e:'Invalid params'}); } catch (e) { return res.status(400).json({ e:'Invalid URL'}); } try { const u = await User.findByIdAndUpdate(req.user._id, {tradeUrl},{new:true}); if(!u) return res.status(404).json({e:'User missing'}); console.log(`TU Upd: ${u.username}`); res.json({success:true, tradeUrl:u.tradeUrl}); } catch(err) { console.error(`TU Upd Err ${req.user._id}:`, err); res.status(500).json({e:'Server error'}); } });
 
-// GET USER INVENTORY - Uses new getItemPrice which reads from cache
+// GET USER INVENTORY - Uses getItemPrice (which reads cache)
 app.get('/api/inventory', ensureAuthenticated, async (req, res) => {
     try {
        if (!manager) { console.error("Inv API fail: TOM not init."); return res.status(503).json({ error: "Trade service initialization failed." }); }
@@ -212,15 +192,21 @@ app.get('/api/inventory', ensureAuthenticated, async (req, res) => {
             });
         });
         if (!inventory?.length) return res.json([]);
-        // Get prices from cache (or fallback) - This is now synchronous
-        const itemsWithPrices = inventory.map(item => { // Removed async from map callback
-            const price = getItemPrice(item.market_hash_name); // Now reads cache
-            return {
-                assetId: item.assetid, name: item.market_hash_name, displayName: item.name,
-                image: `https://community.akamai.steamstatic.com/economy/image/${item.icon_url}`,
-                price: price || 0, // getItemPrice handles fallback
-                tradable: item.tradable, marketable: item.marketable,
-            };
+        // Map items and get prices from cache/fallback (synchronous call now)
+        const itemsWithPrices = inventory.map(item => {
+             // Ensure market_hash_name exists before trying to get price
+             const itemName = item.market_hash_name;
+             let price = 0;
+             if(itemName) {
+                price = getItemPrice(itemName); // Reads cache or uses fallback
+             } else {
+                 console.warn(`Inventory item missing market_hash_name: assetId ${item.assetid}`);
+             }
+             return {
+                 assetId: item.assetid, name: itemName || 'Unknown Item', displayName: item.name,
+                 image: `https://community.akamai.steamstatic.com/economy/image/${item.icon_url}`,
+                 price: price || 0, tradable: item.tradable, marketable: item.marketable,
+             };
         });
         const validItems = itemsWithPrices.filter(item => item.tradable && item.price >= MIN_ITEM_VALUE );
         res.json(validItems);
@@ -230,24 +216,22 @@ app.get('/api/inventory', ensureAuthenticated, async (req, res) => {
 // Initiate Deposit - REQUIRES BOT READY
 app.post('/api/deposit/initiate', ensureAuthenticated, (req, res) => { if (!isBotReady || !process.env.BOT_TRADE_URL) { console.warn(`Deposit init fail ${req.user.username}: Bot unavailable.`); return res.status(503).json({ error: "Deposit service unavailable." }); } if (!currentRound || currentRound.status !== 'active' || isRolling) { return res.status(400).json({ error: 'Deposits closed.' }); } const token = generateDepositToken(req.user._id); res.json({ success: true, depositToken: token, botTradeUrl: process.env.BOT_TRADE_URL }); });
 
-// --- Trade Offer Manager Event Handling ---
+// --- Trade Offer Manager Event Handling --- Uses getItemPrice (cache)
 if (isBotConfigured) {
    manager.on('newOffer', async (offer) => {
        if (!isBotReady) return;
-       // Price fetching for deposit now relies on cache, making this part faster
        if(offer.isOurOffer||offer.itemsToReceive.length===0||!offer.message)return; if(!currentRound||currentRound.status!=='active'||isRolling){console.log(`Offer ${offer.id} dep closed.`);return offer.decline().catch(e=>console.error(`Decline err ${offer.id}:`,e));} const token=offer.message.trim(); let user; try{user=await verifyDepositToken(token,offer.partner.getSteamID64()); if(!user){console.log(`Offer ${offer.id} invalid token.`);return offer.decline().catch(e=>console.error(`Decline err ${offer.id}:`,e));}}catch(vErr){console.error(`Token verify err ${offer.id}:`,vErr);return offer.decline().catch(e=>console.error(`Decline err ${offer.id}:`,e));}
        try{
-            // Process items synchronously using cached prices
             const itemsToProcess = offer.itemsToReceive.map(item => {
                 if (!item.market_hash_name) { console.warn(`Asset ${item.assetid} missing name. Skip.`); return null; }
                 const price = getItemPrice(item.market_hash_name); // Get from cache/fallback
                 const itemValue = parseFloat(price) || 0;
-                if (itemValue < MIN_ITEM_VALUE) { /* console.log(`Item ${item.market_hash_name} below min. Skip.`); */ return null; }
+                if (itemValue < MIN_ITEM_VALUE) return null;
                 return { assetId: item.assetid, name: item.market_hash_name, image: `https://community.akamai.steamstatic.com/economy/image/${item.icon_url}`, price: itemValue, owner: user._id, roundId: currentRound._id };
             }).filter(i => i !== null); // Filter out nulls
 
-            const depositTotalValue = itemsToProcess.reduce((s,i)=>s+i.price,0);
-            if(items.length===0){console.log(`Offer ${offer.id} no valid items.`);return offer.decline().catch(e=>console.error(`Decline err ${offer.id}:`,e));}
+            const depositTotalValue=itemsToProcess.reduce((s,i)=>s+i.price,0);
+            if(itemsToProcess.length===0){console.log(`Offer ${offer.id} no valid items.`);return offer.decline().catch(e=>console.error(`Decline err ${offer.id}:`,e));}
 
             offer.accept(async(err,st)=>{
                 if(err){console.error(`Accept err ${offer.id}:`,err.message||err);if(err.message?.includes('escrow'))console.warn(`Offer ${offer.id} escrow.`);return;}
@@ -271,12 +255,12 @@ if (isBotConfigured) {
 } else { console.warn("Bot not configured. Trade listeners inactive."); }
 
 // --- Round Info API Routes --- (Unchanged)
-app.get('/api/round/current', async (req, res) => { if (!currentRound?._id) return res.status(404).json({e:'No active round.'}); try { const r = await Round.findById(currentRound._id).populate('participants.user', 'username avatar steamId').populate('items', 'name image price owner').lean(); if (!r){currentRound=null;return res.status(404).json({e:'Round data invalid.'});} const t = r.status==='active'&&r.endTime?Math.max(0,Math.floor((new Date(r.endTime).getTime()-Date.now())/1000)):0; res.json({roundId:r.roundId, status:r.status, startTime:r.startTime, endTime:r.endTime, timeLeft:t, totalValue:r.totalValue, serverSeedHash:r.serverSeedHash, participants:r.participants.map(p=>({user:p.user?{id:p.user._id,steamId:p.user.steamId,username:p.user.username,avatar:p.user.avatar}:null, itemsValue:p.itemsValue, tickets:p.tickets})).filter(p=>p.user), items:r.items.map(i=>({id:i._id, name:i.name, image:i.image, price:i.price, owner:i.owner})), winner:r.winner, winningTicket:r.status==='completed'?r.winningTicket:null, serverSeed:r.status==='completed'?r.serverSeed:null, clientSeed:r.status==='completed'?r.clientSeed:null, provableHash:r.status==='completed'?r.provableHash:null }); } catch(err){ console.error('Err fetch current round:', err); res.status(500).json({e:'Server error'}); } });
-app.get('/api/rounds', async (req, res) => { try { const p=parseInt(req.query.page)||1; const l=parseInt(req.query.limit)||10; const s=(p-1)*l; const qR=Round.find({status:{$in:['completed','error']}}).sort('-roundId').skip(s).limit(l).populate('winner','username avatar steamId').select('roundId startTime endTime completedTime totalValue winner serverSeed serverSeedHash clientSeed winningTicket provableHash status participants items').lean(); const qC=Round.countDocuments({status:{$in:['completed','error']}}); const [rs,c]=await Promise.all([qR,qC]); rs.forEach(r=>{r.totalTickets=r.participants?.reduce((sm,p)=>sm+(p?.t||0),0)??0; r.itemCount=r.items?.length??0; delete r.participants; delete r.items;}); res.json({rounds:rs, totalPages:Math.ceil(c/l), currentPage:p, totalRounds:c}); } catch(err){ console.error('Err fetch rounds:', err); res.status(500).json({e:'Server error'}); } });
-app.post('/api/verify', async (req, res) => { const { roundId, serverSeed, clientSeed }=req.body; if(!roundId||!serverSeed||!clientSeed) return res.status(400).json({e:'Missing fields'}); try { const r=await Round.findOne({roundId:roundId, status:'completed'}).populate('participants.user','username').populate('winner','username').lean(); if(!r) return res.status(404).json({e:'Round not found.'}); const csH=crypto.createHash('sha256').update(serverSeed).digest('hex'); if(csH!==r.serverSeedHash) return res.json({verified:false, reason:'Hash mismatch.'}); if(serverSeed!==r.serverSeed||clientSeed!==r.clientSeed) return res.json({verified:false, reason:'Seeds mismatch.'}); const cbS=serverSeed+clientSeed; const cpHS=crypto.createHash('sha256').update(cbS).digest('hex'); const dec=parseInt(cpHS.substring(0,8),16); const tT=r.participants?.reduce((sm,p)=>sm+(p?.t||0),0)??0; if(tT<=0) return res.json({verified:false, reason:'Zero tickets.'}); const cwT=dec%tT; if(cwT!==r.winningTicket) return res.json({verified:false, reason:'Ticket mismatch.'}); res.json({verified:true, roundId:r.roundId, serverSeed:sS, serverSeedHash:r.sSH, clientSeed:cS, combinedHash:cpHS, winningTicket:cwT, totalTickets:tT, totalValue:r.tV, winnerUsername:r.winner?.u||'N/A'}); } catch(err){ console.error(`Verify err ${roundId}:`,err); res.status(500).json({e:'Server error'}); } });
+app.get('/api/round/current', async (req, res) => { /* ... */ if (!currentRound?._id) return res.status(404).json({e:'No active round.'}); try { const r = await Round.findById(currentRound._id).populate('participants.user', 'username avatar steamId').populate('items', 'name image price owner').lean(); if (!r){currentRound=null;return res.status(404).json({e:'Round data invalid.'});} const t = r.status==='active'&&r.endTime?Math.max(0,Math.floor((new Date(r.endTime).getTime()-Date.now())/1000)):0; res.json({roundId:r.roundId, status:r.status, startTime:r.startTime, endTime:r.endTime, timeLeft:t, totalValue:r.totalValue, serverSeedHash:r.serverSeedHash, participants:r.participants.map(p=>({user:p.user?{id:p.user._id,steamId:p.user.steamId,username:p.user.username,avatar:p.user.avatar}:null, itemsValue:p.itemsValue, tickets:p.tickets})).filter(p=>p.user), items:r.items.map(i=>({id:i._id, name:i.name, image:i.image, price:i.price, owner:i.owner})), winner:r.winner, winningTicket:r.status==='completed'?r.winningTicket:null, serverSeed:r.status==='completed'?r.serverSeed:null, clientSeed:r.status==='completed'?r.clientSeed:null, provableHash:r.status==='completed'?r.provableHash:null }); } catch(err){ console.error('Err fetch current round:', err); res.status(500).json({e:'Server error'}); } });
+app.get('/api/rounds', async (req, res) => { /* ... */ try { const p=parseInt(req.query.page)||1; const l=parseInt(req.query.limit)||10; const s=(p-1)*l; const qR=Round.find({status:{$in:['completed','error']}}).sort('-roundId').skip(s).limit(l).populate('winner','username avatar steamId').select('roundId startTime endTime completedTime totalValue winner serverSeed serverSeedHash clientSeed winningTicket provableHash status participants items').lean(); const qC=Round.countDocuments({status:{$in:['completed','error']}}); const [rs,c]=await Promise.all([qR,qC]); rs.forEach(r=>{r.totalTickets=r.participants?.reduce((sm,p)=>sm+(p?.t||0),0)??0; r.itemCount=r.items?.length??0; delete r.participants; delete r.items;}); res.json({rounds:rs, totalPages:Math.ceil(c/l), currentPage:p, totalRounds:c}); } catch(err){ console.error('Err fetch rounds:', err); res.status(500).json({e:'Server error'}); } });
+app.post('/api/verify', async (req, res) => { /* ... */ const { roundId, serverSeed, clientSeed }=req.body; if(!roundId||!serverSeed||!clientSeed) return res.status(400).json({e:'Missing fields'}); try { const r=await Round.findOne({roundId:roundId, status:'completed'}).populate('participants.user','username').populate('winner','username').lean(); if(!r) return res.status(404).json({e:'Round not found.'}); const csH=crypto.createHash('sha256').update(serverSeed).digest('hex'); if(csH!==r.serverSeedHash) return res.json({verified:false, reason:'Hash mismatch.'}); if(serverSeed!==r.serverSeed||clientSeed!==r.clientSeed) return res.json({verified:false, reason:'Seeds mismatch.'}); const cbS=serverSeed+clientSeed; const cpHS=crypto.createHash('sha256').update(cbS).digest('hex'); const dec=parseInt(cpHS.substring(0,8),16); const tT=r.participants?.reduce((sm,p)=>sm+(p?.t||0),0)??0; if(tT<=0) return res.json({verified:false, reason:'Zero tickets.'}); const cwT=dec%tT; if(cwT!==r.winningTicket) return res.json({verified:false, reason:'Ticket mismatch.'}); res.json({verified:true, roundId:r.roundId, serverSeed:sS, serverSeedHash:r.sSH, clientSeed:cS, combinedHash:cpHS, winningTicket:cwT, totalTickets:tT, totalValue:r.tV, winnerUsername:r.winner?.u||'N/A'}); } catch(err){ console.error(`Verify err ${roundId}:`,err); res.status(500).json({e:'Server error'}); } });
 
 // --- Socket.io Connection Handling ---
-io.on('connection', (socket) => { console.log(`Client connected: ${socket.id}`); if(currentRound?._id){ Round.findById(currentRound._id).populate('participants.user','username avatar steamId').populate('items','name image price owner').lean().then(r=>{ if(r){ const t=r.status==='active'&&r.endTime?Math.max(0,Math.floor((new Date(r.endTime).getTime()-Date.now())/1000)):0; socket.emit('roundData',{roundId:r.roundId, status:r.status, timeLeft:t, totalValue:r.totalValue, serverSeedHash:r.serverSeedHash, participants:r.participants.map(p=>({user:p.user?{id:p.user._id,steamId:p.user.steamId,username:p.user.username,avatar:p.user.avatar}:null, itemsValue:p.itemsValue, tickets:p.tickets})).filter(p=>p.user), items:r.items.map(i=>({id:i._id, name:i.name, image:i.image, price:i.price, owner:i.owner}))}); } else { socket.emit('noActiveRound'); } }).catch(e=>{console.error(`Sock fetch err ${socket.id}:`,e); socket.emit('noActiveRound');}); } else { socket.emit('noActiveRound'); } socket.on('disconnect',(rsn)=>{console.log(`Client disconnected: ${socket.id}. R: ${rsn}`);}); });
+io.on('connection', (socket) => { /* ... unchanged ... */ console.log(`Client connected: ${socket.id}`); if(currentRound?._id){ Round.findById(currentRound._id).populate('participants.user','username avatar steamId').populate('items','name image price owner').lean().then(r=>{ if(r){ const t=r.status==='active'&&r.endTime?Math.max(0,Math.floor((new Date(r.endTime).getTime()-Date.now())/1000)):0; socket.emit('roundData',{roundId:r.roundId, status:r.status, timeLeft:t, totalValue:r.totalValue, serverSeedHash:r.serverSeedHash, participants:r.participants.map(p=>({user:p.user?{id:p.user._id,steamId:p.user.steamId,username:p.user.username,avatar:p.user.avatar}:null, itemsValue:p.itemsValue, tickets:p.tickets})).filter(p=>p.user), items:r.items.map(i=>({id:i._id, name:i.name, image:i.image, price:i.price, owner:i.owner}))}); } else { socket.emit('noActiveRound'); } }).catch(e=>{console.error(`Sock fetch err ${socket.id}:`,e); socket.emit('noActiveRound');}); } else { socket.emit('noActiveRound'); } socket.on('disconnect',(rsn)=>{console.log(`Client disconnected: ${socket.id}. R: ${rsn}`);}); });
 
 // --- Server Startup ---
 const PORT = process.env.PORT || 3000;
@@ -284,26 +268,29 @@ server.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}`);
 
     // Initial price cache population
-    console.log("Performing initial price cache refresh...");
+    console.log("Performing initial price cache refresh from rust.scmm.app...");
     refreshPriceCache(); // Fetch all prices once on startup
 
     // Schedule periodic cache refresh
     setInterval(refreshPriceCache, PRICE_REFRESH_INTERVAL_MS);
     console.log(`Scheduled price cache refresh every ${PRICE_REFRESH_INTERVAL_MS / 60000} minutes.`);
 
-    // Bot status check (initial round creation moved to login callback)
+    // Bot status check
     if (!isBotConfigured) { console.log("Bot not configured. Trade features disabled."); }
     else if (!isBotReady) { console.log("Waiting for bot login attempt..."); }
 
-    // Pricing API Test (will now use cache if populated)
+    // Pricing API Test (will now use cache if populated, fallback otherwise)
     setTimeout(async () => {
-       console.log("Testing Pricing API on startup (may use cache)...");
-       const testItem1 = "Assault Rifle"; // Changed test item
-       const testItem2 = "Blue Beenie Hat";
+       console.log("Testing Pricing API on startup (uses cache/fallback)...");
+       const testItem1 = "Assault Rifle"; // Common item
+       const testItem2 = "Blue Beenie Hat"; // Low value item
        try {
-           const price1 = await getItemPrice(testItem1); // Uses cache now
+           // Give cache time to potentially populate from the initial refresh
+           await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3s
+
+           const price1 = getItemPrice(testItem1); // Uses cache/fallback
            console.log(`TEST: Price for ${testItem1}: ${price1 !== undefined ? `$${price1.toFixed(2)}` : 'Error/Not Found'}`);
-           const price2 = await getItemPrice(testItem2); // Uses cache now
+           const price2 = getItemPrice(testItem2); // Uses cache/fallback
            console.log(`TEST: Price for ${testItem2}: ${price2 !== undefined ? `$${price2.toFixed(2)}` : 'Error/Not Found'}`);
         }
        catch(e){ console.error("Error testing price API:", e);}
