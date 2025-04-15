@@ -50,7 +50,7 @@ const winnerAvatar = document.getElementById('winnerAvatar');
 const winnerName = document.getElementById('winnerName');
 const winnerDeposit = document.getElementById('winnerDeposit');
 const winnerChance = document.getElementById('winnerChance');
-const returnToJackpot = document.getElementById('returnToJackpot');
+const returnToJackpot = document.getElementById('returnToJackpot'); // This will be hidden, but keep the reference
 const confettiContainer = document.getElementById('confettiContainer'); // Ensure this exists
 const spinSound = document.getElementById('spinSound'); // Ensure this <audio> element exists
 
@@ -66,8 +66,8 @@ const agreeButton = document.getElementById('agreeButton');
 
 // Constants
 const ROULETTE_REPETITIONS = 20; // How many times to repeat participant list
-const SPIN_DURATION_SECONDS = 8; // Modified to 8 seconds as requested
-const WINNER_DISPLAY_DURATION = 5000; // How long to show winner info (in ms)
+const SPIN_DURATION_SECONDS = 10; // Changed to 10 seconds as requested
+const WINNER_DISPLAY_DURATION = 7000; // Changed to 7 seconds as requested
 const CONFETTI_COUNT = 120; // Number of confetti particles
 
 // User Color Map - 20 distinct colors for players
@@ -167,16 +167,31 @@ async function showRoundDetails(roundId) {
     }
 }
 
-// Enhanced easing function for smoother animation
+// Improved, smoother easing function inspired by Rustypots
 function enhancedEasing(t) {
-  // Combination of easeOutQuad and easeOutElastic for a more dynamic feel
-  if (t < 0.7) {
-    // Initial fast movement that gradually slows down
-    return 1 - Math.pow(1 - t/0.7, 2);
-  } else {
-    // Final portion with slight oscillation for tension
-    const p = (t - 0.7) / 0.3;
-    return 1 - Math.pow(1 - p, 2) * Math.cos(p * Math.PI * 2) * 0.05;
+  // More pronounced easing for a smoother, slower animation
+  // This combines multiple easing functions for a more natural feel
+  
+  // Phase 1: Fast start (0-10%)
+  if (t < 0.1) {
+    return t * 10 * 0.5; // Accelerate quickly but not too fast
+  }
+  // Phase 2: Constant speed (10-75%)
+  else if (t < 0.75) {
+    // Linear movement with slight acceleration
+    return 0.5 + (t - 0.1) * (0.85 / 0.65);
+  }
+  // Phase 3: Slow down (75-95%)
+  else if (t < 0.95) {
+    // Slow down gradually
+    const p = (t - 0.75) / 0.2;
+    return 0.85 + Math.sin(p * Math.PI / 2) * 0.13;
+  }
+  // Phase 4: Final settle with small bounce (95-100%)
+  else {
+    const p = (t - 0.95) / 0.05;
+    // Small bounce at the end (very subtle)
+    return 0.98 + Math.sin(p * Math.PI) * 0.02;
   }
 }
 
@@ -282,9 +297,6 @@ function setupEventListeners() {
         agreeButton.addEventListener('click', () => { if (agreeCheckbox.checked) { localStorage.setItem('ageVerified', 'true'); hideModal(ageVerificationModal); } });
         agreeButton.disabled = !agreeCheckbox.checked;
     }
-
-    // Roulette Reset Button
-    if (returnToJackpot) returnToJackpot.addEventListener('click', resetToJackpotView);
 
     // Test Spin Button
     const testSpinButton = document.getElementById('testSpinButton');
@@ -638,7 +650,7 @@ function createRouletteItems() {
   const containerWidth = container?.offsetWidth || 1000; // Estimate if needed
   const estimatedItemWidth = 90 + 10; // Item width + margin
   const minItemsToCreate = Math.max(Math.ceil(containerWidth / estimatedItemWidth) * 3, 200); // Ensure enough for visuals
-  const maxItemsToCreate = 800; // Increased limit for better animation
+  const maxItemsToCreate = 1200; // Increased limit for better animation with longer duration
 
   const totalItemsToCreate = Math.max(minItemsToCreate, Math.min(ticketPool.length * ROULETTE_REPETITIONS, maxItemsToCreate));
 
@@ -717,11 +729,14 @@ function switchToRouletteView() {
     inlineRoulette.style.opacity = '1';
     inlineRoulette.style.transform = 'translateY(0)';
   }, 50);
+  
+  // Hide return button
+  if (returnToJackpot) returnToJackpot.style.display = 'none';
 }
 
 // Enhanced roulette animation
 function startRouletteAnimation(winnerData) {
-  if (!rouletteTrack || !winnerInfo || !returnToJackpot) { 
+  if (!rouletteTrack || !winnerInfo) { 
     console.error("Missing animation elements."); 
     isSpinning = false; 
     resetToJackpotView(); 
@@ -732,7 +747,6 @@ function startRouletteAnimation(winnerData) {
 
   isSpinning = true; 
   winnerInfo.style.display = 'none'; 
-  returnToJackpot.style.display = 'none';
   clearConfetti(); 
   createRouletteItems();
 
@@ -787,8 +801,8 @@ function startRouletteAnimation(winnerData) {
     // Calculate position to center the winning item under the ticker
     const targetScrollPosition = -(itemOffsetLeft + (itemWidth / 2) - (containerWidth / 2));
 
-    // Add small random offset for natural feel
-    const randomOffset = (Math.random() - 0.5) * itemWidth * 0.4;
+    // Add small random offset for natural feel (reduced for more precision)
+    const randomOffset = (Math.random() - 0.5) * itemWidth * 0.3;
     const finalTargetPosition = targetScrollPosition + randomOffset;
 
     // Remove any CSS transition
@@ -799,7 +813,7 @@ function startRouletteAnimation(winnerData) {
     const startPosition = 0;
     
     // Add slight randomness to duration for unpredictability
-    const actualDuration = SPIN_DURATION_SECONDS * (0.95 + Math.random() * 0.1); 
+    const actualDuration = SPIN_DURATION_SECONDS * (0.97 + Math.random() * 0.06); 
     
     // Animation function with enhanced easing
     function animateRoulette(currentTime) {
@@ -947,22 +961,6 @@ function handleSpinEnd(winningElement, winner) {
         }
       }, 30);
       
-      if (returnToJackpot) {
-        // Show return button after delay
-        setTimeout(() => {
-          returnToJackpot.style.display = 'block';
-          returnToJackpot.style.opacity = '0';
-          
-          // Fade in button
-          let buttonOpacity = 0;
-          const buttonFade = setInterval(() => {
-            buttonOpacity += 0.1;
-            returnToJackpot.style.opacity = buttonOpacity.toString();
-            if (buttonOpacity >= 1) clearInterval(buttonFade);
-          }, 50);
-        }, 3500);
-      }
-      
       // Auto-reset after duration
       setTimeout(resetToJackpotView, WINNER_DISPLAY_DURATION);
     } else {
@@ -1033,7 +1031,11 @@ function resetToJackpotView() {
     jackpotHeader.classList.remove('roulette-mode');
     const value = jackpotHeader.querySelector('.jackpot-value'), timer = jackpotHeader.querySelector('.jackpot-timer'), stats = jackpotHeader.querySelector('.jackpot-stats');
     if (value) value.style.display = 'flex'; if (timer) timer.style.display = 'flex'; if (stats) stats.style.display = 'flex';
-    inlineRoulette.style.display = 'none'; winnerInfo.style.display = 'none'; if (returnToJackpot) returnToJackpot.style.display = 'none';
+    inlineRoulette.style.display = 'none'; winnerInfo.style.display = 'none'; 
+    
+    // Keep return button hidden
+    if (returnToJackpot) returnToJackpot.style.display = 'none';
+    
     clearConfetti();
     const winnerElement = rouletteTrack.querySelector('.roulette-item.winner-highlight'); if (winnerElement) winnerElement.classList.remove('winner-highlight');
     rouletteTrack.style.transition = 'none'; rouletteTrack.style.transform = 'translateX(0)'; // Important: reset transform directly
