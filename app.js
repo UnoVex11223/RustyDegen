@@ -572,26 +572,6 @@ async function sendWinningTradeOffer(round, winner) {
     }
 }
 
-// --- Placeholder Item Pricing Function ---
-// !!! IMPORTANT: Replace this with a real pricing API or database !!!
-function getItemPrice(marketHashName) {
-    console.warn(`Using placeholder pricing for: ${marketHashName}`);
-    // In a real implementation, you'd query an external API or internal price database
-    // Example: await PricingService.getPrice(marketHashName);
-    const priceMap = {
-        'AK-47 | Redline (Field-Tested)': 15.50,
-        'M4A4 | Howl (Minimal Wear)': 1500.75, // Example high tier
-        'AWP | Dragon Lore (Field-Tested)': 2000.25, // Example high tier
-        'MP9 | Sand Dashed (Field-Tested)': 0.15,
-        'Metal Chest Plate': 5.20,
-        'Semi-Automatic Rifle': 10.00,
-        'Garage Door': 3.50
-    };
-    // Return a random price for items not in map for testing
-    return priceMap[marketHashName] || (Math.random() * 10 + 0.10).toFixed(2);
-}
-
-
 // --- Authentication Routes ---
 app.get('/auth/steam', passport.authenticate('steam', { failureRedirect: '/' }));
 
