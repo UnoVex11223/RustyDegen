@@ -1,3 +1,4 @@
+/* style.css (Complete and Modified) */
 /* Enhanced color scheme */
 :root {
     --primary-color: #00e676;
@@ -29,6 +30,7 @@ body {
     background-color: var(--background-dark);
     color: var(--text-primary);
     line-height: 1.6;
+    overflow-x: hidden; /* Prevent horizontal scrollbars */
 }
 
 .container {
@@ -71,7 +73,7 @@ a:hover {
     color: var(--text-primary);
 }
 
-.btn:hover {
+.btn:hover:not(:disabled) { /* Added :not(:disabled) */
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(0, 230, 118, 0.3);
 }
@@ -90,7 +92,7 @@ a:hover {
     color: var(--background-dark);
 }
 
-.btn-primary:hover:not(:disabled) { /* Only apply hover effect if not disabled */
+.btn-primary:hover:not(:disabled) {
     background-color: var(--primary-dark);
 }
 
@@ -115,7 +117,7 @@ a:hover {
     width: 100%;
     height: 100%;
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    transition: 0.5s;
+    transition: left 0.5s ease; /* Changed transition property */
 }
 
 .btn-deposit:hover:not(:disabled):before {
@@ -159,13 +161,15 @@ a:hover {
     padding: 5px 10px;
     font-size: 0.8rem;
     margin-right: 5px; /* Add some space between buttons */
+    margin-bottom: 5px; /* Allow wrapping */
+    vertical-align: middle;
 }
 
 .btn-verify {
     background-color: var(--secondary-color);
     color: var(--background-dark);
 }
-.btn-verify:hover {
+.btn-verify:hover:not(:disabled) { /* Added :not(:disabled) */
     background-color: var(--secondary-dark);
 }
 
@@ -184,6 +188,11 @@ a:hover {
 .main-header .container {
     display: flex;
     align-items: center;
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+}
+
+.logo {
+    margin-right: 20px; /* Add space between logo and nav/user */
 }
 
 .logo h1 {
@@ -193,6 +202,7 @@ a:hover {
     margin: 0;
     letter-spacing: 1px;
     text-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
+    color: var(--text-primary); /* Ensure base color */
 }
 
 .logo span {
@@ -200,23 +210,24 @@ a:hover {
 }
 
 .main-nav {
-    flex: 1;
+    flex: 1; /* Allow nav to take up space */
     display: flex;
-    justify-content: center;
+    justify-content: center; /* Center nav links */
+    min-width: 0; /* Prevent overflow issues */
 }
 
 .main-nav ul {
     list-style: none;
     display: flex;
+    padding: 0; /* Remove default padding */
 }
 
 .main-nav li {
-    margin-right: 20px;
+    margin-right: 15px; /* Slightly reduced spacing */
 }
 .main-nav li:last-child {
     margin-right: 0;
 }
-
 
 .main-nav a {
     font-weight: 600;
@@ -226,6 +237,8 @@ a:hover {
     transition: all 0.3s ease;
     position: relative;
     color: var(--text-secondary); /* Default color */
+    display: block; /* Ensure padding works correctly */
+    white-space: nowrap; /* Prevent link text wrapping */
 }
 
 .main-nav a:after {
@@ -254,28 +267,32 @@ a:hover {
 
 
 .user-controls {
-    margin-left: auto;
+    margin-left: auto; /* Push user controls to the right */
     display: flex;
     align-items: center;
+    white-space: nowrap; /* Prevent wrapping within user controls */
 }
 
 .user-profile {
-    display: flex;
+    display: flex; /* Changed from none by JS */
     align-items: center;
     gap: 10px;
-    margin-left: 15px; /* Add space if login button AND profile are visible */
+    /* margin-left: 15px; */ /* Removed margin, let gap handle spacing */
 }
-
 
 .user-avatar {
     width: 32px;
     height: 32px;
     border-radius: 50%;
     border: 2px solid var(--primary-color);
+    flex-shrink: 0; /* Prevent avatar shrinking */
 }
 
 .user-name {
     font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px; /* Limit username width if needed */
 }
 
 /* Main Content */
@@ -301,63 +318,66 @@ a:hover {
     position: relative;
 }
 
-/* ----- UPDATED JACKPOT HEADER STYLES ----- */
+/* ----- JACKPOT HEADER STYLES ----- */
 .jackpot-header {
     display: flex;
-    justify-content: space-around; /* Changed for better spacing */
+    justify-content: space-around;
     align-items: center;
     padding: 20px;
     background: linear-gradient(135deg, var(--background-medium), var(--background-light));
     border-bottom: 1px solid var(--border-color);
     border-radius: 12px 12px 0 0;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    min-height: 150px; /* Use min-height instead of fixed height */
+    min-height: 150px; /* Minimum height to contain elements */
     position: relative;
-    overflow: hidden;
+    overflow: hidden; /* Needed for absolute positioned children like roulette */
     z-index: 5;
     transition: height 0.3s ease, background 0.3s ease;
-    gap: 20px; /* Added gap */
-    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    gap: 20px;
+    flex-wrap: wrap; /* Allow wrapping */
 }
 
 .jackpot-header.roulette-mode {
     background: linear-gradient(135deg, var(--background-dark), var(--background-medium));
+    /* Height might adjust based on roulette container, or keep min-height */
 }
 
 .jackpot-value, .jackpot-timer, .jackpot-stats {
-    display: flex; /* Use flex for content alignment */
-    flex-direction: column; /* Stack label below value */
-    align-items: center; /* Center items horizontally */
-    /* flex: 1; Removed */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center; /* Ensure text aligns center */
+    flex: 1; /* Allow flex items to grow/shrink */
+    min-width: 120px; /* Prevent elements becoming too small */
 }
 
 .jackpot-value h2 {
-    font-size: 2.8rem; /* Slightly smaller */
+    font-size: 2.8rem;
     font-weight: 700;
     color: var(--primary-color);
     margin: 0;
     text-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
     font-family: 'JetBrains Mono', monospace;
-    line-height: 1.1; /* Adjust line height */
+    line-height: 1.1;
 }
 
 .value-label, .timer-label, .stat-label {
-    font-size: 0.85rem; /* Slightly smaller */
+    font-size: 0.85rem;
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 1px;
     display: block;
-    margin-top: 5px; /* Add space between value and label */
+    margin-top: 5px;
 }
 
 .timer-circle {
     position: relative;
-    width: 90px; /* Slightly smaller */
+    width: 90px;
     height: 90px;
     display: flex;
     justify-content: center;
     align-items: center;
-    margin: 0 auto; /* Keep centered within its block */
+    margin: 0 auto; /* Center the circle within its flex item */
 }
 
 .timer-progress {
@@ -366,20 +386,21 @@ a:hover {
     transform: rotate(-90deg);
 }
 
-.timer-background {
+.timer-background, .timer-foreground {
     fill: none;
+    stroke-width: 6;
+}
+
+.timer-background {
     stroke: var(--background-light);
-    stroke-width: 6; /* Thinner stroke */
 }
 
 .timer-foreground {
-    fill: none;
     stroke: var(--primary-color);
-    stroke-width: 6; /* Thinner stroke */
-    stroke-linecap: round; /* Rounded ends */
-    stroke-dasharray: 264; /* Adjusted for radius 42 (2*PI*42) */
+    stroke-linecap: round;
+    /* stroke-dasharray calculated dynamically based on radius */
     stroke-dashoffset: 0;
-    transition: stroke-dashoffset 1s linear;
+    transition: stroke-dashoffset 1s linear; /* Animate the offset change */
     filter: drop-shadow(0 0 4px var(--primary-color));
 }
 
@@ -388,84 +409,92 @@ a:hover {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 1.8rem; /* Slightly smaller */
+    font-size: 1.8rem;
     font-weight: 700;
     color: var(--primary-color);
     font-family: 'JetBrains Mono', monospace;
 }
 
 .stat-value {
-    font-size: 1.6rem; /* Slightly larger */
+    font-size: 1.6rem;
     font-weight: 700;
     color: var(--text-primary);
     display: block;
-    line-height: 1.1; /* Adjust line height */
+    line-height: 1.1;
 }
 
-/* ----- END UPDATED JACKPOT HEADER STYLES ----- */
+/* ----- END JACKPOT HEADER STYLES ----- */
 
 
-/* Inline Roulette */
+/* Inline Roulette - MODIFIED */
 .inline-roulette {
-    display: none; /* Hidden by default */
-    position: absolute;
+    display: none; /* Hidden by default, shown by JS */
+    position: absolute; /* Positioned within jackpot-header */
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: transparent; /* Make background transparent to blend with header */
-    z-index: 10;
-    overflow: hidden;
+    background: transparent; /* Blend with header background */
+    z-index: 10; /* Above header content, below winner info */
+    overflow: hidden; /* Crucial */
+    border-radius: 12px 12px 0 0; /* Match header rounding if needed */
 }
 
-/* Roulette Container - ENHANCED */
+/* Roulette Container - MODIFIED */
 .roulette-container {
-    position: relative;
+    position: relative; /* Changed from absolute to relative for easier centering if needed */
     width: 100%;
-    height: 90px;
-    overflow: hidden;
-    background-color: rgba(13, 17, 23, 0.7); /* Semi-transparent background */
+    height: 90px; /* Fixed height for the track viewport */
+    overflow: hidden; /* Crucial for containing the track */
+    background-color: rgba(13, 17, 23, 0.7); /* Semi-transparent */
     border-radius: 8px;
     border: 1px solid var(--border-color);
-    margin: 30px 0 0 0;
-    box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.6); /* Enhanced inner shadow */
-    backdrop-filter: blur(2px); /* Add subtle blur for depth */
+    /* Center the container within inline-roulette if needed */
+    margin: auto; /* Centers horizontally if parent (.inline-roulette) is flex/grid */
+    margin-top: 30px; /* Space from top */
+    box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
 }
 
-/* Roulette Track - ENHANCED for smooth animation */
+/* Roulette Track - MODIFIED */
 .roulette-track {
     display: flex;
-    position: absolute;
-    left: 0;
+    position: absolute; /* Position track absolutely within container */
+    left: 0; /* JS controls horizontal position via transform */
     top: 0;
     height: 100%;
-    will-change: transform; /* Improve performance */
-    padding-left: calc(50% - 45px); /* Offset start for centering first item */
+    padding-left: calc(50% - 45px); /* Offset start for centering first item (adjust 45px = itemWidth/2) */
     padding-right: calc(50% - 45px); /* Offset end for centering last item */
+    /* CRITICAL FOR PERFORMANCE with requestAnimationFrame + transform */
+    will-change: transform;
+    /* Remove CSS transition, JS handles movement */
+    transition: none;
 }
 
-/* Roulette Items - ENHANCED */
+/* Roulette Items - MODIFIED */
 .roulette-item {
-    flex: 0 0 auto;
-    width: 90px;
-    height: 80px;
-    margin: 5px;
-    background: rgba(30, 35, 40, 0.8); /* Slightly more opaque for better contrast */
+    flex: 0 0 auto; /* Prevent shrinking/growing */
+    width: 90px; /* Fixed width */
+    height: 80px; /* Fixed height */
+    margin: 5px; /* Spacing between items */
+    background: rgba(30, 35, 40, 0.8);
     border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); /* Enhanced shadow */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
-    border: 2px solid transparent; /* Border will be set dynamically by user color */
+    transition: transform 0.3s ease, box-shadow 0.3s ease; /* Hover effects */
+    border: 2px solid transparent; /* Border color set dynamically by user color */
     position: relative;
-    box-sizing: border-box;
+    box-sizing: border-box; /* Include border in width/height */
+    /* Add backface-visibility for potential performance gain */
+    backface-visibility: hidden;
 }
 
 .roulette-item:hover {
     transform: translateY(-5px) scale(1.05);
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
-    z-index: 10;
+    z-index: 1; /* Bring hovered item slightly forward */
 }
 
 /* Profile container - ENHANCED */
@@ -475,7 +504,7 @@ a:hover {
     overflow: hidden;
     background: #1a1e23;
     flex-shrink: 0;
-    position: relative; /* For hover effects */
+    position: relative;
 }
 
 .roulette-avatar {
@@ -487,7 +516,7 @@ a:hover {
 }
 
 .roulette-item:hover .roulette-avatar {
-    transform: scale(1.1); /* Zoom effect on hover */
+    transform: scale(1.1);
 }
 
 /* Item info - ENHANCED */
@@ -511,87 +540,92 @@ a:hover {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 80px;
+    max-width: 80px; /* Limit width */
 }
 
 .roulette-percentage {
     font-size: 9px;
     font-weight: 500;
-    /* Color will be set dynamically based on user color */
+    /* Color set dynamically based on user color */
 }
 
-/* Winning item highlight - ENHANCED with dynamic colors */
+/* Winning item highlight - Base style (Animation/Border applied via JS) */
 .winner-highlight {
-    animation: winnerPulse 1.5s infinite;
-    box-shadow: 0 0 25px rgba(0, 255, 170, 1);
-    z-index: 5;
-    border-width: 3px;
-    /* Border color will be set dynamically */
+    position: relative; /* Needed for z-index */
+    z-index: 5; /* Bring winner forward */
+    /* JS adds border, box-shadow animation, and potentially transform */
 }
+/* Keyframes 'winnerPulse' are generated dynamically in JS */
 
-/* Custom pulse animation is added via JavaScript for each winner with their color */
-@keyframes winnerPulse {
-    0% { box-shadow: 0 0 20px currentColor; border-color: currentColor; transform: scale(1); }
-    50% { box-shadow: 0 0 30px currentColor; border-color: currentColor; transform: scale(1.05);}
-    100% { box-shadow: 0 0 20px currentColor; border-color: currentColor; transform: scale(1);}
-}
 
-/* Center Ticker Line - ENHANCED */
+/* Center Ticker Line - MODIFIED */
 .roulette-ticker {
     position: absolute;
     top: 0;
     left: 50%;
     transform: translateX(-50%);
-    width: 4px;
-    height: 100%;
-    z-index: 10;
-    pointer-events: none; /* Make sure it doesn't interfere with clicks */
+    width: 4px; /* Ticker line width */
+    height: 100%; /* Full height of the container */
+    z-index: 15; /* Above items, below winner info/confetti */
+    pointer-events: none; /* Make sure it doesn't interfere */
 }
 
 .ticker-line {
     width: 100%;
     height: 100%;
     background: linear-gradient(to bottom,
-                          rgba(255, 255, 255, 0),
-                          rgba(255, 255, 255, 0.8),
-                          rgba(255, 255, 255, 0));
-    box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+                   rgba(255, 255, 255, 0),
+                   rgba(255, 255, 255, 0.8) 40%, /* Start fade */
+                   rgba(255, 255, 255, 0.8) 60%, /* Solid center */
+                   rgba(255, 255, 255, 0)); /* End fade */
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
 }
 
-.ticker-arrow {
+/* Optional: Ticker arrows */
+.roulette-ticker::before,
+.roulette-ticker::after {
     content: '';
     position: absolute;
-    top: -10px;
     left: 50%;
     transform: translateX(-50%);
     width: 0;
     height: 0;
-    border-left: 8px solid transparent;
-    border-right: 8px solid transparent;
-    border-bottom: 10px solid rgba(255, 255, 255, 0.8);
-    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8));
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.5));
+}
+.roulette-ticker::before { /* Top arrow */
+    top: -6px;
+    border-bottom: 8px solid rgba(255, 255, 255, 0.8);
+}
+.roulette-ticker::after { /* Bottom arrow */
+    bottom: -6px;
+    border-top: 8px solid rgba(255, 255, 255, 0.8);
 }
 
 /* Winner Info Box - ENHANCED */
 .winner-info {
-    display: none; /* Hidden by default */
+    /* display: none; */ /* Shown by JS */
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: radial-gradient(circle, rgba(20, 25, 30, 0.95), rgba(13, 17, 23, 0.98)); /* Enhanced gradient background */
+    background: radial-gradient(circle, rgba(20, 25, 30, 0.95), rgba(13, 17, 23, 0.98));
     padding: 10px;
     display: flex; /* Use flex for layout */
-    flex-direction: column; /* Stack elements vertically */
-    justify-content: center; /* Center vertically */
-    align-items: center; /* Center horizontally */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
     text-align: center;
     box-sizing: border-box;
-    z-index: 20;
-    animation: fadeIn 0.8s ease-out;
+    z-index: 20; /* Highest layer */
+    /* animation: fadeIn 0.8s ease-out; */ /* Fade-in handled by JS now */
+    opacity: 0; /* Start hidden for JS fade-in */
+    display: none; /* Start fully hidden */
 }
 
+/* Keep the fadeIn animation available if needed */
 @keyframes fadeIn {
     from { opacity: 0; transform: scale(0.9); }
     to { opacity: 1; transform: scale(1); }
@@ -608,15 +642,16 @@ a:hover {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    border: 2px solid var(--primary-color);
-    box-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
+    border: 2px solid var(--primary-color); /* Base color, JS overrides */
+    box-shadow: 0 0 10px rgba(0, 230, 118, 0.5); /* Base color, JS overrides */
     margin-right: 10px;
     object-fit: cover;
-    /* Border color will be set dynamically to user color */
+    flex-shrink: 0;
 }
 .winner-header h3 { /* Style winner name */
     margin: 0;
     font-size: 1.1rem;
+    /* Color set dynamically in JS */
 }
 
 .winner-details {
@@ -634,7 +669,7 @@ a:hover {
 }
 
 
-.congrats {
+.congrats { /* This class doesn't seem to be used in the HTML structure? */
     font-size: 1.2rem !important;
     color: var(--primary-color);
     font-weight: 700;
@@ -650,12 +685,12 @@ a:hover {
     50% { transform: scale(1.1); }
 }
 
-/* Return Button - HIDDEN */
+/* Return Button - Ensure it remains hidden */
 .return-btn {
-    display: none !important; /* Always hidden as requested */
+    display: none !important;
 }
 
-/* Confetti Container - ENHANCED */
+/* Confetti Container - MODIFIED */
 .confetti-container {
     position: absolute;
     top: 0;
@@ -664,63 +699,89 @@ a:hover {
     height: 100%;
     pointer-events: none;
     overflow: hidden;
-    z-index: 15;
+    z-index: 18; /* Below winner info, above ticker */
 }
 
 .confetti {
     position: absolute;
-    width: 8px;
-    height: 8px;
+    width: 8px; /* Base size */
+    height: 8px; /* Base size */
     background-color: var(--color); /* Color set dynamically */
-    top: -20px;
+    top: -20px; /* Start above the view */
     opacity: 0.9;
-    animation: confettiFall 3s linear forwards;
+    /* Use CSS variables set by JS for dynamic animation */
+    animation: confettiFall var(--duration, 3s) linear var(--delay, 0s) forwards;
+    transform-origin: center center;
 }
 
-/* Enhanced confetti animation */
+/* Enhanced confetti animation using CSS variables */
 @keyframes confettiFall {
     0% {
-        transform: translateY(0) rotateZ(0deg) scale(1);
+        transform: translateY(0) translateX(0) rotateZ(var(--rotation-start, 0deg)) scale(1);
         opacity: 0.9;
     }
-    25% {
-        transform: translateY(40px) rotateZ(180deg) scale(1.1);
-    }
-    50% {
-        transform: translateY(80px) rotateZ(360deg) scale(1);
-    }
-    75% {
-        transform: translateY(120px) rotateZ(540deg) scale(0.9);
-    }
     100% {
-        transform: translateY(160px) rotateZ(720deg) scale(0.8);
+        /* Fall down further, add horizontal movement, and full rotation */
+        transform: translateY(200px) translateX(var(--fall-x, 0px)) rotateZ(var(--rotation-end, 720deg)) scale(0.5);
         opacity: 0;
     }
 }
 
-/* User-specific participant styling - NEW */
+/* User-specific participant styling */
 .participant-header {
     border-left-width: 4px;
     border-left-style: solid;
-    /* Border color will be set dynamically to match user color */
+    /* Border color set dynamically by JS */
 }
 
 .participant-avatar {
-    /* Border color will be set dynamically to match user color */
+    border-width: 2px;
+    border-style: solid;
+    /* Border color set dynamically by JS */
 }
 
 .participant-value {
-    /* Color will be set dynamically to match user color */
+    /* Color set dynamically by JS */
 }
 
-.item {
-    /* Border color will be set dynamically to match user color */
+.item { /* Used for participant items display */
+    position: relative;
+    width: 80px;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
+    background-color: var(--background-medium);
+    border: 1px solid var(--border-color); /* Base border */
+    /* Border color can be dynamically set by JS based on user */
 }
+
 
 .item:hover {
     transform: translateY(-5px) scale(1.05);
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+    z-index: 1; /* Bring slightly forward on hover */
+}
+
+.item img {
+    width: 100%;
+    height: 60px;
+    object-fit: contain;
+    display: block;
+    background-color: var(--background-dark);
+}
+
+.item-value { /* Style for value overlay on participant items */
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    /* Color set dynamically by JS */
+    padding: 3px 5px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-align: center;
 }
 
 .deposit-button-container {
@@ -728,7 +789,7 @@ a:hover {
     background-color: var(--background-medium);
     z-index: 5;
     position: relative;
-    border-top: 1px solid var(--border-color); /* Add separator */
+    border-top: 1px solid var(--border-color);
     border-radius: 0 0 12px 12px; /* Match main section rounding */
 }
 
@@ -736,12 +797,9 @@ a:hover {
     padding: 20px;
     z-index: 5;
     position: relative;
-    /* Apply background color here if needed */
     background-color: var(--background-medium);
-    /* Ensure bottom radius is applied if this is the last element */
     border-radius: 0 0 12px 12px;
 }
-
 
 .section-title {
     font-size: 1.2rem;
@@ -756,19 +814,23 @@ a:hover {
 
 .empty-pot-message {
     text-align: center;
-    padding: 40px 20px; /* More padding */
+    padding: 40px 20px;
     color: var(--text-secondary);
     font-size: 1.1rem;
     background-color: var(--background-light);
     border-radius: 8px;
     border: 1px dashed var(--border-color);
-    display: block; /* Ensure it's visible when needed */
+    display: block; /* Ensure it's visible when needed, JS controls parent display */
+    margin: 15px 0; /* Add margin if needed */
 }
 
 .participants-container {
     display: flex;
     flex-direction: column;
     gap: 15px;
+    padding: 20px; /* Add padding around the container */
+    background-color: var(--background-medium); /* Match section background */
+    border-radius: 0 0 12px 12px; /* Add rounding if it's the last element */
 }
 
 .participant {
@@ -789,6 +851,7 @@ a:hover {
     padding: 15px;
     background: linear-gradient(90deg, var(--background-light), var(--background-medium));
     border-bottom: 1px solid var(--border-color);
+    /* border-left set dynamically */
 }
 
 .participant-info {
@@ -797,42 +860,31 @@ a:hover {
     gap: 15px;
 }
 
-.participant-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: 2px solid var(--primary-color);
-    box-shadow: 0 0 10px rgba(0, 230, 118, 0.3);
-}
+/* participant-avatar border set dynamically */
 
 .participant-details {
     flex: 1;
     min-width: 0; /* Prevent flex item overflow */
 }
 
-
 .participant-name {
     font-weight: 600;
     font-size: 1.1rem;
     color: var(--text-primary);
     display: block;
-    white-space: nowrap; /* Prevent wrapping */
-    overflow: hidden; /* Hide overflow */
-    text-overflow: ellipsis; /* Add ellipsis */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-
 
 .participant-stats {
     display: flex;
     gap: 15px;
     margin-top: 5px;
+    font-size: 0.9rem; /* Base size */
 }
 
-.participant-value {
-    color: var(--primary-color);
-    font-weight: 600;
-}
-
+/* participant-value color set dynamically */
 .participant-percentage {
     color: var(--text-secondary);
 }
@@ -842,43 +894,6 @@ a:hover {
     flex-wrap: wrap;
     gap: 10px;
     padding: 15px;
-}
-
-.item {
-    position: relative;
-    width: 80px; /* Smaller items */
-    border-radius: 4px;
-    overflow: hidden;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    transition: transform 0.3s ease;
-    background-color: var(--background-medium);
-    border: 1px solid var(--border-color);
-}
-
-
-.item:hover {
-    transform: scale(1.05);
-}
-
-.item img {
-    width: 100%;
-    height: 60px; /* Smaller image */
-    object-fit: contain; /* Use contain to see full image */
-    display: block;
-    background-color: var(--background-dark); /* Darker bg for items */
-}
-
-.item-value {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: var(--primary-color);
-    padding: 3px 5px; /* Smaller padding */
-    font-size: 0.8rem; /* Smaller font */
-    font-weight: 600;
-    text-align: center;
 }
 
 /* Form Elements */
@@ -942,10 +957,14 @@ a:hover {
     height: 18px;
     accent-color: var(--primary-color);
     cursor: pointer;
+    flex-shrink: 0; /* Prevent checkbox shrinking */
 }
 .checkbox-container label {
     cursor: pointer;
+    color: var(--text-primary); /* Ensure label is readable */
+    line-height: 1.3; /* Adjust line height */
 }
+
 
 .verify-form {
     background-color: var(--background-light);
@@ -964,7 +983,7 @@ a:hover {
     border: 1px solid var(--border-color);
     line-height: 1.5;
 }
-#verification-result.loading { background-color: var(--background-medium); border-color: var(--secondary-light); }
+#verification-result.loading { background-color: var(--background-medium); border-color: var(--secondary-light); color: var(--text-primary); }
 #verification-result.success { background-color: rgba(0, 230, 118, 0.1); border-color: var(--success-color); color: var(--text-primary); }
 #verification-result.error { background-color: rgba(244, 67, 54, 0.1); border-color: var(--error-color); color: var(--text-primary); }
 
@@ -989,7 +1008,7 @@ a:hover {
 
 .inventory-items {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); /* Slightly smaller min */
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 10px;
     max-height: 300px;
     overflow-y: auto;
@@ -997,7 +1016,25 @@ a:hover {
     padding: 15px;
     border-radius: 8px;
     border: 1px solid var(--border-color);
+    /* Custom scrollbar (optional) */
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) var(--background-dark);
 }
+/* Scrollbar for Webkit browsers */
+.inventory-items::-webkit-scrollbar {
+    width: 8px;
+}
+.inventory-items::-webkit-scrollbar-track {
+    background: var(--background-dark);
+    border-radius: 4px;
+}
+.inventory-items::-webkit-scrollbar-thumb {
+    background-color: var(--primary-color);
+    border-radius: 4px;
+    border: 2px solid var(--background-dark);
+}
+
+
 /* Style for empty inventory */
 .empty-inventory-message, .error-message {
     grid-column: 1 / -1; /* Span all columns */
@@ -1016,42 +1053,41 @@ a:hover {
     cursor: pointer;
     transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
     border: 2px solid transparent;
-    display: flex; /* Flex column for better layout */
+    display: flex;
     flex-direction: column;
 }
 
 
 .inventory-item:hover {
-    transform: translateY(-3px); /* Slightly more lift */
+    transform: translateY(-3px);
 }
 
 .inventory-item.selected {
     border-color: var(--primary-color);
     box-shadow: 0 0 15px rgba(0, 230, 118, 0.4);
-    transform: scale(1.03); /* Slight scale */
+    transform: scale(1.03);
 }
 
 .inventory-item img {
     width: 100%;
-    height: 80px; /* Fixed height */
+    height: 80px;
     object-fit: contain;
-    background-color: var(--background-dark); /* Darker background */
+    background-color: var(--background-dark);
     display: block;
-    border-bottom: 1px solid var(--border-color); /* Separator */
+    border-bottom: 1px solid var(--border-color);
 }
 
-.item-details {
+.item-details { /* Used for inventory item details */
     padding: 8px;
-    flex-grow: 1; /* Allow details to take remaining space */
+    flex-grow: 1;
     display: flex;
     flex-direction: column;
-    justify-content: space-between; /* Push value to bottom */
-    min-height: 50px; /* Ensure consistent height */
+    justify-content: space-between;
+    min-height: 50px; /* Consistent height */
 }
 
-
-.item-name {
-    font-size: 0.85rem; /* Slightly smaller */
+.item-name { /* Used for inventory item name */
+    font-size: 0.85rem;
     font-weight: 600;
     color: var(--text-primary);
     white-space: nowrap;
@@ -1061,12 +1097,12 @@ a:hover {
     line-height: 1.2;
 }
 
-/* This item-value class is also used in participant items, keep it generic */
+/* This item-value class is used in inventory items, selected items, and participant items */
 .inventory-item .item-value {
     font-size: 0.85rem;
     font-weight: 700;
     color: var(--primary-color);
-    text-align: right; /* Align value to right within inventory item details */
+    text-align: right; /* Align value to right */
     margin-top: auto; /* Push to bottom */
 }
 
@@ -1086,7 +1122,7 @@ a:hover {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
-    min-height: 100px;
+    min-height: 100px; /* Ensure area has some height */
     background-color: var(--background-light);
     padding: 15px;
     border-radius: 8px;
@@ -1096,11 +1132,12 @@ a:hover {
 
 .selected-item {
     position: relative;
-    width: 80px; /* Smaller selected items */
+    width: 80px;
     border-radius: 4px;
     overflow: hidden;
     background-color: var(--background-medium);
     border: 1px solid var(--border-color);
+    flex-shrink: 0; /* Prevent shrinking */
 }
 
 .selected-item img {
@@ -1140,6 +1177,7 @@ a:hover {
     justify-content: center;
     transition: background-color 0.2s ease, transform 0.2s ease;
     padding: 0;
+    z-index: 1; /* Above image */
 }
 
 .remove-item:hover {
@@ -1157,7 +1195,7 @@ a:hover {
     border: 1px solid var(--border-color);
     margin-top: 10px;
     font-weight: 600;
-    font-size: 1.1rem; /* Slightly larger */
+    font-size: 1.1rem;
 }
 
 .total-value span:last-child {
@@ -1167,14 +1205,15 @@ a:hover {
 
 /* Loading indicator */
 .loading-indicator {
-    display: flex; /* Use flex or none via JS */
+    /* display: flex; */ /* Use JS to toggle display flex/none */
+    display: none; /* Hidden by default */
     flex-direction: column;
     align-items: center;
     justify-content: center;
     padding: 30px;
-    background-color: transparent; /* Make background transparent */
+    background-color: transparent;
     border-radius: 8px;
-    margin: 20px 0; /* Add margin */
+    margin: 20px 0;
     color: var(--text-secondary);
     grid-column: 1 / -1; /* Span grid if inside */
 }
@@ -1206,7 +1245,6 @@ a:hover {
     text-shadow: 0 0 5px rgba(244, 67, 54, 0.5);
 }
 
-
 @keyframes timerPulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.7; }
@@ -1214,18 +1252,18 @@ a:hover {
 
 @keyframes urgentPulse {
     0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.8; transform: scale(1.08); } /* Slightly larger scale */
+    50% { opacity: 0.8; transform: scale(1.08); }
 }
 
 
 /* FAQ & Provably Fair styles */
 .faq-item, .fair-section {
     margin-bottom: 30px;
-    border-bottom: 1px solid var(--border-color); /* Add separator */
+    border-bottom: 1px solid var(--border-color);
     padding-bottom: 20px;
 }
 .faq-item:last-child, .fair-section:last-child {
-    border-bottom: none; /* Remove border on last item */
+    border-bottom: none;
     margin-bottom: 0;
     padding-bottom: 0;
 }
@@ -1235,15 +1273,14 @@ a:hover {
     font-weight: 700;
     color: var(--primary-color);
     padding-bottom: 10px;
-    border-bottom: none; /* Remove double border */
     margin-bottom: 10px;
     display: block;
-    cursor: pointer; /* Indicate clickable if using collapse */
+    cursor: default; /* No collapse functionality assumed */
 }
 
 .faq-answer, .fair-content {
     padding: 0 10px;
-    color: var(--text-secondary); /* Lighter text for content */
+    color: var(--text-secondary);
     line-height: 1.7;
 }
 .faq-answer p, .fair-content p {
@@ -1263,7 +1300,7 @@ a:hover {
     font-weight: 600;
 }
 
-.fair-content code { /* Style code blocks */
+.fair-content code {
     background-color: var(--background-dark);
     padding: 3px 6px;
     border-radius: 4px;
@@ -1271,6 +1308,7 @@ a:hover {
     color: var(--secondary-light);
     font-size: 0.9em;
     border: 1px solid var(--border-color);
+    word-break: break-all; /* Break long code strings */
 }
 .fair-content a {
     color: var(--primary-light);
@@ -1296,35 +1334,57 @@ a:hover {
 
 /* Rounds table */
 .rounds-table-container {
-    overflow-x: auto;
+    overflow-x: auto; /* Allow horizontal scroll on small screens */
     margin-bottom: 20px;
     background-color: var(--background-light);
     border: 1px solid var(--border-color);
     border-radius: 8px;
+    /* Custom scrollbar for container */
+    scrollbar-width: thin;
+    scrollbar-color: var(--secondary-color) var(--background-dark);
+}
+/* Scrollbar for Webkit */
+.rounds-table-container::-webkit-scrollbar {
+    height: 8px; /* Horizontal scrollbar height */
+    width: 8px;
+}
+.rounds-table-container::-webkit-scrollbar-track {
+    background: var(--background-dark);
+    border-radius: 4px;
+}
+.rounds-table-container::-webkit-scrollbar-thumb {
+    background-color: var(--secondary-color);
+    border-radius: 4px;
+    border: 2px solid var(--background-dark);
 }
 
 .rounds-table {
     width: 100%;
+    min-width: 600px; /* Minimum width before scrollbar appears */
     border-collapse: collapse;
-    font-size: 0.9rem; /* Slightly smaller table font */
+    font-size: 0.9rem;
 }
 
 .rounds-table th, .rounds-table td {
-    padding: 12px 15px; /* Adjust padding */
+    padding: 12px 15px;
     text-align: left;
     border-bottom: 1px solid var(--border-color);
-    white-space: nowrap; /* Prevent wrapping in cells */
+    white-space: nowrap; /* Prevent wrapping by default */
+    vertical-align: middle;
 }
 .rounds-table tr:last-child td {
-    border-bottom: none; /* Remove border on last row */
+    border-bottom: none;
 }
 
 .rounds-table th {
-    background-color: var(--background-medium); /* Darker header */
+    background-color: var(--background-medium);
     color: var(--primary-color);
     font-weight: 600;
     text-transform: uppercase;
     font-size: 0.85rem;
+    position: sticky; /* Make header sticky if container scrolls */
+    top: 0;
+    z-index: 1;
 }
 /* Style table messages */
 .rounds-table .loading-message,
@@ -1334,6 +1394,7 @@ a:hover {
     color: var(--text-secondary);
     padding: 20px;
     font-style: italic;
+    white-space: normal; /* Allow message text to wrap */
 }
 .rounds-table .error-message {
     color: var(--error-color);
@@ -1341,10 +1402,12 @@ a:hover {
 }
 
 .rounds-table tbody tr:hover {
-    background-color: rgba(255, 255, 255, 0.05); /* Subtle hover */
+    background-color: rgba(255, 255, 255, 0.05);
 }
+/* Allow buttons cell to wrap */
 .rounds-table td:last-child {
-    white-space: normal; /* Allow buttons to wrap if needed */
+    white-space: normal;
+    text-align: right; /* Align buttons right */
 }
 
 /* Pagination */
@@ -1354,6 +1417,7 @@ a:hover {
     align-items: center;
     gap: 8px;
     margin-top: 20px;
+    flex-wrap: wrap; /* Allow pagination buttons to wrap */
 }
 
 .page-button {
@@ -1397,36 +1461,34 @@ a:hover {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.85); /* Darker overlay */
-    display: none; /* Use JS to toggle */
+    background-color: rgba(0, 0, 0, 0.85);
+    display: none; /* Use JS to toggle display: flex */
     justify-content: center;
     align-items: center;
     z-index: 1000;
-    padding: 20px; /* Add padding for smaller screens */
+    padding: 20px;
     backdrop-filter: blur(5px);
 }
 
-.modal.active {
-    display: flex; /* Toggled by JS */
-}
-
+/* No .active class needed if JS directly sets display: flex */
 
 .modal-content {
     background-color: var(--background-medium);
     border-radius: 12px;
-    width: 100%; /* Full width on small screens */
+    width: 100%;
     max-width: 700px; /* Default max width */
-    max-height: 90vh;
-    display: flex; /* Use flex */
-    flex-direction: column; /* Stack header/body/footer */
+    max-height: 90vh; /* Limit height */
+    display: flex;
+    flex-direction: column;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
     border: 1px solid var(--border-color);
     animation: modalIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    overflow: hidden; /* Prevent content overflow before body scrolls */
 }
 
 /* Specific modal max-widths */
 .age-verification .modal-content { max-width: 500px; }
-.deposit-modal .modal-content { max-width: 900px; }
+#depositModal .modal-content { max-width: 900px; } /* Use ID for deposit modal */
 #tradeUrlModal .modal-content { max-width: 600px; }
 
 
@@ -1436,7 +1498,7 @@ a:hover {
 }
 
 .modal-header {
-    padding: 15px 20px; /* Adjust padding */
+    padding: 15px 20px;
     border-bottom: 1px solid var(--border-color);
     display: flex;
     justify-content: space-between;
@@ -1450,15 +1512,15 @@ a:hover {
 .modal-header h2 {
     margin: 0;
     color: var(--primary-color);
-    font-size: 1.4rem; /* Adjust size */
+    font-size: 1.4rem;
 }
 
 .close-btn {
     background: none;
     border: none;
     color: var(--text-secondary);
-    font-size: 1.8rem; /* Larger close button */
-    line-height: 1; /* Align better */
+    font-size: 1.8rem;
+    line-height: 1;
     cursor: pointer;
     transition: color 0.3s ease, transform 0.3s ease;
     padding: 5px;
@@ -1474,7 +1536,23 @@ a:hover {
     overflow-y: auto; /* Scroll only body */
     flex-grow: 1; /* Allow body to take available space */
     line-height: 1.7;
+    /* Custom scrollbar for modal body */
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) var(--background-dark);
 }
+.modal-body::-webkit-scrollbar {
+    width: 8px;
+}
+.modal-body::-webkit-scrollbar-track {
+    background: var(--background-dark);
+    border-radius: 4px;
+}
+.modal-body::-webkit-scrollbar-thumb {
+    background-color: var(--primary-color);
+    border-radius: 4px;
+    border: 2px solid var(--background-dark);
+}
+
 .modal-body p {
     margin-bottom: 15px;
     color: var(--text-secondary);
@@ -1497,9 +1575,12 @@ a:hover {
     padding: 15px 20px;
     border-top: 1px solid var(--border-color);
     text-align: right;
-    background-color: var(--background-light); /* Footer background */
+    background-color: var(--background-light);
     border-radius: 0 0 12px 12px;
     flex-shrink: 0; /* Prevent footer shrinking */
+    display: flex; /* Use flex for button alignment */
+    justify-content: flex-end; /* Align buttons to the right */
+    gap: 10px; /* Space between buttons */
 }
 
 
@@ -1519,12 +1600,44 @@ a:hover {
 
 
 /* Responsive styles */
-@media (max-width: 768px) {
+@media (max-width: 992px) { /* Tablet breakpoint */
+    .main-nav {
+        justify-content: flex-start; /* Align nav left on tablet */
+        margin-left: 20px; /* Space after logo */
+    }
+    .user-controls {
+         /* Keep user controls pushed right */
+    }
+}
+
+@media (max-width: 768px) { /* Mobile breakpoint */
+    .main-header .container {
+        justify-content: space-between; /* Space between logo and user controls */
+    }
+    .main-nav {
+        order: 3; /* Nav below logo/user */
+        width: 100%;
+        justify-content: center; /* Center nav items */
+        margin-top: 10px;
+        margin-left: 0; /* Reset margin */
+        flex: none; /* Don't allow nav to flex */
+    }
+    .main-nav ul {
+        justify-content: center; /* Center the ul itself */
+    }
+    .user-controls {
+        order: 2; /* User controls after logo */
+        margin-left: 0; /* Reset margin */
+    }
+    .logo {
+        order: 1;
+        margin-right: 0; /* Reset margin */
+    }
+
     .jackpot-header {
-        /* Keep flex-row but allow wrap */
-        /* min-height is already set */
         padding: 15px;
         gap: 10px;
+        min-height: auto; /* Let content define height */
     }
 
     .jackpot-value h2 { font-size: 2rem; }
@@ -1533,65 +1646,90 @@ a:hover {
     .stat-value { font-size: 1.3rem; }
     .value-label, .timer-label, .stat-label { font-size: 0.75rem; }
 
-    .winner-info { width: 90%; }
-
-    .inventory-items {
-        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    .roulette-container {
+        margin-top: 20px; /* Adjust spacing */
+        height: 80px; /* Slightly smaller track height */
     }
-    .inventory-item img { height: 70px; }
-
-    .roulette-item { width: 70px; height: 70px; }
+    .roulette-item {
+        width: 70px;
+        height: 70px; /* Adjust size */
+        margin: 5px;
+    }
     .profile-pic-container { height: 40px; }
     .roulette-name { font-size: 9px; max-width: 60px; }
     .roulette-percentage { font-size: 8px; }
+     .roulette-track {
+        padding-left: calc(50% - 35px); /* Adjust offset for 70px item */
+        padding-right: calc(50% - 35px);
+    }
 
-    .winner-avatar { width: 30px; height: 30px; }
+    .winner-info {
+        /* Styles apply, maybe reduce padding slightly */
+        padding: 8px;
+    }
+    .winner-avatar { width: 30px; height: 30px; margin-right: 8px;}
+    .winner-header h3 { font-size: 1rem; }
     .winner-details p { font-size: 0.8rem; }
-    .congrats { font-size: 1rem !important; }
 
-    .modal-content { max-width: 95%; }
+    .inventory-items {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        max-height: 250px; /* Reduce height */
+    }
+    .inventory-item img { height: 70px; }
+
+    .modal-content { max-width: 95%; } /* Wider modals on mobile */
     .modal-header h2 { font-size: 1.2rem; }
+    .modal-footer { justify-content: center; flex-wrap: wrap; } /* Center buttons on mobile */
 
-    /* Original Header wrap behavior */
-     .main-header .container { flex-wrap: wrap; }
-     .main-nav { order: 3; width: 100%; justify-content: center; margin-top: 10px; }
-     .user-controls { order: 2; margin-left: auto; /* Keep original auto margin */ }
-     .logo { order: 1; } /* Ensure logo comes first */
-
+    .rounds-table { font-size: 0.85rem; }
+    .rounds-table th, .rounds-table td { padding: 10px 8px;}
+    .btn-details, .btn-verify { display: block; width: 100%; margin: 5px 0 0 0; } /* Stack buttons */
+    .rounds-table td:last-child { text-align: center; }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 480px) { /* Small mobile breakpoint */
     .logo h1 { font-size: 1.5rem; }
+    .main-nav a { font-size: 0.9rem; padding: 6px 8px; }
+    .user-avatar { width: 28px; height: 28px; }
+    .user-name { max-width: 100px; }
+    .btn-login { padding: 6px 12px; font-size: 0.9rem; }
+
     .btn-deposit, .btn-secondary { font-size: 1rem; padding: 10px 20px; }
-    .item { width: 70px; }
+
+    .jackpot-header { gap: 5px; padding: 10px; }
+    .jackpot-value h2 { font-size: 1.6rem; }
+    .timer-circle { width: 60px; height: 60px; }
+    .timer-text { font-size: 1.2rem; }
+    .stat-value { font-size: 1.1rem; }
+    .timer-background, .timer-foreground { stroke-width: 4; }
+
+    .roulette-container { height: 70px; }
+    .roulette-item { width: 60px; height: 60px; margin: 5px;}
+     .profile-pic-container { height: 35px; }
+    .roulette-track {
+        padding-left: calc(50% - 30px); /* Adjust offset for 60px item */
+        padding-right: calc(50% - 30px);
+    }
+
+    .participant { flex-direction: column; align-items: stretch;} /* Stack participant info */
+    .participant-header { border-bottom: none; }
+    .participant-items { padding-top: 0; }
+    .item { width: 70px; } /* Participant items */
     .item img { height: 50px; }
     .item-value { font-size: 0.7rem; padding: 2px 4px; }
+
+    .inventory-items { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
+    .inventory-item img { height: 60px; }
+
     .rounds-table th, .rounds-table td { padding: 8px 6px; font-size: 0.8rem;}
     .btn-details, .btn-verify { font-size: 0.7rem; padding: 4px 6px;}
 
-    /* Reduce header button padding */
-    .btn-login { padding: 6px 12px; font-size: 0.9rem; }
-    .user-avatar { width: 28px; height: 28px; }
-    .main-nav a { font-size: 0.9rem; padding: 6px 8px; } /* Smaller nav links */
-
-    /* Enhanced mobile responsiveness for roulette */
-    .roulette-item {
-        width: 60px;
-        height: 60px;
-    }
-
-    .profile-pic-container {
-        height: 35px;
-    }
-
-    .winner-avatar {
-        width: 25px;
-        height: 25px;
-    }
+    .modal-body { padding: 15px; }
+    .modal-footer { padding: 10px 15px; }
 }
 
 /* Make active page visible, others hidden */
 #home-page, #faq-page, #fair-page {
-    display: none; /* JS controls visibility */
+    display: none; /* JS controls visibility via showPage() */
 }
-/* Ensure the default page is displayed by JS using showPage() */
+/* Ensure the default page (home) is displayed by JS on load */
