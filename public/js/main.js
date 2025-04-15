@@ -66,9 +66,9 @@ const agreeButton = document.getElementById('agreeButton');
 
 // Constants
 const ROULETTE_REPETITIONS = 20; // How many times to repeat participant list
-const SPIN_DURATION_SECONDS = 18; // <<< Increased duration for slower spin
-const SPIN_ACCELERATION = 0.4; // For cubic-bezier(0.4, 0, 0.2, 1)
-const SPIN_DECELERATION = 0.2; // For cubic-bezier(0.4, 0, 0.2, 1)
+const SPIN_DURATION_SECONDS = 8;  // <<< Adjusted duration to 8 seconds
+const SPIN_ACCELERATION = 0.25; // For cubic-bezier(0.25, 0.1, 0.25, 1.0) - Controls ease-in
+const SPIN_DECELERATION = 0.25; // For cubic-bezier(0.25, 0.1, 0.25, 1.0) - Controls ease-out emphasis
 const WINNER_DISPLAY_DURATION = 5000; // How long to show winner info (in ms)
 const CONFETTI_COUNT = 100; // Number of confetti particles
 
@@ -819,7 +819,8 @@ function startClientTimer(initialTime = 120) {
 // Update the visual timer circle progress
 function updateTimerCircle(timeLeft, totalTime) {
     if (!timerForeground) return;
-    const circumference = 2 * Math.PI * 45;
+    // Assuming radius is 42 for stroke-dasharray 264 (2 * PI * 42 ~= 263.89)
+    const circumference = 264;
     const progress = Math.min(1, Math.max(0, timeLeft / totalTime));
     const offset = circumference * (1 - progress);
     timerForeground.style.strokeDasharray = `${circumference}`;
@@ -842,7 +843,9 @@ function updateParticipantsUI() {
     if (participants.length === 0) {
         if (emptyPotMessage) {
             emptyPotMessage.style.display = 'block';
-            participantsContainer.appendChild(emptyPotMessage);
+             if (!participantsContainer.contains(emptyPotMessage)) { // Ensure it's added if needed
+                 participantsContainer.appendChild(emptyPotMessage);
+             }
         } else {
             const tempEmptyMsg = document.createElement('div');
             tempEmptyMsg.className = 'empty-pot-message';
@@ -960,6 +963,7 @@ function switchToRouletteView() {
     const jackpotTimerDisplay = jackpotHeader.querySelector('.jackpot-timer');
     const jackpotStatsDisplay = jackpotHeader.querySelector('.jackpot-stats');
 
+    // Check if elements exist before trying to hide
     if (jackpotValueDisplay) jackpotValueDisplay.style.display = 'none';
     if (jackpotTimerDisplay) jackpotTimerDisplay.style.display = 'none';
     if (jackpotStatsDisplay) jackpotStatsDisplay.style.display = 'none';
@@ -1022,15 +1026,19 @@ function startRouletteAnimation(winnerData) {
              return;
         }
         const containerWidth = container.offsetWidth;
-        const itemWidth = winningElement.offsetWidth;
+        // Ensure offsetWidth is read *after* items are rendered and visible
+        const itemWidth = winningElement.offsetWidth || 90; // Fallback width
         const itemOffsetLeft = winningElement.offsetLeft;
 
         const targetScrollPosition = -(itemOffsetLeft + (itemWidth / 2) - (containerWidth / 2));
+        // Add random offset variation (+/- ~40% item width) for visual variety
         const randomOffset = (Math.random() - 0.5) * itemWidth * 0.8;
         const finalTargetPosition = targetScrollPosition + randomOffset;
 
-        // <<< Use updated duration and easing function
-        rouletteTrack.style.transition = `transform ${SPIN_DURATION_SECONDS}s cubic-bezier(${SPIN_ACCELERATION}, 0, ${SPIN_DECELERATION}, 1)`;
+        // Apply the CSS transition for the spin animation
+        // Using updated duration (8s) and custom ease-out curve
+        // cubic-bezier(0.25, 0.1, 0.25, 1.0) -> starts fast, ends slow
+        rouletteTrack.style.transition = `transform ${SPIN_DURATION_SECONDS}s cubic-bezier(0.25, 0.1, 0.25, 1.0)`;
         rouletteTrack.style.transform = `translateX(${finalTargetPosition}px)`;
 
         let spinEndHandled = false;
@@ -1043,16 +1051,18 @@ function startRouletteAnimation(winnerData) {
         };
         rouletteTrack.addEventListener('transitionend', transitionEndHandler, { once: true });
 
+        // Fallback timer: Trigger end handler slightly after duration
         setTimeout(() => {
             if (!spinEndHandled) {
                  spinEndHandled = true;
                  console.warn("Fallback timer triggered for spin end.");
+                 // Manually remove the event listener if the fallback triggers
                  rouletteTrack.removeEventListener('transitionend', transitionEndHandler);
                  handleSpinEnd(winningElement, winner);
             }
-        }, (SPIN_DURATION_SECONDS * 1000) + 500);
+        }, (SPIN_DURATION_SECONDS * 1000) + 500); // Wait 500ms extra
 
-    }, 100);
+    }, 100); // Short delay (100ms) to allow rendering before animation starts
 }
 
 function createRouletteItems() {
@@ -1086,10 +1096,11 @@ function createRouletteItems() {
 
     const container = inlineRoulette?.querySelector('.roulette-container');
     const containerWidth = container?.offsetWidth || 1000;
-    const estimatedItemWidth = 100; // Includes margin
+    const estimatedItemWidth = 100; // Item width (90) + margin (10)
     const itemsNeededForView = Math.ceil(containerWidth / estimatedItemWidth);
-    const minItemsToCreate = itemsNeededForView * 4; // Render more items for smoother slow spin
-    const maxItemsToCreate = 600; // Increase cap slightly
+    // Adjust min items for 8s duration - fewer items might be okay
+    const minItemsToCreate = itemsNeededForView * 2.5; // ~2.5 viewports
+    const maxItemsToCreate = 400; // Reduce cap slightly for shorter duration
 
     const totalItemsToCreate = Math.max(
         minItemsToCreate,
@@ -1149,7 +1160,9 @@ function handleSpinEnd(winningElement, winner) {
             winnerDeposit.textContent = `$${(winner.value || 0).toFixed(2)}`;
             winnerChance.textContent = `${(winner.percentage || 0).toFixed(2)}%`;
 
-            winnerInfo.style.display = 'block';
+            // Use flex as per CSS definition
+             winnerInfo.style.display = 'flex';
+
             launchConfetti();
 
             if(returnToJackpot) returnToJackpot.style.display = 'none';
@@ -1173,9 +1186,11 @@ function resetToJackpotView() {
     const jackpotValueDisplay = jackpotHeader.querySelector('.jackpot-value');
     const jackpotTimerDisplay = jackpotHeader.querySelector('.jackpot-timer');
     const jackpotStatsDisplay = jackpotHeader.querySelector('.jackpot-stats');
-    if (jackpotValueDisplay) jackpotValueDisplay.style.display = 'block';
-    if (jackpotTimerDisplay) jackpotTimerDisplay.style.display = 'block';
-    if (jackpotStatsDisplay) jackpotStatsDisplay.style.display = 'block';
+    // Check if elements exist before trying to show them
+    if (jackpotValueDisplay) jackpotValueDisplay.style.display = 'flex'; // Use flex as per CSS
+    if (jackpotTimerDisplay) jackpotTimerDisplay.style.display = 'flex';
+    if (jackpotStatsDisplay) jackpotStatsDisplay.style.display = 'flex';
+
 
     inlineRoulette.style.display = 'none';
     winnerInfo.style.display = 'none';
@@ -1211,8 +1226,11 @@ function initiateNewRoundVisualReset() {
     if (participantsContainer) {
         participantsContainer.innerHTML = '';
         if (emptyPotMessage) {
+            // Ensure it's appended if not already inside
+            if (!participantsContainer.contains(emptyPotMessage)) {
+                participantsContainer.appendChild(emptyPotMessage);
+            }
             emptyPotMessage.style.display = 'block';
-             participantsContainer.appendChild(emptyPotMessage);
         } else {
             const tempEmptyMsg = document.createElement('div');
             tempEmptyMsg.className = 'empty-pot-message';
