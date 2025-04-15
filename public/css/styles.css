@@ -181,42 +181,52 @@ a:hover {
     z-index: 100;
 }
 
+/* --- MODIFICATION START --- */
+/* Apply Flexbox to the direct container of logo, nav, controls */
 .main-header .container {
     display: flex;
     align-items: center;
+    justify-content: space-between; /* Key change for layout */
 }
+/* --- MODIFICATION END --- */
 
 .logo h1 {
     font-family: 'JetBrains Mono', monospace;
     font-size: 1.8rem;
     font-weight: 700;
-    margin: 0;
+    margin: 0; /* Keep margin 0 */
     letter-spacing: 1px;
     text-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
+    /* No flex properties needed here */
 }
 
 .logo span {
     color: var(--primary-color);
 }
 
+/* --- MODIFICATION START --- */
+/* Navigation - remove flex: 1, center the UL inside */
 .main-nav {
-    flex: 1;
-    display: flex;
-    justify-content: center;
+    /* flex: 1; REMOVED - let space-between on parent handle spacing */
+    display: flex; /* Keep this if you want to center the UL inside the nav */
+    justify-content: center; /* Keep this to center the UL */
 }
+/* --- MODIFICATION END --- */
 
 .main-nav ul {
     list-style: none;
-    display: flex;
+    display: flex; /* Keep items horizontal */
+    padding: 0; /* Ensure no default padding */
+    margin: 0; /* Ensure no default margin */
 }
 
 .main-nav li {
-    margin-right: 20px;
+    margin: 0 15px; /* Adjust spacing between nav items */
 }
+/* Remove margin from the last item if using margin on li */
 .main-nav li:last-child {
-    margin-right: 0;
+   margin-right: 0;
 }
-
 
 .main-nav a {
     font-weight: 600;
@@ -252,17 +262,22 @@ a:hover {
     color: var(--text-primary); /* Hover color */
 }
 
-
+/* --- MODIFICATION START --- */
+/* User controls area - remove margin-left: auto */
 .user-controls {
-    margin-left: auto;
+    /* margin-left: auto; REMOVED - let space-between on parent handle positioning */
     display: flex;
     align-items: center;
+    /* No flex properties needed here */
 }
+/* --- MODIFICATION END --- */
+
 
 .user-profile {
     display: flex;
     align-items: center;
     gap: 10px;
+    margin-left: 15px; /* Add space if login button AND profile are visible */
 }
 
 .user-avatar {
@@ -299,23 +314,23 @@ a:hover {
     position: relative;
 }
 
-/* ----- UPDATED JACKPOT HEADER STYLES ----- */
+/* ----- JACKPOT HEADER STYLES ----- */
 .jackpot-header {
     display: flex;
-    justify-content: space-around; /* Changed for better spacing */
+    justify-content: space-around;
     align-items: center;
     padding: 20px;
     background: linear-gradient(135deg, var(--background-medium), var(--background-light));
     border-bottom: 1px solid var(--border-color);
     border-radius: 12px 12px 0 0;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    min-height: 150px; /* Use min-height instead of fixed height */
+    min-height: 150px;
     position: relative;
     overflow: hidden;
     z-index: 5;
     transition: height 0.3s ease, background 0.3s ease;
-    gap: 20px; /* Added gap */
-    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    gap: 20px;
+    flex-wrap: wrap;
 }
 
 .jackpot-header.roulette-mode {
@@ -323,39 +338,38 @@ a:hover {
 }
 
 .jackpot-value, .jackpot-timer, .jackpot-stats {
-    display: flex; /* Use flex for content alignment */
-    flex-direction: column; /* Stack label below value */
-    align-items: center; /* Center items horizontally */
-    /* flex: 1; Removed */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .jackpot-value h2 {
-    font-size: 2.8rem; /* Slightly smaller */
+    font-size: 2.8rem;
     font-weight: 700;
     color: var(--primary-color);
     margin: 0;
     text-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
     font-family: 'JetBrains Mono', monospace;
-    line-height: 1.1; /* Adjust line height */
+    line-height: 1.1;
 }
 
 .value-label, .timer-label, .stat-label {
-    font-size: 0.85rem; /* Slightly smaller */
+    font-size: 0.85rem;
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 1px;
     display: block;
-    margin-top: 5px; /* Add space between value and label */
+    margin-top: 5px;
 }
 
 .timer-circle {
     position: relative;
-    width: 90px; /* Slightly smaller */
+    width: 90px;
     height: 90px;
     display: flex;
     justify-content: center;
     align-items: center;
-    margin: 0 auto; /* Keep centered within its block */
+    margin: 0 auto;
 }
 
 .timer-progress {
@@ -367,14 +381,14 @@ a:hover {
 .timer-background {
     fill: none;
     stroke: var(--background-light);
-    stroke-width: 6; /* Thinner stroke */
+    stroke-width: 6;
 }
 
 .timer-foreground {
     fill: none;
     stroke: var(--primary-color);
-    stroke-width: 6; /* Thinner stroke */
-    stroke-linecap: round; /* Rounded ends */
+    stroke-width: 6;
+    stroke-linecap: round;
     stroke-dasharray: 264; /* Adjusted for radius 42 (2*PI*42) */
     stroke-dashoffset: 0;
     transition: stroke-dashoffset 1s linear;
@@ -386,21 +400,21 @@ a:hover {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 1.8rem; /* Slightly smaller */
+    font-size: 1.8rem;
     font-weight: 700;
     color: var(--primary-color);
     font-family: 'JetBrains Mono', monospace;
 }
 
 .stat-value {
-    font-size: 1.6rem; /* Slightly larger */
+    font-size: 1.6rem;
     font-weight: 700;
     color: var(--text-primary);
     display: block;
-    line-height: 1.1; /* Adjust line height */
+    line-height: 1.1;
 }
 
-/* ----- END UPDATED JACKPOT HEADER STYLES ----- */
+/* ----- END JACKPOT HEADER STYLES ----- */
 
 
 /* Inline Roulette */
@@ -411,7 +425,7 @@ a:hover {
     left: 0;
     width: 100%;
     height: 100%;
-    background: transparent; /* Make background transparent to blend with header */
+    background: transparent;
     z-index: 10;
     overflow: hidden;
 }
@@ -420,13 +434,13 @@ a:hover {
 .roulette-container {
     position: relative;
     width: 100%;
-    height: 90px; /* Reduced height to fit in header */
+    height: 90px;
     overflow: hidden;
-    background-color: rgba(13, 17, 23, 0.5); /* Semi-transparent background */
+    background-color: rgba(13, 17, 23, 0.5);
     border-radius: 8px;
     border: 1px solid var(--border-color);
-    margin: 30px 0 0 0; /* Top margin to center vertically */
-    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.4); /* Inner shadow */
+    margin: 30px 0 0 0;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.4);
 }
 
 /* Roulette Track */
@@ -436,16 +450,16 @@ a:hover {
     left: 0;
     top: 0;
     height: 100%;
-    will-change: transform; /* Improve performance */
-    padding-left: calc(50% - 45px); /* Offset start for centering first item */
-    padding-right: calc(50% - 45px); /* Offset end for centering last item */
+    will-change: transform;
+    padding-left: calc(50% - 45px);
+    padding-right: calc(50% - 45px);
 }
 
 /* Roulette Items */
 .roulette-item {
     flex: 0 0 auto;
-    width: 90px; /* Smaller width to fit more items visible */
-    height: 80px; /* Smaller height */
+    width: 90px;
+    height: 80px;
     margin: 5px;
     background: rgba(30, 35, 40, 0.7);
     border-radius: 6px;
@@ -469,7 +483,7 @@ a:hover {
 /* Profile container */
 .profile-pic-container {
     width: 100%;
-    height: 45px; /* Smaller image area */
+    height: 45px;
     overflow: hidden;
     background: #1a1e23;
     flex-shrink: 0;
@@ -514,7 +528,7 @@ a:hover {
 }
 
 /* Winning item highlight */
-.roulette-item.winner-highlight { /* Changed class name */
+.roulette-item.winner-highlight {
     animation: winnerPulse 1.5s infinite;
     box-shadow: 0 0 25px rgba(0, 255, 170, 1);
     z-index: 5;
@@ -536,7 +550,7 @@ a:hover {
     width: 4px;
     height: 100%;
     z-index: 10;
-    pointer-events: none; /* Make sure it doesn't interfere with clicks */
+    pointer-events: none;
 }
 
 .ticker-line {
@@ -565,18 +579,18 @@ a:hover {
 
 /* Winner Info Box */
 .winner-info {
-    display: none; /* Hidden by default */
+    display: none;
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(13, 17, 23, 0.9); /* Slightly more opaque */
+    background: rgba(13, 17, 23, 0.9);
     padding: 10px;
-    display: flex; /* Use flex for layout */
-    flex-direction: column; /* Stack elements vertically */
-    justify-content: center; /* Center vertically */
-    align-items: center; /* Center horizontally */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
     text-align: center;
     box-sizing: border-box;
     z-index: 20;
@@ -604,7 +618,7 @@ a:hover {
     margin-right: 10px;
     object-fit: cover;
 }
-.winner-header h3 { /* Style winner name */
+.winner-header h3 {
     margin: 0;
     font-size: 1.1rem;
 }
@@ -618,7 +632,7 @@ a:hover {
     margin: 3px 0;
     font-size: 0.9rem;
 }
-.winner-details span { /* Style values */
+.winner-details span {
     color: var(--primary-light);
     font-weight: bold;
 }
@@ -642,7 +656,7 @@ a:hover {
 
 /* Return Button */
 .return-btn {
-    display: none; /* Hidden by default */
+    display: none;
     position: absolute;
     bottom: 10px;
     left: 50%;
@@ -993,11 +1007,12 @@ a:hover {
     margin-bottom: 3px;
 }
 
-.item-value { /* This class is used in multiple places, ensure specificity if needed */
+/* This item-value class is also used in participant items, keep it generic */
+.inventory-item .item-value {
     font-size: 0.85rem;
     font-weight: 700;
     color: var(--primary-color);
-    text-align: right; /* Align value to right */
+    text-align: right; /* Align value to right within inventory item details */
 }
 
 
@@ -1225,16 +1240,17 @@ a:hover {
     white-space: normal; /* Allow buttons to wrap if needed */
 }
 
+/* Pagination */
 .pagination {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 8px; /* Reduced gap */
+    gap: 8px;
     margin-top: 20px;
 }
 
 .page-button {
-    padding: 6px 10px; /* Smaller buttons */
+    padding: 6px 10px;
     background-color: var(--background-light);
     border: 1px solid var(--border-color);
     border-radius: 4px;
@@ -1398,15 +1414,42 @@ a:hover {
 
     .modal-content { max-width: 95%; }
     .modal-header h2 { font-size: 1.2rem; }
-    .main-nav { justify-content: flex-start; overflow-x: auto; } /* Allow nav scroll */
-    .user-controls { margin-left: 10px; } /* Reduce margin */
+
+    /* Adjust header layout for smaller screens */
+    .main-header .container {
+        flex-wrap: wrap; /* Allow wrapping */
+        justify-content: space-between; /* Keep logo left, controls right */
+    }
+    .logo {
+        width: auto; /* Allow logo to take natural width */
+        margin-bottom: 10px; /* Add space below if wraps */
+    }
+    .main-nav {
+        order: 3; /* Move nav below logo and controls */
+        width: 100%; /* Take full width */
+        justify-content: center; /* Center nav items */
+        margin-top: 10px; /* Add space above */
+        overflow-x: auto; /* Allow horizontal scroll if needed */
+        padding-bottom: 5px; /* Space for scrollbar */
+    }
+     .main-nav ul {
+        justify-content: center; /* Center the list items */
+        flex-wrap: nowrap; /* Prevent nav items wrapping */
+    }
+    .user-controls {
+        order: 2; /* Keep controls after logo */
+        /* margin-left: auto; is removed, space-between handles it */
+        margin-bottom: 10px; /* Add space below if wraps */
+    }
 }
 
 @media (max-width: 480px) {
     .logo h1 { font-size: 1.5rem; }
-    .main-header .container { flex-wrap: wrap; } /* Allow header wrap */
-    .main-nav { order: 3; width: 100%; justify-content: center; margin-top: 10px; }
-    .user-controls { order: 2; margin-left: auto; }
+
+    /* Further reduce header element sizes if needed */
+    .btn-login { padding: 6px 12px; font-size: 0.9rem;}
+    .user-avatar { width: 28px; height: 28px; }
+
     .btn-deposit, .btn-secondary { font-size: 1rem; padding: 10px 20px; }
     .item { width: 70px; }
     .item img { height: 50px; }
@@ -1419,4 +1462,4 @@ a:hover {
 #home-page, #faq-page, #fair-page {
     display: none; /* JS controls visibility */
 }
-/* Ensure the default page is displayed by JS using showPage() */
+/* Ensure the default page is displayed by JS using showPage() in main.js */
