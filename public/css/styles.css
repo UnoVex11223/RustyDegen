@@ -170,7 +170,7 @@ a:hover {
 }
 
 
-/* =================== HEADER STYLES (MODIFIED) =================== */
+/* Header */
 .main-header {
     background-color: var(--background-medium);
     padding: 15px 0;
@@ -181,15 +181,9 @@ a:hover {
     z-index: 100;
 }
 
-/* Apply Flexbox to the container holding logo, nav, controls */
 .main-header .container {
     display: flex;
     align-items: center;
-    justify-content: space-between; /* Pushes logo left, controls right, nav middle */
-}
-
-.logo {
-    flex-shrink: 0; /* Prevent logo from shrinking */
 }
 
 .logo h1 {
@@ -205,35 +199,33 @@ a:hover {
     color: var(--primary-color);
 }
 
-/* Navigation - center its internal UL */
 .main-nav {
+    flex: 1;
     display: flex;
-    justify-content: center; /* Center the UL within the nav space */
-    flex-grow: 1; /* Allow nav to take space but content remains centered */
-    min-width: 0; /* Prevent overflow issues on flex item */
+    justify-content: center;
 }
 
 .main-nav ul {
     list-style: none;
     display: flex;
-    padding: 0;
-    margin: 0;
 }
 
 .main-nav li {
-    margin: 0 15px; /* Spacing between nav items */
+    margin-right: 20px;
+}
+.main-nav li:last-child {
+    margin-right: 0;
 }
 
+
 .main-nav a {
-    display: block; /* Ensure padding applies correctly */
     font-weight: 600;
     font-size: 1rem;
     padding: 8px 12px;
     border-radius: 4px;
     transition: all 0.3s ease;
     position: relative;
-    color: var(--text-secondary);
-    white-space: nowrap; /* Prevent nav items wrapping */
+    color: var(--text-secondary); /* Default color */
 }
 
 .main-nav a:after {
@@ -256,24 +248,24 @@ a:hover {
 .main-nav a.active {
     color: var(--primary-color);
 }
-
 .main-nav a:hover {
-    color: var(--text-primary);
+    color: var(--text-primary); /* Hover color */
 }
 
-/* User controls area - pushed to the right by space-between */
+
 .user-controls {
+    margin-left: auto;
     display: flex;
     align-items: center;
-    flex-shrink: 0; /* Prevent controls from shrinking */
 }
 
 .user-profile {
-    display: flex; /* Will be flex or none based on login status */
+    display: flex;
     align-items: center;
     gap: 10px;
     margin-left: 15px; /* Add space if login button AND profile are visible */
 }
+
 
 .user-avatar {
     width: 32px;
@@ -285,8 +277,6 @@ a:hover {
 .user-name {
     font-weight: 600;
 }
-/* =================== END HEADER STYLES =================== */
-
 
 /* Main Content */
 .main-content {
@@ -311,78 +301,63 @@ a:hover {
     position: relative;
 }
 
-/* ----- JACKPOT HEADER STYLES ----- */
+/* ----- UPDATED JACKPOT HEADER STYLES ----- */
 .jackpot-header {
     display: flex;
-    justify-content: space-around;
+    justify-content: space-around; /* Changed for better spacing */
     align-items: center;
     padding: 20px;
     background: linear-gradient(135deg, var(--background-medium), var(--background-light));
     border-bottom: 1px solid var(--border-color);
     border-radius: 12px 12px 0 0;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    min-height: 150px;
+    min-height: 150px; /* Use min-height instead of fixed height */
     position: relative;
     overflow: hidden;
     z-index: 5;
     transition: height 0.3s ease, background 0.3s ease;
-    gap: 20px;
-    flex-wrap: wrap;
+    gap: 20px; /* Added gap */
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
 }
 
-/* Hide normal jackpot elements when roulette is active */
-.jackpot-header.roulette-mode .jackpot-value,
-.jackpot-header.roulette-mode .jackpot-timer,
-.jackpot-header.roulette-mode .jackpot-stats {
-    display: none;
-}
-
-/* Style change for header during roulette */
 .jackpot-header.roulette-mode {
     background: linear-gradient(135deg, var(--background-dark), var(--background-medium));
-    /* Ensure it can contain the roulette */
-    min-height: 150px; /* Or adjust as needed */
-    align-items: center; /* Vertically center roulette if needed */
-    justify-content: center; /* Center roulette horizontally */
 }
 
-
 .jackpot-value, .jackpot-timer, .jackpot-stats {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    /* Ensure these take some space but allow wrapping */
-    flex-basis: auto;
-    flex-shrink: 0;
+    display: flex; /* Use flex for content alignment */
+    flex-direction: column; /* Stack label below value */
+    align-items: center; /* Center items horizontally */
+    /* flex: 1; Removed */
 }
 
 .jackpot-value h2 {
-    font-size: 2.8rem;
+    font-size: 2.8rem; /* Slightly smaller */
     font-weight: 700;
     color: var(--primary-color);
     margin: 0;
     text-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
     font-family: 'JetBrains Mono', monospace;
-    line-height: 1.1;
+    line-height: 1.1; /* Adjust line height */
 }
 
 .value-label, .timer-label, .stat-label {
-    font-size: 0.85rem;
+    font-size: 0.85rem; /* Slightly smaller */
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 1px;
     display: block;
-    margin-top: 5px;
+    margin-top: 5px; /* Add space between value and label */
 }
 
 .timer-circle {
     position: relative;
-    width: 90px;
+    width: 90px; /* Slightly smaller */
     height: 90px;
     display: flex;
     justify-content: center;
     align-items: center;
-    margin: 0 auto;
+    margin: 0 auto; /* Keep centered within its block */
 }
 
 .timer-progress {
@@ -394,14 +369,14 @@ a:hover {
 .timer-background {
     fill: none;
     stroke: var(--background-light);
-    stroke-width: 6;
+    stroke-width: 6; /* Thinner stroke */
 }
 
 .timer-foreground {
     fill: none;
     stroke: var(--primary-color);
-    stroke-width: 6;
-    stroke-linecap: round;
+    stroke-width: 6; /* Thinner stroke */
+    stroke-linecap: round; /* Rounded ends */
     stroke-dasharray: 264; /* Adjusted for radius 42 (2*PI*42) */
     stroke-dashoffset: 0;
     transition: stroke-dashoffset 1s linear;
@@ -413,48 +388,47 @@ a:hover {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 1.8rem;
+    font-size: 1.8rem; /* Slightly smaller */
     font-weight: 700;
     color: var(--primary-color);
     font-family: 'JetBrains Mono', monospace;
 }
 
 .stat-value {
-    font-size: 1.6rem;
+    font-size: 1.6rem; /* Slightly larger */
     font-weight: 700;
     color: var(--text-primary);
     display: block;
-    line-height: 1.1;
+    line-height: 1.1; /* Adjust line height */
 }
 
-/* ----- END JACKPOT HEADER STYLES ----- */
+/* ----- END UPDATED JACKPOT HEADER STYLES ----- */
 
 
 /* Inline Roulette */
 .inline-roulette {
-    /* display: none; JS controls this */
-    /* position: absolute; No longer absolute, lives inside header flow */
-    width: 100%; /* Take full width of the header container */
-    max-width: 90%; /* Optional: constrain max width */
-    height: 110px; /* Fixed height for the roulette container */
-    display: flex; /* Use flex to center content if needed */
-    justify-content: center;
-    align-items: center;
-    overflow: hidden; /* Hide overflow from track */
-    z-index: 10; /* Ensure it's above other header content if needed */
+    display: none; /* Hidden by default */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent; /* Make background transparent to blend with header */
+    z-index: 10;
+    overflow: hidden;
 }
 
 /* Roulette Container */
 .roulette-container {
     position: relative;
-    width: 100%; /* Take full width of .inline-roulette */
-    height: 100%; /* Take full height */
+    width: 100%;
+    height: 90px; /* Reduced height to fit in header */
     overflow: hidden;
-    background-color: rgba(13, 17, 23, 0.5);
+    background-color: rgba(13, 17, 23, 0.5); /* Semi-transparent background */
     border-radius: 8px;
     border: 1px solid var(--border-color);
-    /* margin: 30px 0 0 0; Removed margin, positioning controlled by parent */
-    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.4);
+    margin: 30px 0 0 0; /* Top margin to center vertically */
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.4); /* Inner shadow */
 }
 
 /* Roulette Track */
@@ -464,33 +438,30 @@ a:hover {
     left: 0;
     top: 0;
     height: 100%;
-    will-change: transform;
-    /* Padding Centers the first/last item under the ticker */
-    padding-left: calc(50% - 45px); /* 45px = half of item width */
-    padding-right: calc(50% - 45px);
-    /* JS will handle transform: translateX(...) */
-    transition: none; /* Ensure JS controls animation */
+    will-change: transform; /* Improve performance */
+    padding-left: calc(50% - 45px); /* Offset start for centering first item */
+    padding-right: calc(50% - 45px); /* Offset end for centering last item */
 }
 
 /* Roulette Items */
 .roulette-item {
-    flex: 0 0 auto; /* Prevent shrinking/growing */
-    width: 90px;
-    height: 90px; /* Adjusted height to fit container padding */
-    margin: 10px 5px; /* Vertical margin for spacing, horizontal too */
+    flex: 0 0 auto;
+    width: 90px; /* Smaller width to fit more items visible */
+    height: 80px; /* Smaller height */
+    margin: 5px;
     background: rgba(30, 35, 40, 0.7);
     border-radius: 6px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
     border: 2px solid transparent;
     position: relative;
     box-sizing: border-box;
-    transition: transform 0.2s ease, box-shadow 0.2s ease; /* Keep hover effects */
 }
 
-/* Item border colors */
+/* Item border colors for visual distinction */
 .roulette-item.item-color-1 { border-color: #00ffaa; }
 .roulette-item.item-color-2 { border-color: #ff3366; }
 .roulette-item.item-color-3 { border-color: #9933ff; }
@@ -500,7 +471,7 @@ a:hover {
 /* Profile container */
 .profile-pic-container {
     width: 100%;
-    height: 50px; /* Adjusted size */
+    height: 45px; /* Smaller image area */
     overflow: hidden;
     background: #1a1e23;
     flex-shrink: 0;
@@ -511,11 +482,12 @@ a:hover {
     height: 100%;
     object-fit: cover;
     display: block;
+    transition: transform 0.3s ease;
 }
 
 /* Item info */
 .roulette-info {
-    padding: 4px;
+    padding: 3px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -530,7 +502,7 @@ a:hover {
     font-size: 10px;
     font-weight: 600;
     color: #ffffff;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -544,9 +516,9 @@ a:hover {
 }
 
 /* Winning item highlight */
-.roulette-item.winner-highlight {
+.roulette-item.winner-highlight { /* Changed class name */
     animation: winnerPulse 1.5s infinite;
-    /* box-shadow set by animation */
+    box-shadow: 0 0 25px rgba(0, 255, 170, 1);
     z-index: 5;
     border-width: 3px;
 }
@@ -566,7 +538,7 @@ a:hover {
     width: 4px;
     height: 100%;
     z-index: 10;
-    pointer-events: none;
+    pointer-events: none; /* Make sure it doesn't interfere with clicks */
 }
 
 .ticker-line {
@@ -582,7 +554,7 @@ a:hover {
 .ticker-arrow {
     content: '';
     position: absolute;
-    top: -10px; /* Position above the line */
+    top: -10px;
     left: 50%;
     transform: translateX(-50%);
     width: 0;
@@ -595,23 +567,22 @@ a:hover {
 
 /* Winner Info Box */
 .winner-info {
-    /* display: none; JS controls this */
-    position: absolute; /* Overlay within roulette container */
+    display: none; /* Hidden by default */
+    position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(13, 17, 23, 0.95); /* Slightly more opaque */
+    background: rgba(13, 17, 23, 0.9); /* Slightly more opaque */
     padding: 10px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
+    display: flex; /* Use flex for layout */
+    flex-direction: column; /* Stack elements vertically */
+    justify-content: center; /* Center vertically */
+    align-items: center; /* Center horizontally */
     text-align: center;
     box-sizing: border-box;
-    z-index: 20; /* Above ticker */
+    z-index: 20;
     animation: fadeIn 0.5s ease-out;
-    border-radius: 8px; /* Match container rounding */
 }
 
 @keyframes fadeIn {
@@ -635,23 +606,21 @@ a:hover {
     margin-right: 10px;
     object-fit: cover;
 }
-.winner-header h3 {
+.winner-header h3 { /* Style winner name */
     margin: 0;
     font-size: 1.1rem;
-    color: var(--text-primary); /* Ensure visibility */
 }
 
 .winner-details {
     margin-top: 5px;
     font-size: 0.9rem;
-    color: var(--text-secondary); /* Base color for details */
 }
 
 .winner-details p {
     margin: 3px 0;
     font-size: 0.9rem;
 }
-.winner-details span {
+.winner-details span { /* Style values */
     color: var(--primary-light);
     font-weight: bold;
 }
@@ -675,13 +644,13 @@ a:hover {
 
 /* Return Button */
 .return-btn {
-    /* display: none; JS controls this */
+    display: none; /* Hidden by default */
     position: absolute;
-    bottom: 15px; /* Position inside the jackpot header area */
+    bottom: 10px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 30; /* Above winner info */
-    padding: 6px 12px;
+    z-index: 30;
+    padding: 5px 10px;
     font-size: 0.9rem;
 }
 
@@ -694,8 +663,7 @@ a:hover {
     height: 100%;
     pointer-events: none;
     overflow: hidden;
-    z-index: 15; /* Below winner info */
-    border-radius: 8px; /* Match container */
+    z-index: 15;
 }
 
 .confetti {
@@ -714,7 +682,7 @@ a:hover {
         opacity: 0.9;
     }
     100% {
-        transform: translateY(180px) rotateZ(720deg); /* Fall further */
+        transform: translateY(160px) rotateZ(720deg); /* Fall further */
         opacity: 0;
     }
 }
@@ -733,8 +701,9 @@ a:hover {
     padding: 20px;
     z-index: 5;
     position: relative;
-    background-color: var(--background-medium); /* Match container */
-    /* Remove bottom radius if deposit buttons are separate */
+    /* Apply background color here if needed */
+    background-color: var(--background-medium);
+    /* Ensure bottom radius is applied if this is the last element */
     border-radius: 0 0 12px 12px;
 }
 
@@ -758,7 +727,7 @@ a:hover {
     background-color: var(--background-light);
     border-radius: 8px;
     border: 1px dashed var(--border-color);
-    /* display: block; JS controls this */
+    display: block; /* Ensure it's visible when needed */
 }
 
 .participants-container {
@@ -799,7 +768,6 @@ a:hover {
     border-radius: 50%;
     border: 2px solid var(--primary-color);
     box-shadow: 0 0 10px rgba(0, 230, 118, 0.3);
-    object-fit: cover; /* Ensure avatar covers area */
 }
 
 .participant-details {
@@ -983,11 +951,6 @@ a:hover {
 .inventory-container {
     margin-bottom: 20px;
 }
-.inventory-container h3 {
-    font-size: 1.1rem;
-    margin-bottom: 10px;
-    color: var(--text-secondary);
-}
 
 .inventory-items {
     display: grid;
@@ -1048,8 +1011,9 @@ a:hover {
     display: flex;
     flex-direction: column;
     justify-content: space-between; /* Push value to bottom */
-    min-height: 50px; /* Ensure some minimum height */
+    min-height: 50px; /* Ensure consistent height */
 }
+
 
 .item-name {
     font-size: 0.85rem; /* Slightly smaller */
@@ -1059,7 +1023,7 @@ a:hover {
     overflow: hidden;
     text-overflow: ellipsis;
     margin-bottom: 3px;
-    line-height: 1.2; /* Prevent tall names pushing value off */
+    line-height: 1.2;
 }
 
 /* This item-value class is also used in participant items, keep it generic */
@@ -1140,7 +1104,7 @@ a:hover {
     align-items: center;
     justify-content: center;
     transition: background-color 0.2s ease, transform 0.2s ease;
-    padding: 0; /* Remove default button padding */
+    padding: 0;
 }
 
 .remove-item:hover {
@@ -1151,7 +1115,7 @@ a:hover {
 .total-value {
     display: flex;
     justify-content: space-between;
-    align-items: center; /* Vertically align */
+    align-items: center;
     padding: 10px 15px;
     background-color: var(--background-light);
     border-radius: 4px;
@@ -1168,7 +1132,7 @@ a:hover {
 
 /* Loading indicator */
 .loading-indicator {
-    display: flex; /* Toggled by JS */
+    display: flex; /* Use flex or none via JS */
     flex-direction: column;
     align-items: center;
     justify-content: center;
@@ -1204,7 +1168,6 @@ a:hover {
 .urgent-pulse {
     animation: urgentPulse 0.6s infinite ease-in-out;
     color: var(--error-color) !important; /* Use error color */
-    /* Add text shadow for more visibility */
     text-shadow: 0 0 5px rgba(244, 67, 54, 0.5);
 }
 
@@ -1246,22 +1209,22 @@ a:hover {
 .faq-answer, .fair-content {
     padding: 0 10px;
     color: var(--text-secondary); /* Lighter text for content */
-    line-height: 1.7; /* Improve readability */
+    line-height: 1.7;
 }
 .faq-answer p, .fair-content p {
-    margin-bottom: 12px; /* Slightly more space */
+    margin-bottom: 12px;
 }
 .faq-answer ul, .faq-answer ol,
 .fair-content ul, .fair-content ol {
-    margin: 15px 0 15px 20px; /* Consistent margin */
-    padding-left: 25px; /* More indentation */
+    margin: 15px 0 15px 20px;
+    padding-left: 25px;
 }
 .faq-answer li,
 .fair-content li {
     margin-bottom: 10px;
 }
 .fair-content strong {
-    color: var(--text-accent); /* Highlight strong text */
+    color: var(--text-accent);
     font-weight: 600;
 }
 
@@ -1295,11 +1258,12 @@ a:hover {
     color: var(--primary-color);
 }
 
+
 /* Rounds table */
 .rounds-table-container {
     overflow-x: auto;
     margin-bottom: 20px;
-    background-color: var(--background-light); /* Add bg to container */
+    background-color: var(--background-light);
     border: 1px solid var(--border-color);
     border-radius: 8px;
 }
@@ -1387,7 +1351,7 @@ a:hover {
 .page-ellipsis {
     color: var(--text-secondary);
     padding: 6px 0;
-    margin: 0 2px; /* Add some spacing around ellipsis */
+    margin: 0 2px;
 }
 
 
@@ -1404,7 +1368,7 @@ a:hover {
     align-items: center;
     z-index: 1000;
     padding: 20px; /* Add padding for smaller screens */
-    backdrop-filter: blur(5px); /* Optional blur effect */
+    backdrop-filter: blur(5px);
 }
 
 .modal.active {
@@ -1416,7 +1380,7 @@ a:hover {
     background-color: var(--background-medium);
     border-radius: 12px;
     width: 100%; /* Full width on small screens */
-    max-width: 700px; /* Increased max width */
+    max-width: 700px; /* Default max width */
     max-height: 90vh;
     display: flex; /* Use flex */
     flex-direction: column; /* Stack header/body/footer */
@@ -1427,7 +1391,7 @@ a:hover {
 
 /* Specific modal max-widths */
 .age-verification .modal-content { max-width: 500px; }
-.deposit-modal .modal-content { max-width: 900px; } /* Wider for inventory */
+.deposit-modal .modal-content { max-width: 900px; }
 #tradeUrlModal .modal-content { max-width: 600px; }
 
 
@@ -1443,7 +1407,7 @@ a:hover {
     justify-content: space-between;
     align-items: center;
     background: linear-gradient(135deg, var(--background-medium), var(--background-light));
-    border-radius: 12px 12px 0 0; /* Round top corners */
+    border-radius: 12px 12px 0 0;
     flex-shrink: 0; /* Prevent header shrinking */
 }
 
@@ -1462,7 +1426,7 @@ a:hover {
     line-height: 1; /* Align better */
     cursor: pointer;
     transition: color 0.3s ease, transform 0.3s ease;
-    padding: 5px; /* Easier to click */
+    padding: 5px;
 }
 
 .close-btn:hover {
@@ -1474,7 +1438,7 @@ a:hover {
     padding: 20px;
     overflow-y: auto; /* Scroll only body */
     flex-grow: 1; /* Allow body to take available space */
-    line-height: 1.7; /* Improve readability in modals */
+    line-height: 1.7;
 }
 .modal-body p {
     margin-bottom: 15px;
@@ -1508,29 +1472,24 @@ a:hover {
 .main-footer {
     background-color: var(--background-medium);
     text-align: center;
-    padding: 25px 15px; /* More padding */
+    padding: 25px 15px;
     margin-top: 50px;
     border-top: 1px solid var(--border-color);
     font-size: 0.9rem;
     color: var(--text-secondary);
 }
 .main-footer p {
-    margin: 0; /* Remove default margin */
+    margin: 0;
 }
 
 
 /* Responsive styles */
-@media (max-width: 992px) {
-    /* Adjust nav spacing on medium screens */
-    .main-nav li { margin: 0 10px; }
-    .main-nav a { padding: 8px 10px; }
-}
-
 @media (max-width: 768px) {
     .jackpot-header {
+        /* Keep flex-row but allow wrap */
+        /* min-height is already set */
         padding: 15px;
-        gap: 15px; /* Increase gap slightly for wrap */
-        justify-content: space-evenly; /* Better distribution when wrapped */
+        gap: 10px;
     }
 
     .jackpot-value h2 { font-size: 2rem; }
@@ -1539,89 +1498,51 @@ a:hover {
     .stat-value { font-size: 1.3rem; }
     .value-label, .timer-label, .stat-label { font-size: 0.75rem; }
 
-    .inline-roulette { height: 90px; } /* Smaller roulette */
-    .roulette-item { width: 70px; height: 70px; margin: 10px 3px; }
-    .profile-pic-container { height: 35px; }
-    .roulette-name { font-size: 9px; max-width: 60px; }
-    .roulette-percentage { font-size: 8px; }
-    .roulette-ticker { width: 3px; }
-    .ticker-arrow { border-left-width: 6px; border-right-width: 6px; border-bottom-width: 8px; top: -8px; }
-
-
-    .winner-info { padding: 5px;} /* Less padding */
-    .winner-avatar { width: 30px; height: 30px; }
-    .winner-header h3 { font-size: 1rem; }
-    .winner-details p { font-size: 0.8rem; margin: 2px 0;}
-    .congrats { font-size: 1rem !important; margin-top: 3px !important; }
+    .winner-info { width: 90%; }
 
     .inventory-items {
         grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     }
     .inventory-item img { height: 70px; }
 
-    .modal-content { max-width: 95%; max-height: 85vh; }
+    .roulette-item { width: 70px; height: 70px; }
+    .profile-pic-container { height: 40px; }
+    .roulette-name { font-size: 9px; max-width: 60px; }
+    .roulette-percentage { font-size: 8px; }
+
+    .winner-avatar { width: 30px; height: 30px; }
+    .winner-details p { font-size: 0.8rem; }
+    .congrats { font-size: 1rem !important; }
+
+    .modal-content { max-width: 95%; }
     .modal-header h2 { font-size: 1.2rem; }
 
-    /* Header Wrap - Logo/Controls top, Nav below */
-    .main-header .container {
-        flex-wrap: wrap;
-        justify-content: space-between; /* Logo left, controls right */
-        row-gap: 10px; /* Space between rows when wrapped */
-    }
-    .logo {
-        order: 1; /* First item */
-        width: auto;
-        margin-bottom: 0; /* Remove bottom margin */
-    }
-    .user-controls {
-        order: 2; /* Second item */
-        margin-bottom: 0; /* Remove bottom margin */
-    }
-    .main-nav {
-        order: 3; /* Third item, below */
-        width: 100%; /* Full width */
-        justify-content: center; /* Center items */
-        margin-top: 0; /* Remove top margin */
-        overflow-x: auto; /* Allow scroll if needed */
-        padding-bottom: 5px; /* Space for potential scrollbar */
-    }
-     .main-nav ul {
-        justify-content: center;
-        flex-wrap: nowrap; /* Prevent nav items wrapping */
-    }
+    /* Original Header wrap behavior */
+     .main-header .container { flex-wrap: wrap; }
+     .main-nav { order: 3; width: 100%; justify-content: center; margin-top: 10px; }
+     .user-controls { order: 2; margin-left: auto; /* Keep original auto margin */ }
+     .logo { order: 1; } /* Ensure logo comes first */
+
 }
 
 @media (max-width: 480px) {
     .logo h1 { font-size: 1.5rem; }
-
-    .btn-login { padding: 6px 12px; font-size: 0.9rem;}
-    .user-avatar { width: 28px; height: 28px; }
-
     .btn-deposit, .btn-secondary { font-size: 1rem; padding: 10px 20px; }
-
-    .participant-header { padding: 10px; }
-    .participant-info { gap: 10px; }
-    .participant-avatar { width: 35px; height: 35px; }
-    .participant-name { font-size: 1rem; }
-    .participant-stats { gap: 10px; font-size: 0.9rem; }
-    .participant-items { padding: 10px; gap: 8px; }
     .item { width: 70px; }
     .item img { height: 50px; }
     .item-value { font-size: 0.7rem; padding: 2px 4px; }
-
     .rounds-table th, .rounds-table td { padding: 8px 6px; font-size: 0.8rem;}
     .btn-details, .btn-verify { font-size: 0.7rem; padding: 4px 6px;}
 
-    .modal-body { padding: 15px; }
-    .modal-footer { padding: 10px 15px; }
-    .modal-header { padding: 10px 15px; }
-    .modal-header h2 { font-size: 1.1rem; }
+     /* Reduce header button padding */
+    .btn-login { padding: 6px 12px; font-size: 0.9rem; }
+    .user-avatar { width: 28px; height: 28px; }
+    .main-nav a { font-size: 0.9rem; padding: 6px 8px; } /* Smaller nav links */
 
-    .pagination { gap: 5px; }
-    .page-button { padding: 5px 8px; font-size: 0.8rem; }
 }
 
-/* Make active page visible, others hidden - JS controls this */
+/* Make active page visible, others hidden */
 #home-page, #faq-page, #fair-page {
-    display: none;
+    display: none; /* JS controls visibility */
 }
+/* Ensure the default page is displayed by JS using showPage() */
