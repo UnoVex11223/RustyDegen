@@ -65,17 +65,17 @@ const agreeCheckbox = document.getElementById('agreeCheckbox');
 const agreeButton = document.getElementById('agreeButton');
 
 // Constants
-const ROULETTE_REPETITIONS = 20; // How many times to repeat participant list
-const SPIN_DURATION_SECONDS = 15; // Increased from 10 to 15 seconds for a more dramatic effect
+const ROULETTE_REPETITIONS = 10; // How many times to repeat participant list
+const SPIN_DURATION_SECONDS = 9; // Increased from 10 to 15 seconds for a more dramatic effect
 const WINNER_DISPLAY_DURATION = 7000; // 7 seconds as requested
 const CONFETTI_COUNT = 120; // Number of confetti particles
 
 // Animation constants for enhanced roulette
-const INITIAL_SPEED_PHASE = 0.15; // First 15% is acceleration
-const CONSTANT_SPEED_PHASE = 0.65; // Middle 65% is constant speed
-const SLOWDOWN_PHASE = 0.20;     // Final 20% is dramatic slowdown
-const BOUNCE_COUNT = 3;          // Number of small bounces at the end
-const BOUNCE_AMPLITUDE = 0.05;   // Size of the bounces (5% of the animation distance)
+const INITIAL_SPEED_PHASE = 0.08; // First 8% is acceleration
+const CONSTANT_SPEED_PHASE = 0.10; // Middle 10% is constant speed
+const SLOWDOWN_PHASE = 0.08;     // Final 8% is dramatic slowdown
+const BOUNCE_COUNT = 0;          // Number of small bounces at the end
+const BOUNCE_AMPLITUDE = 0;   // Size of the bounces (5% of the animation distance)
 
 // User Color Map - 20 distinct colors for players
 const userColorMap = new Map();
