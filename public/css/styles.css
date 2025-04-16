@@ -425,59 +425,64 @@ a:hover {
 
 /* ----- END JACKPOT HEADER STYLES ----- */
 
-/* Styles for item cards in the pot */
+/* Styles for item cards in the pot - Rustypot style */
 .pot-item {
-    width: 120px;
-    height: 150px;
-    margin: 10px;
-    background-color: var(--background-light);
-    border-radius: 8px;
+    width: 100px;
+    height: 130px;
+    margin: 8px;
+    background: linear-gradient(to bottom, var(--background-light), var(--background-medium));
+    border-radius: 6px;
     overflow: hidden;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s ease;
     position: relative;
     display: flex;
     flex-direction: column;
-    border: 2px solid transparent;
+    border: 1px solid var(--border-color);
 }
 
 .pot-item:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 230, 118, 0.3);
+    z-index: 5;
 }
 
 .pot-item-image {
     width: 100%;
-    height: 90px;
+    height: 70px;
     object-fit: cover;
     background-color: var(--background-medium);
+    border-bottom: 1px solid rgba(48, 54, 61, 0.8);
 }
 
 .pot-item-info {
-    padding: 8px;
+    padding: 6px;
     flex-grow: 1;
     display: flex;
     flex-direction: column;
+    background: rgba(22, 27, 34, 0.9);
 }
 
 .pot-item-name {
-    font-size: 0.85rem;
+    font-size: 0.7rem;
     font-weight: 600;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    color: var(--text-primary);
 }
 
 .pot-item-value {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 700;
     color: var(--primary-color);
-    margin-bottom: 4px;
+    margin-bottom: 3px;
+    text-shadow: 0 0 5px rgba(0, 230, 118, 0.5);
 }
 
 .pot-item-user {
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     color: var(--text-secondary);
     display: flex;
     align-items: center;
@@ -485,28 +490,30 @@ a:hover {
 }
 
 .pot-item-avatar {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
     margin-right: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .pot-item-username {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 80px;
+    max-width: 70px;
 }
 
-/* Animation for new items */
+/* Animation for new items - Enhanced */
 @keyframes newItemPulse {
-    0% { transform: scale(0.8); opacity: 0; }
-    50% { transform: scale(1.05); opacity: 1; }
-    100% { transform: scale(1); opacity: 1; }
+    0% { transform: scale(0.7); opacity: 0; filter: brightness(1.5); }
+    40% { transform: scale(1.1); opacity: 1; filter: brightness(1.3); }
+    70% { transform: scale(0.95); filter: brightness(1.1); }
+    100% { transform: scale(1); opacity: 1; filter: brightness(1); }
 }
 
 .pot-item-new {
-    animation: newItemPulse 0.6s ease-out forwards;
+    animation: newItemPulse 0.8s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
 }
 
 /* User color indicator */
@@ -515,7 +522,19 @@ a:hover {
     top: 0;
     left: 0;
     width: 100%;
-    height: 4px;
+    height: 3px;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Jackpot tab pulse animation */
+@keyframes jackpotPulse {
+    0% { text-shadow: 0 0 5px rgba(0, 230, 118, 0.3); }
+    50% { text-shadow: 0 0 15px rgba(0, 230, 118, 0.8); }
+    100% { text-shadow: 0 0 5px rgba(0, 230, 118, 0.3); }
+}
+
+.jackpot-pulse {
+    animation: jackpotPulse 2s infinite ease-in-out;
 }
 
 
