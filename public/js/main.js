@@ -1,1264 +1,924 @@
-// main.js (Complete and Modified for Enhanced Roulette Animation)
-// Ensure the Socket.IO client library is included in your HTML:
-// <script src="/socket.io/socket.io.js"></script>
-const socket = io();
+// Complete main.js with item deposit logic integrated
 
-// DOM Elements - Navigation
-const homeLink = document.querySelector('.main-nav a.active'); // Might need adjustment if 'active' isn't default
-const faqLink = document.getElementById('faq-link');
-const fairLink = document.getElementById('fair-link');
-const aboutLink = document.getElementById('about-link');
-const roadmapLink = document.getElementById('roadmap-link');
-const homePage = document.getElementById('home-page');
-const faqPage = document.getElementById('faq-page');
-const fairPage = document.getElementById('fair-page');
-const aboutPage = document.getElementById('about-page');
-const roadmapPage = document.getElementById('roadmap-page');
+// DOM Elements - Global references
+let loginButton, userProfile, userAvatar, userName, showDepositModal, depositModal;
+let closeDepositModal, ageVerificationModal, agreeCheckbox, agreeButton;
+let tradeUrlModal, closeTradeUrlModal, saveTradeUrl, tradeUrlInput;
+let testSpinButton, inlineRoulette, jackpotHeader, depositBtnContainer;
+let returnToJackpot, rouletteTrack, winnerInfo, winnerAvatar, winnerName;
+let winnerDeposit, winnerChance, spinSound, confettiContainer;
+let timerValue, potValue, participantCount, timerForeground;
+let itemsContainer, emptyPotMessage;
+let jackpotLink, faqLink, fairLink, aboutLink, roadmapLink;
+let homePage, faqPage, fairPage, aboutPage, roadmapPage;
+let inventoryItems, selectedItems, totalValueDisplay, depositButton;
 
-// DOM Elements - User
-const loginButton = document.getElementById('loginButton');
-const userProfile = document.getElementById('userProfile');
-const userAvatar = document.getElementById('userAvatar');
-const userName = document.getElementById('userName');
+// Timer variables
+let timerInterval;
+let timerSeconds = 120;
+const timerDuration = 120;
+let timerCircumference;
 
-// DOM Elements - Jackpot
-const potValue = document.getElementById('potValue');
-const timerValue = document.getElementById('timerValue');
-const timerForeground = document.querySelector('.timer-foreground');
-const participantCount = document.getElementById('participantCount');
-const itemsContainer = document.getElementById('itemsContainer'); // Container for items in pot
-const emptyPotMessage = document.getElementById('emptyPotMessage'); // Ensure this exists in HTML or handle null
-
-// DOM Elements - Deposit
-const showDepositModal = document.getElementById('showDepositModal');
-const depositModal = document.getElementById('depositModal');
-const closeDepositModal = document.getElementById('closeDepositModal');
-const depositButton = document.getElementById('depositButton');
-const inventoryItems = document.getElementById('inventory-items');
-const selectedItems = document.getElementById('selectedItems');
-const totalValue = document.getElementById('totalValue');
-const inventoryLoading = document.getElementById('inventory-loading');
-
-// DOM Elements - Trade URL
-const tradeUrlModal = document.getElementById('tradeUrlModal');
-const closeTradeUrlModal = document.getElementById('closeTradeUrlModal');
-const tradeUrlInput = document.getElementById('tradeUrlInput');
-const saveTradeUrl = document.getElementById('saveTradeUrl');
-
-// DOM Elements - Roulette
-const jackpotHeader = document.getElementById('jackpotHeader');
-const inlineRoulette = document.getElementById('inlineRoulette');
-const rouletteTrack = document.getElementById('rouletteTrack');
-const winnerInfo = document.getElementById('winnerInfo');
-const winnerAvatar = document.getElementById('winnerAvatar');
-const winnerName = document.getElementById('winnerName');
-const winnerDeposit = document.getElementById('winnerDeposit');
-const winnerChance = document.getElementById('winnerChance');
-const returnToJackpot = document.getElementById('returnToJackpot'); // This will be hidden, but keep the reference
-const confettiContainer = document.getElementById('confettiContainer'); // Ensure this exists
-const spinSound = document.getElementById('spinSound'); // Ensure this <audio> element exists
-
-// DOM Elements - Provably Fair
-const verifyBtn = document.getElementById('verify-btn');
-const roundsTableBody = document.getElementById('rounds-table-body');
-const roundsPagination = document.getElementById('rounds-pagination'); // Ensure this exists
-
-// Age Verification
-const ageVerificationModal = document.getElementById('ageVerificationModal');
-const agreeCheckbox = document.getElementById('agreeCheckbox');
-const agreeButton = document.getElementById('agreeButton');
-
-// Constants
-const ROULETTE_REPETITIONS = 20; // How many times to repeat participant list (used in older logic, potentially unused now)
-const SPIN_DURATION_SECONDS = 6.5; // Duration of the main spin animation
-const WINNER_DISPLAY_DURATION = 7000; // 7 seconds for winner info display
-const CONFETTI_COUNT = 150;
-
-// --- NEW Animation constants for enhanced roulette ---
-// MODIFIED: Increased power for a more dramatic final slowdown
-const EASE_OUT_POWER = 5;           // Power for ease-out curve (e.g., 3=cubic, 4=quart, 5=quint). Higher = more dramatic slowdown.
-const BOUNCE_ENABLED = false;      // Keep bounce disabled as per previous code
-const BOUNCE_OVERSHOOT_FACTOR = 0.07; // How much to overshoot initially (percentage of total distance, e.g., 0.07 = 7%)
-const BOUNCE_DAMPING = 0.35;       // How quickly the bounce decays (0 to 1, lower = decays faster, 0.3-0.5 is usually good)
-const BOUNCE_FREQUENCY = 3.5;      // How many bounces (approx). Higher = more bounces in the same time.
-// MODIFIED: Increased variation for more unpredictable stops (e.g., rollover, stop early/late)
-const LANDING_POSITION_VARIATION = 0.60; // Controls how much the final position can vary (0.60 = ±60% of an item width)
-
-// User Color Map - 20 distinct colors for players
-const userColorMap = new Map();
-const colorPalette = [
-    '#00bcd4', // Cyan
-    '#ff5722', // Deep Orange
-    '#9c27b0', // Purple
-    '#4caf50', // Green
-    '#ffeb3b', // Yellow
-    '#2196f3', // Blue
-    '#f44336', // Red
-    '#ff9800', // Orange
-    '#e91e63', // Pink
-    '#8bc34a', // Light Green
-    '#3f51b5', // Indigo
-    '#009688', // Teal
-    '#cddc39', // Lime
-    '#795548', // Brown
-    '#607d8b', // Blue Grey
-    '#673ab7', // Deep Purple
-    '#ffc107', // Amber
-    '#03a9f4', // Light Blue
-    '#9e9e9e', // Grey
-    '#8d6e63'  // Brown Light
+// Sample test users for demonstration
+const testUsers = [
+    { id: 1, name: 'RustPlayer123', avatar: 'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg', color: '#00e676' },
+    { id: 2, name: 'SkinCollector', avatar: 'https://avatars.steamstatic.com/8a9586a31c4adf176236b8c36afe3a59e97cda97_full.jpg', color: '#ff9100' },
+    { id: 3, name: 'RustLord', avatar: 'https://avatars.steamstatic.com/5c0c7c7c9d1af8c1e631e08b9d915c835abe3f09_full.jpg', color: '#2196f3' }
 ];
 
-// App State
-let currentUser = null;
-let currentRound = null;
-let selectedItemsList = [];
-let userInventory = [];
-let isSpinning = false;
-let timerActive = false;
-let roundTimer = null;
-let animationFrameId = null; // To store the requestAnimationFrame ID
-let spinStartTime = 0; // Track when the spin animation starts
+// Sample test items for demonstration
+const testItems = [
+    { id: 101, name: 'AK-47 | Alien Red', image: 'https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot7HxfDhjxszJemkV09-5lpKKqPrxN7LEmyVQ7MEpiLuSrYmnjQO3-UdsZGHyd4_Bd1RvNQ7T_FDrw-_ng5Pu75iY1zI97bhLsvQz', value: 45.00, userId: 1 },
+    { id: 102, name: 'Metal Chest Plate', image: 'https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpopbuyLgNv1fX3cih9_92hkYSEkfHLPb7ShGRc6ctyj_v--YXygED6_BVlZDv3LYCWJAFoMFnU_gC5xb_o0JC5tJrMwHBmuiQh4X_D30vgBTYQHg', value: 5.20, userId: 1 },
+    { id: 103, name: 'Semi-Automatic Rifle', image: 'https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot7HxfDhjxszJemkV08u_mpSOhcj5Nr_Yg2YfvJIniO3HpNrw0Ae2-Us_Mj_3doKTcAQ9MFjW-1K8xOvn1pW-6JrB1zI97QYLQKgV', value: 10.00, userId: 2 },
+    { id: 104, name: 'Garage Door', image: 'https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpopbuyLgNv1fX3cih9_92hkYSEkfHLPb7ShGRc6ctyj_v--YXygED6_BVlZDv3LYCWJAFoMFnU_gC5xb_o0JC5tJrMwHBmuiQh4X_D30vgBTYQHg', value: 3.50, userId: 2 },
+    { id: 105, name: 'Assault Rifle', image: 'https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot7HxfDhjxszJemkV08-3hJCDnuXxDLbQhGld7cxrj-3--YXygED6_BVvMWrwctKdcAZqZVrW_lG_kLzq0cK-vJjOwHNn7HEgsHmMmR2_1BlFafsv26JVbZUXsA', value: 8.50, userId: 3 },
+    { id: 106, name: 'Metal Facemask', image: 'https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpopbuyLgNv1fX3cih9_92hkYSEkfHLPb7ShGRc6ctyj_v--YXygED6_BVlZDv3LYCWJAFoMFnU_gC5xb_o0JC5tJrMwHBmuiQh4X_D30vgBTYQHg', value: 6.00, userId: 3 }
+];
 
-// --- Helper Functions ---
-function showModal(modalElement) {
-    if (modalElement) modalElement.style.display = 'flex';
-    console.log('Showing modal:', modalElement?.id);
-}
+// User inventory for deposit selection
+let userInventory = [
+    { id: 201, name: 'AK-47 | Tempered Steel', image: 'https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot7HxfDhjxszJemkV09-5lpKKqPrxN7LEmyVQ7MEpiLuSrYmnjQO3-UdsZGHyd4_Bd1RvNQ7T_FDrw-_ng5Pu75iY1zI97bhLsvQz', value: 35.50, selected: false },
+    { id: 202, name: 'Garage Door | Blackout', image: 'https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpopbuyLgNv1fX3cih9_92hkYSEkfHLPb7ShGRc6ctyj_v--YXygED6_BVlZDv3LYCWJAFoMFnU_gC5xb_o0JC5tJrMwHBmuiQh4X_D30vgBTYQHg', value: 4.20, selected: false },
+    { id: 203, name: 'Thompson | Rust Raider', image: 'https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot7HxfDhjxszJemkV08u_mpSOhcj5Nr_Yg2YfvJIniO3HpNrw0Ae2-Us_Mj_3doKTcAQ9MFjW-1K8xOvn1pW-6JrB1zI97QYLQKgV', value: 8.75, selected: false },
+    { id: 204, name: 'Hoodie | Rust Rebel', image: 'https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpopbuyLgNv1fX3cih9_92hkYSEkfHLPb7ShGRc6ctyj_v--YXygED6_BVlZDv3LYCWJAFoMFnU_gC5xb_o0JC5tJrMwHBmuiQh4X_D30vgBTYQHg', value: 5.30, selected: false },
+    { id: 205, name: 'Python Revolver | Outlaw', image: 'https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpot7HxfDhjxszJemkV08-3hJCDnuXxDLbQhGld7cxrj-3--YXygED6_BVvMWrwctKdcAZqZVrW_lG_kLzq0cK-vJjOwHNn7HEgsHmMmR2_1BlFafsv26JVbZUXsA', value: 12.40, selected: false },
+    { id: 206, name: 'Metal Facemask | Rust Hunter', image: 'https://community.cloudflare.steamstatic.com/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXH5ApeO4YmlhxYQknCRvCo04DEVlxkKgpopbuyLgNv1fX3cih9_92hkYSEkfHLPb7ShGRc6ctyj_v--YXygED6_BVlZDv3LYCWJAFoMFnU_gC5xb_o0JC5tJrMwHBmuiQh4X_D30vgBTYQHg', value: 7.80, selected: false }
+];
 
-function hideModal(modalElement) {
-    if (modalElement) modalElement.style.display = 'none';
-    console.log('Hiding modal:', modalElement?.id);
-}
+// Selected items for deposit
+let selectedItemsArray = [];
 
-function showPage(pageElement) {
-    [homePage, faqPage, fairPage, aboutPage, roadmapPage].forEach(page => { if (page) page.style.display = 'none'; });
-    if (pageElement) pageElement.style.display = 'block';
-    console.log('Showing page:', pageElement?.id);
-    // Update active link state
-    document.querySelectorAll('.main-nav a, a#about-link, a#roadmap-link, a#faq-link, a#fair-link').forEach(link => link.classList.remove('active'));
-    if (pageElement === homePage && homeLink) homeLink.classList.add('active');
-    if (pageElement === faqPage && faqLink) faqLink.classList.add('active');
-    if (pageElement === fairPage && fairLink) fairLink.classList.add('active');
-    if (pageElement === aboutPage && aboutLink) aboutLink.classList.add('active');
-    if (pageElement === roadmapPage && roadmapLink) roadmapLink.classList.add('active');
-    // Load data if showing fair page
-    if (pageElement === fairPage) loadPastRounds();
-}
-
-// Get consistent color for user
-function getUserColor(userId) {
-    if (!userColorMap.has(userId)) {
-        // Assign a consistent color from the palette
-        const colorIndex = userColorMap.size % colorPalette.length;
-        userColorMap.set(userId, colorPalette[colorIndex]);
-    }
-    return userColorMap.get(userId);
-}
-
-function showNotification(title, message) {
-    console.log(`Notification: ${title} - ${message}`);
-    // Replace with a more sophisticated notification system if available
-    alert(`Notification: ${title}\n${message}`); // Basic alert fallback
-}
-
-function shuffleArray(array) {
-    let currentIndex = array.length, randomIndex;
-    while (currentIndex !== 0) {
-        randomIndex = Math.floor(Math.random() * currentIndex);
-        currentIndex--;
-        [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
-    }
-    return array;
-}
-
-async function showRoundDetails(roundId) {
-    console.log(`Showing details for round ${roundId}`);
-    try {
-        const response = await fetch(`/api/rounds/${roundId}`);
-        if (!response.ok) throw new Error(`Failed to fetch round details (${response.status})`);
-        const roundData = await response.json();
-        // Consider showing details in a modal instead of alert for better UX
-        alert(`Round Details (ID: ${roundId}):\nWinner: ${roundData.winner?.username || 'N/A'}\nValue: ${roundData.totalValue?.toFixed(2)}\nServer Seed: ${roundData.serverSeed || 'N/A'}\nClient Seed: ${roundData.clientSeed || 'N/A'}\nWinning Ticket: ${roundData.winningTicket}`);
-    } catch (error) {
-        showNotification('Error', `Could not load details for round ${roundId}: ${error.message}`);
-        console.error('Error fetching round details:', error);
-    }
-}
-
-// --- UPDATED EASING LOGIC ---
-
-/**
- * Calculates the eased progress using an ease-out function.
- * Uses EASE_OUT_POWER to control the curve. Higher power = more dramatic slowdown at the end.
- * @param {number} t - Normalized time (0 to 1)
- * @returns {number} Eased progress (0 to 1)
- */
-function easeOutAnimation(t) {
-    // Clamp input time t to the range [0, 1]
-    const clampedT = Math.max(0, Math.min(1, t));
-    return 1 - Math.pow(1 - clampedT, EASE_OUT_POWER);
-}
-
-/**
- * Calculates the bounce effect displacement after the main ease-out animation finishes.
- * @param {number} t - Normalized time *after* the main animation (0 to 1, represents bounce phase)
- * @returns {number} Normalized bounce displacement (-1 to 1, relative to overshoot amount)
- */
-function calculateBounce(t) {
-    if (!BOUNCE_ENABLED) return 0;
-    // Clamp input time t to the range [0, 1]
-    const clampedT = Math.max(0, Math.min(1, t));
-    // Simple decaying sine wave for bounce effect
-    const decay = Math.exp(-clampedT / BOUNCE_DAMPING); // Exponential decay
-    const oscillations = Math.sin(clampedT * Math.PI * 2 * BOUNCE_FREQUENCY); // Sine wave for oscillation
-    // Start the bounce from the overshoot position (positive displacement initially)
-    // We multiply by -1 because the initial overshoot moves opposite to the first bounce swing
-    return -decay * oscillations;
-}
-
-// Helper functions for color manipulation
-function getComplementaryColor(hex) {
-    // Remove # if present
-    hex = hex.replace('#', '');
-
-    // Convert to RGB
-    let r = parseInt(hex.substring(0, 2), 16);
-    let g = parseInt(hex.substring(2, 4), 16);
-    let b = parseInt(hex.substring(4, 6), 16);
-
-    // Invert the colors
-    r = 255 - r;
-    g = 255 - g;
-    b = 255 - b;
-
-    // Convert back to hex
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-}
-
-function lightenColor(hex, percent) {
-    // Remove # if present
-    hex = hex.replace('#', '');
-
-    // Convert to RGB
-    let r = parseInt(hex.substring(0, 2), 16);
-    let g = parseInt(hex.substring(2, 4), 16);
-    let b = parseInt(hex.substring(4, 6), 16);
-
-    // Lighten
-    r = Math.min(255, Math.floor(r + (255 - r) * (percent / 100)));
-    g = Math.min(255, Math.floor(g + (255 - g) * (percent / 100)));
-    b = Math.min(255, Math.floor(b + (255 - b) * (percent / 100)));
-
-    // Convert back to hex
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-}
-
-function darkenColor(hex, percent) {
-    // Remove # if present
-    hex = hex.replace('#', '');
-
-    // Convert to RGB
-    let r = parseInt(hex.substring(0, 2), 16);
-    let g = parseInt(hex.substring(2, 4), 16);
-    let b = parseInt(hex.substring(4, 6), 16);
-
-    // Darken
-    r = Math.max(0, Math.floor(r * (1 - percent / 100)));
-    g = Math.max(0, Math.floor(g * (1 - percent / 100)));
-    b = Math.max(0, Math.floor(b * (1 - percent / 100)));
-
-    // Convert back to hex
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-}
-
-// Initialize the application
+// Initialize all DOM elements on page load
 document.addEventListener('DOMContentLoaded', function() {
-    if (ageVerificationModal && !localStorage.getItem('ageVerified')) {
-        showModal(ageVerificationModal);
-    }
-    checkLoginStatus();
+    // Initialize DOM element references
+    initializeDOMElements();
+    
+    // Set initial timer stroke dasharray
+    timerCircumference = 2 * Math.PI * 42; // 42 is the radius of the circle
+    timerForeground.style.strokeDasharray = `${timerCircumference} ${timerCircumference}`;
+    timerForeground.style.strokeDashoffset = '0';
+    
+    // Set up event listeners
     setupEventListeners();
-    setupSocketConnection();
-    showPage(homePage); // Default to home page
+    
+    // Check if age verification is needed
+    if (ageVerificationModal && !localStorage.getItem('ageVerified')) {
+        ageVerificationModal.style.display = 'flex';
+    }
+    
+    // Start timer on page load
+    startTimer();
 });
 
-// Setup event listeners
+// Initialize all DOM element references
+function initializeDOMElements() {
+    // User interface elements
+    loginButton = document.getElementById('loginButton');
+    userProfile = document.getElementById('userProfile');
+    userAvatar = document.getElementById('userAvatar');
+    userName = document.getElementById('userName');
+    
+    // Modal elements
+    showDepositModal = document.getElementById('showDepositModal');
+    depositModal = document.getElementById('depositModal');
+    closeDepositModal = document.getElementById('closeDepositModal');
+    ageVerificationModal = document.getElementById('ageVerificationModal');
+    agreeCheckbox = document.getElementById('agreeCheckbox');
+    agreeButton = document.getElementById('agreeButton');
+    tradeUrlModal = document.getElementById('tradeUrlModal');
+    closeTradeUrlModal = document.getElementById('closeTradeUrlModal');
+    saveTradeUrl = document.getElementById('saveTradeUrl');
+    tradeUrlInput = document.getElementById('tradeUrlInput');
+    
+    // Deposit modal elements
+    inventoryItems = document.getElementById('inventory-items');
+    selectedItems = document.getElementById('selectedItems');
+    totalValueDisplay = document.getElementById('totalValue');
+    depositButton = document.getElementById('depositButton');
+    
+    // Jackpot and roulette elements
+    testSpinButton = document.getElementById('testSpinButton');
+    inlineRoulette = document.getElementById('inlineRoulette');
+    jackpotHeader = document.getElementById('jackpotHeader');
+    depositBtnContainer = document.getElementById('depositBtnContainer');
+    returnToJackpot = document.getElementById('returnToJackpot');
+    rouletteTrack = document.getElementById('rouletteTrack');
+    
+    // Winner info elements
+    winnerInfo = document.getElementById('winnerInfo');
+    winnerAvatar = document.getElementById('winnerAvatar');
+    winnerName = document.getElementById('winnerName');
+    winnerDeposit = document.getElementById('winnerDeposit');
+    winnerChance = document.getElementById('winnerChance');
+    spinSound = document.getElementById('spinSound');
+    confettiContainer = document.getElementById('confettiContainer');
+    
+    // Timer and stats elements
+    timerValue = document.getElementById('timerValue');
+    potValue = document.getElementById('potValue');
+    participantCount = document.getElementById('participantCount');
+    timerForeground = document.querySelector('.timer-foreground');
+    
+    // Items container elements
+    itemsContainer = document.getElementById('itemsContainer');
+    emptyPotMessage = document.getElementById('emptyPotMessage');
+    
+    // Navigation links
+    jackpotLink = document.querySelector('.main-nav a.active');
+    faqLink = document.getElementById('faq-link');
+    fairLink = document.getElementById('fair-link');
+    aboutLink = document.getElementById('about-link');
+    roadmapLink = document.getElementById('roadmap-link');
+    
+    // Pages
+    homePage = document.getElementById('home-page');
+    faqPage = document.getElementById('faq-page');
+    fairPage = document.getElementById('provably-fair-page');
+    aboutPage = document.getElementById('about-page');
+    roadmapPage = document.getElementById('roadmap-page');
+}
+
+// Set up all event listeners
 function setupEventListeners() {
-    // Navigation
-    if (homeLink) homeLink.addEventListener('click', (e) => { e.preventDefault(); showPage(homePage); });
-    if (faqLink) faqLink.addEventListener('click', (e) => { e.preventDefault(); showPage(faqPage); });
-    if (fairLink) fairLink.addEventListener('click', (e) => { e.preventDefault(); showPage(fairPage); });
-    if (aboutLink) aboutLink.addEventListener('click', (e) => { e.preventDefault(); showPage(aboutPage); });
-    if (roadmapLink) roadmapLink.addEventListener('click', (e) => { e.preventDefault(); showPage(roadmapPage); });
-
-    // Login
-    if (loginButton) loginButton.addEventListener('click', () => { window.location.href = '/auth/steam'; });
-
-    // Deposit Modal Trigger
+    // Navigation event listeners
+    setupNavigationListeners();
+    
+    // Age verification modal
+    if (agreeCheckbox) {
+        agreeCheckbox.addEventListener('change', function() {
+            agreeButton.disabled = !this.checked;
+        });
+    }
+    
+    if (agreeButton) {
+        agreeButton.addEventListener('click', function() {
+            ageVerificationModal.style.display = 'none';
+            localStorage.setItem('ageVerified', 'true');
+        });
+    }
+    
+    // Login button
+    if (loginButton) {
+        loginButton.addEventListener('click', function() {
+            // Simulate login
+            loginButton.style.display = 'none';
+            userProfile.style.display = 'flex';
+            userAvatar.src = testUsers[0].avatar;
+            userName.textContent = testUsers[0].name;
+        });
+    }
+    
+    // Deposit modal
     if (showDepositModal) {
-        showDepositModal.addEventListener('click', () => {
-            if (!currentUser) { showNotification('Login Required', 'Please log in first to deposit items.'); return; }
-            if (!currentUser.tradeUrl) {
-                if (tradeUrlModal) showModal(tradeUrlModal); else showNotification('Trade URL Missing', 'Please set your Steam Trade URL.');
+        showDepositModal.addEventListener('click', function() {
+            // Check if user is logged in
+            if (loginButton.style.display !== 'none') {
+                alert('Please log in to deposit items.');
                 return;
             }
-            if (depositModal) { showModal(depositModal); loadUserInventory(); }
+            
+            // Check if trade URL is set
+            if (!localStorage.getItem('tradeUrl')) {
+                tradeUrlModal.style.display = 'flex';
+                return;
+            }
+            
+            // Load user inventory
+            loadUserInventory();
+            
+            // Reset selected items
+            selectedItemsArray = [];
+            selectedItems.innerHTML = '<div class="empty-selection">No items selected</div>';
+            totalValueDisplay.textContent = '$0.00';
+            depositButton.disabled = true;
+            
+            depositModal.style.display = 'flex';
         });
     }
-
-    // Deposit Modal Close
-    if (closeDepositModal) closeDepositModal.addEventListener('click', () => { if (depositModal) hideModal(depositModal); });
-    if (depositButton) depositButton.addEventListener('click', submitDeposit);
-
-    // Trade URL Modal Close
-    if (closeTradeUrlModal) closeTradeUrlModal.addEventListener('click', () => { if (tradeUrlModal) hideModal(tradeUrlModal); });
-    if (saveTradeUrl) saveTradeUrl.addEventListener('click', saveUserTradeUrl);
-
-    // Age Verification
-    if (agreeCheckbox && agreeButton && ageVerificationModal) {
-        agreeCheckbox.addEventListener('change', () => { agreeButton.disabled = !agreeCheckbox.checked; });
-        agreeButton.addEventListener('click', () => { if (agreeCheckbox.checked) { localStorage.setItem('ageVerified', 'true'); hideModal(ageVerificationModal); } });
-        agreeButton.disabled = !agreeCheckbox.checked;
+    
+    if (closeDepositModal) {
+        closeDepositModal.addEventListener('click', function() {
+            depositModal.style.display = 'none';
+        });
     }
-
-    // Test Spin Button (If you have one)
-    const testSpinButton = document.getElementById('testSpinButton');
+    
+    // Trade URL modal
+    if (closeTradeUrlModal) {
+        closeTradeUrlModal.addEventListener('click', function() {
+            tradeUrlModal.style.display = 'none';
+        });
+    }
+    
+    if (saveTradeUrl) {
+        saveTradeUrl.addEventListener('click', function() {
+            const tradeUrl = tradeUrlInput.value.trim();
+            if (tradeUrl) {
+                localStorage.setItem('tradeUrl', tradeUrl);
+                tradeUrlModal.style.display = 'none';
+                
+                // Load user inventory
+                loadUserInventory();
+                
+                depositModal.style.display = 'flex';
+            } else {
+                alert('Please enter a valid trade URL.');
+            }
+        });
+    }
+    
+    // Deposit button
+    if (depositButton) {
+        depositButton.addEventListener('click', function() {
+            if (selectedItemsArray.length === 0) {
+                alert('Please select at least one item to deposit.');
+                return;
+            }
+            
+            // Close deposit modal
+            depositModal.style.display = 'none';
+            
+            // Show trade request notification
+            showTradeRequestNotification();
+            
+            // Simulate trade acceptance after a delay
+            setTimeout(function() {
+                // Process the deposit
+                processDeposit(selectedItemsArray);
+                
+                // Reset selected items
+                selectedItemsArray = [];
+            }, 3000);
+        });
+    }
+    
+    // Return to jackpot button
+    if (returnToJackpot) {
+        returnToJackpot.addEventListener('click', function() {
+            inlineRoulette.style.display = 'none';
+            jackpotHeader.classList.remove('roulette-mode');
+            depositBtnContainer.style.display = 'block';
+            winnerInfo.style.display = 'none';
+            returnToJackpot.style.display = 'none';
+            confettiContainer.innerHTML = '';
+            
+            // Reset roulette track
+            rouletteTrack.style.transition = 'none';
+            rouletteTrack.style.transform = 'translateX(0)';
+            
+            // Clear items container
+            itemsContainer.innerHTML = '';
+            emptyPotMessage.style.display = 'block';
+            
+            // Reset pot value and participant count
+            potValue.textContent = '$0.00';
+            participantCount.textContent = '0/200';
+            
+            // Restart timer
+            startTimer();
+        });
+    }
+    
+    // Test spin button
     if (testSpinButton) {
-        testSpinButton.addEventListener('click', testRouletteAnimation);
-        // Add a second click handler for testing item addition
-        testSpinButton.addEventListener('dblclick', function(e) {
-            e.preventDefault();
-            addTestItemsToPot();
+        testSpinButton.addEventListener('click', function() {
+            startRoulette();
+        });
+        
+        // Add double-click event for testing item display
+        testSpinButton.addEventListener('dblclick', function() {
+            displayAllTestItems();
         });
     }
-
-    // Provably Fair Verify Button
-    if (verifyBtn) verifyBtn.addEventListener('click', verifyRound);
-
-    // Handle clicks outside modals
-    window.addEventListener('click', (e) => {
-        if (depositModal && e.target === depositModal) hideModal(depositModal);
-        if (tradeUrlModal && e.target === tradeUrlModal) hideModal(tradeUrlModal);
-        // Add other modals here if needed (e.g., age verification)
-        if (ageVerificationModal && e.target === ageVerificationModal && localStorage.getItem('ageVerified')) {
-            // Optional: hide age modal on outside click only if already verified?
-            // hideModal(ageVerificationModal);
-        }
-    });
-
-    // Add keyboard event listeners for spinning (optional test)
-    document.addEventListener('keydown', function(event) {
-        // Easter egg: Press spacebar to test the roulette while on home page
-        if (event.code === 'Space' && homePage.style.display === 'block' && !isSpinning) {
-            // Only if not already spinning
-            testRouletteAnimation();
-            event.preventDefault(); // Prevent page scrolling
-        }
-    });
 }
 
-// Socket connection and event handling
-function setupSocketConnection() {
-    socket.on('connect', () => {
-        console.log('Connected to server');
-        // Request current round data
-        socket.emit('getRoundData');
-    });
-
-    socket.on('disconnect', () => {
-        console.log('Disconnected from server');
-    });
-
-    socket.on('roundCreated', (data) => {
-        console.log('New round created:', data);
-        currentRound = data;
-        updateRoundDisplay();
-    });
-
-    socket.on('timerUpdate', (data) => {
-        if (timerValue) timerValue.textContent = data.timeLeft;
-        updateTimerCircle(data.timeLeft, ROUND_DURATION);
-    });
-
-    socket.on('depositReceived', (data) => {
-        console.log('Deposit received:', data);
-        // Update UI with new deposit
-        updateRoundDisplay();
-    });
-
-    socket.on('roundRolling', (data) => {
-        console.log('Round rolling:', data);
-        startRouletteAnimation(data);
-    });
-
-    socket.on('roundCompleted', (data) => {
-        console.log('Round completed:', data);
-        // Update UI with winner info
-        showWinnerInfo(data);
-    });
-
-    socket.on('error', (error) => {
-        console.error('Socket error:', error);
-        showNotification('Error', error.message || 'An error occurred');
-    });
-}
-
-// Check login status
-async function checkLoginStatus() {
-    try {
-        const response = await fetch('/api/user/me');
-        if (response.ok) {
-            const userData = await response.json();
-            currentUser = userData;
-            updateUserDisplay();
-        } else {
-            // Not logged in, show login button
-            if (loginButton) loginButton.style.display = 'block';
-            if (userProfile) userProfile.style.display = 'none';
-        }
-    } catch (error) {
-        console.error('Error checking login status:', error);
+// Set up navigation event listeners
+function setupNavigationListeners() {
+    if (faqLink) {
+        faqLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            homePage.style.display = 'none';
+            faqPage.style.display = 'block';
+            fairPage.style.display = 'none';
+            aboutPage.style.display = 'none';
+            roadmapPage.style.display = 'none';
+            
+            // Update active link
+            jackpotLink.classList.remove('active');
+            faqLink.classList.add('active');
+            fairLink.classList.remove('active');
+            aboutLink.classList.remove('active');
+            roadmapLink.classList.remove('active');
+        });
+    }
+    
+    if (fairLink) {
+        fairLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            homePage.style.display = 'none';
+            faqPage.style.display = 'none';
+            fairPage.style.display = 'block';
+            aboutPage.style.display = 'none';
+            roadmapPage.style.display = 'none';
+            
+            // Update active link
+            jackpotLink.classList.remove('active');
+            faqLink.classList.remove('active');
+            fairLink.classList.add('active');
+            aboutLink.classList.remove('active');
+            roadmapLink.classList.remove('active');
+        });
+    }
+    
+    if (aboutLink) {
+        aboutLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            homePage.style.display = 'none';
+            faqPage.style.display = 'none';
+            fairPage.style.display = 'none';
+            aboutPage.style.display = 'block';
+            roadmapPage.style.display = 'none';
+            
+            // Update active link
+            jackpotLink.classList.remove('active');
+            faqLink.classList.remove('active');
+            fairLink.classList.remove('active');
+            aboutLink.classList.add('active');
+            roadmapLink.classList.remove('active');
+        });
+    }
+    
+    if (roadmapLink) {
+        roadmapLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            homePage.style.display = 'none';
+            faqPage.style.display = 'none';
+            fairPage.style.display = 'none';
+            aboutPage.style.display = 'none';
+            roadmapPage.style.display = 'block';
+            
+            // Update active link
+            jackpotLink.classList.remove('active');
+            faqLink.classList.remove('active');
+            fairLink.classList.remove('active');
+            aboutLink.classList.remove('active');
+            roadmapLink.classList.add('active');
+        });
+    }
+    
+    if (jackpotLink) {
+        jackpotLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            homePage.style.display = 'block';
+            faqPage.style.display = 'none';
+            fairPage.style.display = 'none';
+            aboutPage.style.display = 'none';
+            roadmapPage.style.display = 'none';
+            
+            // Update active link
+            jackpotLink.classList.add('active');
+            faqLink.classList.remove('active');
+            fairLink.classList.remove('active');
+            aboutLink.classList.remove('active');
+            roadmapLink.classList.remove('active');
+        });
     }
 }
 
-// Update user display
-function updateUserDisplay() {
-    if (!currentUser) return;
+// Timer functions
+function startTimer() {
+    clearInterval(timerInterval);
+    timerSeconds = timerDuration;
+    timerValue.textContent = timerSeconds;
+    timerForeground.style.strokeDashoffset = '0';
     
-    if (loginButton) loginButton.style.display = 'none';
-    if (userProfile) {
-        userProfile.style.display = 'flex';
-        if (userName) userName.textContent = currentUser.username;
-        if (userAvatar) userAvatar.src = currentUser.avatar || '/img/default-avatar.png';
-    }
-}
-
-// Update round display
-function updateRoundDisplay() {
-    if (!currentRound) return;
-    
-    if (potValue) potValue.textContent = `$${currentRound.totalValue.toFixed(2)}`;
-    if (participantCount) participantCount.textContent = `${currentRound.items.length}/200`;
-    
-    // Update items in pot
-    updateItemsDisplay();
-}
-
-// Update items display
-function updateItemsDisplay() {
-    if (!itemsContainer || !currentRound?.items) return;
-    
-    // Clear container
-    itemsContainer.innerHTML = '';
-    
-    if (currentRound.items.length === 0) {
-        if (emptyPotMessage) emptyPotMessage.style.display = 'block';
-        return;
-    }
-    
-    if (emptyPotMessage) emptyPotMessage.style.display = 'none';
-    
-    // Add items to container
-    currentRound.items.forEach(item => {
-        const itemElement = document.createElement('div');
-        itemElement.className = 'pot-item';
-        itemElement.dataset.itemId = item.id;
+    timerInterval = setInterval(function() {
+        timerSeconds--;
+        timerValue.textContent = timerSeconds;
         
-        const userColor = getUserColor(item.userId);
+        // Update timer circle
+        const progress = timerSeconds / timerDuration;
+        const dashoffset = timerCircumference * (1 - progress);
+        timerForeground.style.strokeDashoffset = dashoffset;
         
-        itemElement.innerHTML = `
-            <div class="pot-item-color-indicator" style="background-color: ${userColor};"></div>
-            <img src="${item.image}" alt="${item.name}" class="pot-item-image">
-            <div class="pot-item-info">
-                <div class="pot-item-name">${item.name}</div>
-                <div class="pot-item-value">$${item.price.toFixed(2)}</div>
-                <div class="pot-item-user">
-                    <img src="${item.userAvatar}" alt="${item.userName}" class="pot-item-avatar">
-                    <span class="pot-item-username">${item.userName}</span>
+        if (timerSeconds <= 0) {
+            clearInterval(timerInterval);
+            startRoulette();
+        }
+    }, 1000);
+}
+
+// Roulette functions
+function startRoulette() {
+    inlineRoulette.style.display = 'block';
+    jackpotHeader.classList.add('roulette-mode');
+    depositBtnContainer.style.display = 'none';
+    
+    // Create roulette items
+    createRouletteItems();
+    
+    // Play sound
+    if (spinSound) {
+        spinSound.play().catch(e => console.log('Sound play error:', e));
+    }
+    
+    // Animate roulette
+    setTimeout(function() {
+        const trackWidth = rouletteTrack.scrollWidth;
+        const containerWidth = rouletteTrack.parentElement.offsetWidth;
+        const randomOffset = Math.random() * 80 - 40; // Random offset for more natural landing
+        
+        // Calculate final position to land on winner (middle item)
+        const finalPosition = -(trackWidth - containerWidth) / 2 + randomOffset;
+        
+        // Animate the track
+        rouletteTrack.style.transition = 'transform 8s cubic-bezier(0.1, 0.7, 0.1, 1)';
+        rouletteTrack.style.transform = `translateX(${finalPosition}px)`;
+        
+        // Show winner after animation
+        setTimeout(showWinner, 8500);
+    }, 500);
+}
+
+function createRouletteItems() {
+    // Clear existing items
+    rouletteTrack.innerHTML = '';
+    
+    // Get all users who have deposited items
+    const users = getDepositUsers();
+    
+    if (users.length === 0) {
+        // If no users, use test users
+        users.push(...testUsers);
+    }
+    
+    // Calculate total pot value
+    const totalPotValue = parseFloat(potValue.textContent.replace('$', ''));
+    
+    // Create a large number of items for smooth animation
+    const itemCount = 100;
+    
+    // Select a random winner
+    const winnerIndex = Math.floor(Math.random() * users.length);
+    const winner = users[winnerIndex];
+    
+    // Create roulette items
+    for (let i = 0; i < itemCount; i++) {
+        // Distribute users evenly, but ensure winner is in the middle
+        const userIndex = (i === Math.floor(itemCount / 2)) ? winnerIndex : (i % users.length);
+        const user = users[userIndex];
+        
+        // Create roulette item
+        const item = document.createElement('div');
+        item.className = 'roulette-item';
+        item.style.borderColor = user.color;
+        
+        // Create avatar
+        const avatar = document.createElement('img');
+        avatar.src = user.avatar;
+        avatar.alt = user.name;
+        avatar.className = 'roulette-avatar';
+        
+        // Create name
+        const name = document.createElement('div');
+        name.className = 'roulette-name';
+        name.textContent = user.name;
+        
+        // Append elements
+        item.appendChild(avatar);
+        item.appendChild(name);
+        rouletteTrack.appendChild(item);
+        
+        // Store winner data
+        if (i === Math.floor(itemCount / 2)) {
+            // Calculate winner's deposit value and chance
+            const winnerItems = getItemsByUser(winner.id);
+            const winnerValue = winnerItems.reduce((sum, item) => sum + item.value, 0);
+            const winnerChanceValue = totalPotValue > 0 ? (winnerValue / totalPotValue * 100) : 0;
+            
+            // Store for later use
+            winner.depositValue = winnerValue;
+            winner.chance = winnerChanceValue;
+        }
+    }
+}
+
+function showWinner() {
+    // Get the middle item (winner)
+    const items = rouletteTrack.querySelectorAll('.roulette-item');
+    const middleIndex = Math.floor(items.length / 2);
+    const winnerItem = items[middleIndex];
+    
+    // Get winner data from the item
+    const winnerName = winnerItem.querySelector('.roulette-name').textContent;
+    const winnerAvatar = winnerItem.querySelector('.roulette-avatar').src;
+    const winnerColor = winnerItem.style.borderColor;
+    
+    // Find the winner in users array
+    const winner = testUsers.find(user => user.name === winnerName);
+    
+    // Update winner info
+    this.winnerAvatar.src = winnerAvatar;
+    this.winnerName.textContent = winnerName;
+    this.winnerDeposit.textContent = formatCurrency(winner.depositValue || 0);
+    this.winnerChance.textContent = (winner.chance || 0).toFixed(2) + '%';
+    
+    // Show winner info
+    winnerInfo.style.display = 'flex';
+    returnToJackpot.style.display = 'block';
+    
+    // Create confetti
+    createConfetti();
+}
+
+function createConfetti() {
+    confettiContainer.innerHTML = '';
+    
+    // Create confetti pieces
+    for (let i = 0; i < 100; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        
+        // Random properties
+        const size = Math.random() * 10 + 5;
+        const color = getRandomColor();
+        const left = Math.random() * 100;
+        const animationDuration = Math.random() * 3 + 2;
+        const animationDelay = Math.random() * 2;
+        
+        // Apply styles
+        confetti.style.width = `${size}px`;
+        confetti.style.height = `${size}px`;
+        confetti.style.backgroundColor = color;
+        confetti.style.left = `${left}%`;
+        confetti.style.animationDuration = `${animationDuration}s`;
+        confetti.style.animationDelay = `${animationDelay}s`;
+        
+        confettiContainer.appendChild(confetti);
+    }
+}
+
+function getRandomColor() {
+    const colors = ['#00e676', '#ff9100', '#2196f3', '#e91e63', '#9c27b0', '#ffeb3b'];
+    return colors[Math.floor(Math.random() * colors.length)];
+}
+
+// Helper functions
+function formatCurrency(value) {
+    return '$' + value.toFixed(2);
+}
+
+function getDepositUsers() {
+    // In a real implementation, this would get users from the database
+    // For now, return test users who have items in the pot
+    const userIds = new Set();
+    const items = document.querySelectorAll('.pot-item');
+    
+    items.forEach(item => {
+        const userId = parseInt(item.dataset.userId);
+        if (!isNaN(userId)) {
+            userIds.add(userId);
+        }
+    });
+    
+    return Array.from(userIds).map(id => testUsers.find(user => user.id === id)).filter(Boolean);
+}
+
+function getItemsByUser(userId) {
+    // In a real implementation, this would get items from the database
+    // For now, return test items for the user
+    return testItems.filter(item => item.userId === userId);
+}
+
+function groupItemsByUser(items) {
+    const userGroups = [];
+    const userMap = {};
+    
+    items.forEach(item => {
+        if (!userMap[item.userId]) {
+            const user = testUsers.find(u => u.id === item.userId);
+            userMap[item.userId] = {
+                user: user,
+                items: [],
+                totalValue: 0
+            };
+            userGroups.push(userMap[item.userId]);
+        }
+        
+        userMap[item.userId].items.push(item);
+        userMap[item.userId].totalValue += item.value;
+    });
+    
+    return userGroups;
+}
+
+// Function to create player deposit HTML
+function createPlayerDepositHTML(userDeposit, isNew = false) {
+    const { user, items, totalValue } = userDeposit;
+    
+    // Create container
+    const depositDiv = document.createElement('div');
+    depositDiv.className = 'player-deposit-container';
+    if (isNew) {
+        depositDiv.classList.add('player-deposit-new');
+    }
+    
+    // Create header
+    const headerHTML = `
+        <div class="player-deposit-header">
+            <img src="${user.avatar}" alt="${user.name}" class="player-avatar">
+            <div class="player-info">
+                <div class="player-name">${user.name}</div>
+                <div class="player-deposit-value">${formatCurrency(totalValue)}</div>
+            </div>
+        </div>
+    `;
+    
+    // Create items grid
+    let itemsHTML = '<div class="player-items-grid">';
+    
+    items.forEach(item => {
+        itemsHTML += `
+            <div class="player-deposit-item">
+                <img src="${item.image}" alt="${item.name}" class="player-deposit-item-image">
+                <div class="player-deposit-item-info">
+                    <div class="player-deposit-item-name">${item.name}</div>
+                    <div class="player-deposit-item-value">${formatCurrency(item.value)}</div>
                 </div>
             </div>
         `;
-        
-        itemsContainer.appendChild(itemElement);
     });
+    
+    itemsHTML += '</div>';
+    
+    depositDiv.innerHTML = headerHTML + itemsHTML;
+    return depositDiv;
 }
 
-// Update timer circle
-function updateTimerCircle(timeLeft, totalTime) {
-    if (!timerForeground) return;
+// Function to handle item deposit
+function handleItemDeposit(userId, items) {
+    // Hide empty pot message if visible
+    if (emptyPotMessage.style.display !== 'none') {
+        emptyPotMessage.style.display = 'none';
+    }
     
-    const normalizedTime = Math.min(1, Math.max(0, timeLeft / totalTime));
-    const circumference = 2 * Math.PI * 42; // 42 is the radius from the SVG
-    const dashOffset = circumference * (1 - normalizedTime);
+    // Group items by user
+    const userDeposit = {
+        user: testUsers.find(u => u.id === userId),
+        items: items,
+        totalValue: items.reduce((sum, item) => sum + item.value, 0)
+    };
     
-    timerForeground.style.strokeDasharray = `${circumference} ${circumference}`;
-    timerForeground.style.strokeDashoffset = dashOffset;
+    // Add to container
+    const depositElement = createPlayerDepositHTML(userDeposit, true);
+    itemsContainer.appendChild(depositElement);
+    
+    // Update participant count (assuming this is the total items count)
+    const totalItems = document.querySelectorAll('.player-deposit-item').length;
+    participantCount.textContent = `${totalItems}/200`;
+    
+    // Update pot value
+    const currentValue = parseFloat(potValue.textContent.replace('$', ''));
+    const newValue = currentValue + userDeposit.totalValue;
+    potValue.textContent = formatCurrency(newValue);
 }
+
+// Function to display all test items (for demonstration)
+function displayAllTestItems() {
+    // Clear container
+    itemsContainer.innerHTML = '';
+    emptyPotMessage.style.display = 'none';
+    
+    // Group items by user
+    const userGroups = groupItemsByUser(testItems);
+    
+    // Create and append deposit elements
+    userGroups.forEach(group => {
+        const depositElement = createPlayerDepositHTML(group);
+        itemsContainer.appendChild(depositElement);
+    });
+    
+    // Update participant count
+    const totalItems = testItems.length;
+    participantCount.textContent = `${totalItems}/200`;
+    
+    // Update pot value
+    const totalValue = testItems.reduce((sum, item) => sum + item.value, 0);
+    potValue.textContent = formatCurrency(totalValue);
+}
+
+// New functions for item deposit flow
 
 // Load user inventory
-async function loadUserInventory() {
-    if (!currentUser) return;
-    
-    if (inventoryLoading) inventoryLoading.style.display = 'block';
-    if (inventoryItems) inventoryItems.innerHTML = '';
-    
-    try {
-        const response = await fetch(`/api/inventory/${currentUser.steamId}`);
-        if (!response.ok) throw new Error(`Failed to load inventory (${response.status})`);
-        
-        const data = await response.json();
-        userInventory = data.items || [];
-        
-        displayInventoryItems();
-    } catch (error) {
-        console.error('Error loading inventory:', error);
-        showNotification('Error', `Could not load inventory: ${error.message}`);
-    } finally {
-        if (inventoryLoading) inventoryLoading.style.display = 'none';
-    }
-}
-
-// Display inventory items
-function displayInventoryItems() {
-    if (!inventoryItems || !userInventory) return;
-    
+function loadUserInventory() {
+    // Clear inventory container
     inventoryItems.innerHTML = '';
     
-    if (userInventory.length === 0) {
-        inventoryItems.innerHTML = '<p class="empty-inventory">No items found in your inventory.</p>';
-        return;
-    }
-    
+    // Create inventory items
     userInventory.forEach(item => {
         const itemElement = document.createElement('div');
         itemElement.className = 'inventory-item';
-        itemElement.dataset.assetId = item.assetId;
-        itemElement.dataset.price = item.price;
+        if (item.selected) {
+            itemElement.classList.add('selected');
+        }
         
         itemElement.innerHTML = `
             <img src="${item.image}" alt="${item.name}" class="inventory-item-image">
             <div class="inventory-item-info">
                 <div class="inventory-item-name">${item.name}</div>
-                <div class="inventory-item-price">$${item.price.toFixed(2)}</div>
+                <div class="inventory-item-value">${formatCurrency(item.value)}</div>
+            </div>
+            <div class="inventory-item-select">
+                <div class="tick-marker"></div>
             </div>
         `;
         
-        itemElement.addEventListener('click', () => toggleItemSelection(item, itemElement));
+        // Add data attributes
+        itemElement.dataset.id = item.id;
+        itemElement.dataset.value = item.value;
+        
+        // Add click event
+        itemElement.addEventListener('click', function() {
+            toggleItemSelection(item.id, itemElement);
+        });
         
         inventoryItems.appendChild(itemElement);
     });
 }
 
 // Toggle item selection
-function toggleItemSelection(item, element) {
-    const isSelected = element.classList.contains('selected');
+function toggleItemSelection(itemId, itemElement) {
+    // Find the item in inventory
+    const item = userInventory.find(item => item.id === itemId);
+    if (!item) return;
     
-    if (isSelected) {
-        // Remove from selection
-        element.classList.remove('selected');
-        selectedItemsList = selectedItemsList.filter(i => i.assetId !== item.assetId);
-    } else {
-        // Add to selection
-        element.classList.add('selected');
-        selectedItemsList.push(item);
-    }
-    
-    updateSelectedItemsDisplay();
-}
-
-// Update selected items display
-function updateSelectedItemsDisplay() {
-    if (!selectedItems || !totalValue) return;
-    
-    selectedItems.innerHTML = '';
-    
-    if (selectedItemsList.length === 0) {
-        depositButton.disabled = true;
-        totalValue.textContent = '$0.00';
-        return;
-    }
-    
-    let total = 0;
-    
-    selectedItemsList.forEach(item => {
-        const itemElement = document.createElement('div');
-        itemElement.className = 'selected-item';
-        
-        itemElement.innerHTML = `
-            <img src="${item.image}" alt="${item.name}" class="selected-item-image">
-            <div class="selected-item-info">
-                <div class="selected-item-name">${item.name}</div>
-                <div class="selected-item-price">$${item.price.toFixed(2)}</div>
-            </div>
-            <button class="remove-item-btn" data-asset-id="${item.assetId}">&times;</button>
-        `;
-        
-        itemElement.querySelector('.remove-item-btn').addEventListener('click', () => removeSelectedItem(item));
-        
-        selectedItems.appendChild(itemElement);
-        total += item.price;
-    });
-    
-    totalValue.textContent = `$${total.toFixed(2)}`;
-    depositButton.disabled = total < 1.00; // Minimum $1.00 deposit
-}
-
-// Remove selected item
-function removeSelectedItem(item) {
-    // Remove from selected list
-    selectedItemsList = selectedItemsList.filter(i => i.assetId !== item.assetId);
+    // Toggle selection
+    item.selected = !item.selected;
     
     // Update UI
-    const inventoryItem = document.querySelector(`.inventory-item[data-asset-id="${item.assetId}"]`);
-    if (inventoryItem) inventoryItem.classList.remove('selected');
+    if (item.selected) {
+        itemElement.classList.add('selected');
+        addToSelectedItems(item);
+    } else {
+        itemElement.classList.remove('selected');
+        removeFromSelectedItems(item.id);
+    }
     
-    updateSelectedItemsDisplay();
+    // Update total value
+    updateTotalValue();
+    
+    // Enable/disable deposit button
+    depositButton.disabled = selectedItemsArray.length === 0;
 }
 
-// Submit deposit
-async function submitDeposit() {
-    if (!currentUser || selectedItemsList.length === 0) return;
+// Add item to selected items
+function addToSelectedItems(item) {
+    // Add to array
+    selectedItemsArray.push(item);
     
-    depositButton.disabled = true;
-    
-    try {
-        const response = await fetch('/api/deposit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                userId: currentUser._id,
-                items: selectedItemsList.map(item => ({
-                    assetId: item.assetId,
-                    name: item.name,
-                    price: item.price
-                }))
-            })
-        });
-        
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || `Deposit failed (${response.status})`);
-        }
-        
-        const result = await response.json();
-        
-        showNotification('Success', 'Deposit submitted successfully. Check your Steam trade offers.');
-        hideModal(depositModal);
-        
-        // Clear selection
-        selectedItemsList = [];
-        
-        // Refresh inventory after a short delay
-        setTimeout(loadUserInventory, 2000);
-    } catch (error) {
-        console.error('Deposit error:', error);
-        showNotification('Error', `Deposit failed: ${error.message}`);
-    } finally {
-        depositButton.disabled = false;
-    }
-}
-
-// Save user trade URL
-async function saveUserTradeUrl() {
-    if (!currentUser || !tradeUrlInput) return;
-    
-    const tradeUrl = tradeUrlInput.value.trim();
-    
-    if (!tradeUrl) {
-        showNotification('Error', 'Please enter a valid trade URL');
-        return;
+    // Clear empty selection message if present
+    const emptySelection = selectedItems.querySelector('.empty-selection');
+    if (emptySelection) {
+        selectedItems.innerHTML = '';
     }
     
-    saveTradeUrl.disabled = true;
-    
-    try {
-        const response = await fetch('/api/user/tradeurl', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tradeUrl })
-        });
-        
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || `Failed to save trade URL (${response.status})`);
-        }
-        
-        currentUser.tradeUrl = tradeUrl;
-        showNotification('Success', 'Trade URL saved successfully');
-        hideModal(tradeUrlModal);
-    } catch (error) {
-        console.error('Save trade URL error:', error);
-        showNotification('Error', `Failed to save trade URL: ${error.message}`);
-    } finally {
-        saveTradeUrl.disabled = false;
-    }
-}
-
-// Load past rounds for provably fair page
-async function loadPastRounds() {
-    if (!roundsTableBody) return;
-    
-    try {
-        const response = await fetch('/api/rounds/past');
-        if (!response.ok) throw new Error(`Failed to load past rounds (${response.status})`);
-        
-        const data = await response.json();
-        
-        roundsTableBody.innerHTML = '';
-        
-        data.rounds.forEach(round => {
-            const row = document.createElement('tr');
-            
-            row.innerHTML = `
-                <td>${round.roundId}</td>
-                <td>${new Date(round.completedTime).toLocaleString()}</td>
-                <td>${round.winner?.username || 'N/A'}</td>
-                <td>$${round.totalValue.toFixed(2)}</td>
-                <td>
-                    <button class="btn btn-details" data-round-id="${round.roundId}">Details</button>
-                    <button class="btn btn-verify" data-round-id="${round.roundId}">Verify</button>
-                </td>
-            `;
-            
-            row.querySelector('.btn-details').addEventListener('click', () => showRoundDetails(round.roundId));
-            row.querySelector('.btn-verify').addEventListener('click', () => verifyRound(round.roundId));
-            
-            roundsTableBody.appendChild(row);
-        });
-    } catch (error) {
-        console.error('Error loading past rounds:', error);
-        roundsTableBody.innerHTML = `<tr><td colspan="5">Error loading past rounds: ${error.message}</td></tr>`;
-    }
-}
-
-// Verify round
-async function verifyRound(roundId) {
-    if (!roundId && verifyBtn) {
-        // Get round ID from input if not provided
-        const roundIdInput = document.getElementById('verify-round-id');
-        if (!roundIdInput) return;
-        
-        roundId = roundIdInput.value.trim();
-        if (!roundId) {
-            showNotification('Error', 'Please enter a round ID');
-            return;
-        }
-    }
-    
-    try {
-        const response = await fetch(`/api/rounds/${roundId}/verify`);
-        if (!response.ok) throw new Error(`Failed to verify round (${response.status})`);
-        
-        const data = await response.json();
-        
-        // Display verification result
-        showNotification('Verification Result', `Round ${roundId} verification: ${data.verified ? 'Valid' : 'Invalid'}\nServer Seed: ${data.serverSeed}\nClient Seed: ${data.clientSeed}\nWinning Ticket: ${data.winningTicket}`);
-    } catch (error) {
-        console.error('Verification error:', error);
-        showNotification('Error', `Failed to verify round: ${error.message}`);
-    }
-}
-
-// --- ROULETTE ANIMATION FUNCTIONS ---
-
-/**
- * Test function to simulate a roulette spin with random data
- */
-function testRouletteAnimation() {
-    if (isSpinning) return;
-    
-    console.log('Testing roulette animation...');
-    
-    // Generate test data
-    const testUsers = [
-        { id: 'user1', name: 'RustPlayer123', avatar: '/img/default-avatar.png' },
-        { id: 'user2', name: 'SkinCollector', avatar: '/img/default-avatar.png' },
-        { id: 'user3', name: 'RaidMaster', avatar: '/img/default-avatar.png' },
-        { id: 'user4', name: 'HeadshotKing', avatar: '/img/default-avatar.png' },
-        { id: 'user5', name: 'LootGoblin', avatar: '/img/default-avatar.png' }
-    ];
-    
-    // Assign random chances to users
-    let remainingPercentage = 100;
-    const testParticipants = testUsers.map((user, index) => {
-        // Last user gets remaining percentage
-        const isLast = index === testUsers.length - 1;
-        const chance = isLast ? remainingPercentage : Math.floor(Math.random() * (remainingPercentage - 5)) + 5;
-        remainingPercentage -= chance;
-        
-        return {
-            user: user,
-            chance: chance,
-            value: chance * 10 // $10 per 1% for simplicity
-        };
-    });
-    
-    // Pick random winner
-    const winnerIndex = Math.floor(Math.random() * testParticipants.length);
-    const winner = testParticipants[winnerIndex];
-    
-    // Create test data object
-    const testData = {
-        participants: testParticipants,
-        winner: winner,
-        totalValue: testParticipants.reduce((sum, p) => sum + p.value, 0)
-    };
-    
-    // Start animation
-    startRouletteAnimation(testData);
-}
-
-/**
- * Start the roulette animation with the provided data
- * @param {Object} data - Round data with participants and winner
- */
-function startRouletteAnimation(data) {
-    if (isSpinning || !rouletteTrack || !inlineRoulette || !jackpotHeader) return;
-    
-    isSpinning = true;
-    
-    // Show roulette
-    inlineRoulette.style.display = 'block';
-    jackpotHeader.classList.add('roulette-mode');
-    
-    // Create roulette items
-    createRouletteItems(data.participants);
-    
-    // Calculate final position
-    const winnerIndex = data.participants.findIndex(p => p.user.id === data.winner.user.id);
-    if (winnerIndex === -1) {
-        console.error('Winner not found in participants');
-        isSpinning = false;
-        return;
-    }
-    
-    // Play sound if available
-    if (spinSound) {
-        spinSound.currentTime = 0;
-        spinSound.play().catch(e => console.log('Sound play error:', e));
-    }
-    
-    // Start animation
-    spinStartTime = performance.now();
-    animateRoulette(winnerIndex);
-}
-
-/**
- * Create roulette items from participants data
- * @param {Array} participants - List of participants with user and chance data
- */
-function createRouletteItems(participants) {
-    if (!rouletteTrack) return;
-    
-    // Clear track
-    rouletteTrack.innerHTML = '';
-    
-    // Create weighted list based on chances
-    const weightedItems = [];
-    participants.forEach(participant => {
-        // Add items proportional to chance (1 item per 1% chance)
-        const itemCount = Math.max(1, Math.round(participant.chance));
-        for (let i = 0; i < itemCount; i++) {
-            weightedItems.push(participant);
-        }
-    });
-    
-    // Shuffle the weighted items for more randomness
-    const shuffledItems = shuffleArray([...weightedItems]);
-    
-    // Create items and add to track
-    shuffledItems.forEach(participant => {
-        const itemElement = document.createElement('div');
-        itemElement.className = 'roulette-item';
-        itemElement.dataset.userId = participant.user.id;
-        
-        // Get user color
-        const userColor = getUserColor(participant.user.id);
-        itemElement.style.borderColor = userColor;
-        
-        itemElement.innerHTML = `
-            <div class="profile-pic-container">
-                <img src="${participant.user.avatar}" alt="${participant.user.name}" class="roulette-avatar">
-            </div>
-            <div class="roulette-info">
-                <div class="roulette-name">${participant.user.name}</div>
-                <div class="roulette-percentage" style="color: ${userColor}">${participant.chance.toFixed(1)}%</div>
-            </div>
-        `;
-        
-        rouletteTrack.appendChild(itemElement);
-    });
-}
-
-/**
- * Animate the roulette to land on the winner
- * @param {number} winnerIndex - Index of the winner in the participants array
- */
-function animateRoulette(winnerIndex) {
-    // Get all roulette items
-    const items = rouletteTrack.querySelectorAll('.roulette-item');
-    if (items.length === 0) {
-        isSpinning = false;
-        return;
-    }
-    
-    // Calculate item width (including margins)
-    const itemWidth = items[0].offsetWidth + 10; // 10px for margins
-    
-    // Calculate total track width
-    const trackWidth = itemWidth * items.length;
-    
-    // Calculate center position of viewport
-    const viewportWidth = rouletteTrack.parentElement.offsetWidth;
-    const centerPosition = viewportWidth / 2;
-    
-    // Calculate position of winner item
-    // Add random variation to make it less predictable
-    const variation = (Math.random() * 2 - 1) * LANDING_POSITION_VARIATION * itemWidth;
-    const winnerPosition = winnerIndex * itemWidth + variation;
-    
-    // Calculate final position (center winner in viewport)
-    const finalPosition = -(winnerPosition - centerPosition + itemWidth / 2);
-    
-    // Calculate total distance to travel
-    // Start with 2-4 full rotations plus distance to final position
-    const rotations = 2 + Math.random() * 2; // 2-4 rotations
-    const startPosition = 0; // Start from current position
-    const totalDistance = trackWidth * rotations + (startPosition - finalPosition);
-    
-    // Animation function
-    function animate(timestamp) {
-        if (!isSpinning || !rouletteTrack) {
-            cancelAnimationFrame(animationFrameId);
-            return;
-        }
-        
-        // Calculate elapsed time
-        const elapsed = timestamp - spinStartTime;
-        const progress = Math.min(1, elapsed / (SPIN_DURATION_SECONDS * 1000));
-        
-        // Apply easing
-        const easedProgress = easeOutAnimation(progress);
-        
-        // Calculate current position
-        let currentPosition = startPosition - totalDistance * easedProgress;
-        
-        // Add bounce effect if enabled
-        if (BOUNCE_ENABLED && progress >= 1) {
-            // Calculate bounce progress (0-1 scale for the bounce phase)
-            const bounceElapsed = timestamp - spinStartTime - SPIN_DURATION_SECONDS * 1000;
-            const bounceProgress = Math.min(1, bounceElapsed / 1000); // 1 second for bounce
-            
-            // Calculate bounce displacement
-            const bounceAmount = calculateBounce(bounceProgress);
-            
-            // Apply bounce to position (scaled by overshoot factor and total distance)
-            currentPosition += bounceAmount * BOUNCE_OVERSHOOT_FACTOR * totalDistance;
-            
-            // End animation after bounce completes
-            if (bounceProgress >= 1) {
-                finishAnimation();
-                return;
-            }
-        } else if (progress >= 1) {
-            // If no bounce, end animation when main progress completes
-            currentPosition = finalPosition; // Ensure exact final position
-            finishAnimation();
-            return;
-        }
-        
-        // Apply position
-        rouletteTrack.style.transform = `translateX(${currentPosition}px)`;
-        
-        // Continue animation
-        animationFrameId = requestAnimationFrame(animate);
-    }
-    
-    // Function to finish animation
-    function finishAnimation() {
-        // Highlight winner
-        const winnerItem = items[winnerIndex];
-        if (winnerItem) {
-            winnerItem.classList.add('winner-highlight');
-            
-            // Get user color for winner effects
-            const userId = winnerItem.dataset.userId;
-            const userColor = getUserColor(userId);
-            
-            // Create keyframes for winner pulse animation
-            const keyframes = document.createElement('style');
-            keyframes.innerHTML = `
-                @keyframes winnerPulse {
-                    0% { box-shadow: 0 0 10px ${userColor}80; border-color: ${userColor}; }
-                    50% { box-shadow: 0 0 20px ${userColor}; border-color: ${lightenColor(userColor, 30)}; }
-                    100% { box-shadow: 0 0 10px ${userColor}80; border-color: ${userColor}; }
-                }
-                
-                .winner-highlight {
-                    animation: winnerPulse 1s infinite ease-in-out;
-                    border-width: 3px !important;
-                    z-index: 10;
-                }
-            `;
-            document.head.appendChild(keyframes);
-        }
-        
-        // Show winner info after a short delay
-        setTimeout(() => {
-            if (!isSpinning) return;
-            
-            // Find winner data
-            const winner = participants.find(p => p.user.id === winnerItem?.dataset.userId);
-            if (winner) {
-                showWinnerInfo(winner);
-            }
-        }, 2000);
-    }
-    
-    // Start animation
-    animationFrameId = requestAnimationFrame(animate);
-}
-
-/**
- * Show winner information
- * @param {Object} winner - Winner data
- */
-function showWinnerInfo(winner) {
-    if (!winnerInfo || !winnerAvatar || !winnerName || !winnerDeposit || !winnerChance) return;
-    
-    // Set winner info
-    winnerAvatar.src = winner.user.avatar || '/img/default-avatar.png';
-    winnerName.textContent = winner.user.name;
-    winnerDeposit.textContent = `$${winner.value.toFixed(2)}`;
-    winnerChance.textContent = `${winner.chance.toFixed(1)}%`;
-    
-    // Show winner info
-    winnerInfo.style.display = 'flex';
-    winnerInfo.style.opacity = '0';
-    
-    // Fade in
-    setTimeout(() => {
-        winnerInfo.style.transition = 'opacity 0.8s ease-out';
-        winnerInfo.style.opacity = '1';
-        
-        // Create confetti if container exists
-        if (confettiContainer) {
-            createConfetti();
-        }
-        
-        // Show return button after delay
-        setTimeout(() => {
-            if (returnToJackpot) {
-                returnToJackpot.style.display = 'block';
-                returnToJackpot.addEventListener('click', resetRoulette);
-            }
-        }, 3000);
-        
-        // Auto reset after delay
-        setTimeout(resetRoulette, WINNER_DISPLAY_DURATION);
-    }, 100);
-}
-
-/**
- * Reset roulette to initial state
- */
-function resetRoulette() {
-    if (!isSpinning) return;
-    
-    isSpinning = false;
-    
-    // Hide roulette
-    if (inlineRoulette) inlineRoulette.style.display = 'none';
-    if (jackpotHeader) jackpotHeader.classList.remove('roulette-mode');
-    
-    // Reset winner info
-    if (winnerInfo) {
-        winnerInfo.style.opacity = '0';
-        setTimeout(() => {
-            winnerInfo.style.display = 'none';
-            
-            // Clear confetti
-            if (confettiContainer) {
-                confettiContainer.innerHTML = '';
-            }
-            
-            // Hide return button
-            if (returnToJackpot) {
-                returnToJackpot.style.display = 'none';
-                returnToJackpot.removeEventListener('click', resetRoulette);
-            }
-        }, 800);
-    }
-    
-    // Clear track
-    if (rouletteTrack) {
-        rouletteTrack.innerHTML = '';
-        rouletteTrack.style.transform = 'translateX(0)';
-    }
-    
-    // Create new round
-    socket.emit('getRoundData');
-}
-
-/**
- * Create confetti effect
- */
-function createConfetti() {
-    if (!confettiContainer) return;
-    
-    confettiContainer.innerHTML = '';
-    
-    // Get winner color for confetti
-    const winnerItem = document.querySelector('.winner-highlight');
-    const userId = winnerItem?.dataset.userId;
-    const userColor = userId ? getUserColor(userId) : '#00e676';
-    
-    // Create confetti pieces
-    for (let i = 0; i < CONFETTI_COUNT; i++) {
-        const piece = document.createElement('div');
-        piece.className = 'confetti-piece';
-        
-        // Random properties
-        const size = Math.random() * 10 + 5; // 5-15px
-        const color = i % 3 === 0 ? userColor : (i % 3 === 1 ? lightenColor(userColor, 30) : darkenColor(userColor, 20));
-        const rotation = Math.random() * 360;
-        const x = Math.random() * 100; // 0-100%
-        const y = -20 - Math.random() * 80; // Start above container
-        const duration = Math.random() * 3 + 2; // 2-5s
-        const delay = Math.random() * 2; // 0-2s
-        
-        // Apply styles
-        piece.style.width = `${size}px`;
-        piece.style.height = `${size}px`;
-        piece.style.backgroundColor = color;
-        piece.style.transform = `rotate(${rotation}deg)`;
-        piece.style.left = `${x}%`;
-        piece.style.top = `${y}px`;
-        piece.style.animation = `confettiFall ${duration}s ${delay}s ease-in forwards`;
-        
-        confettiContainer.appendChild(piece);
-    }
-}
-
-// Function to create a visual item card for the pot
-function createPotItemElement(item) {
-    // Hide empty pot message if it's visible
-    if (emptyPotMessage) {
-        emptyPotMessage.style.display = 'none';
-    }
-    
-    // Create the item card element
+    // Create selected item element
     const itemElement = document.createElement('div');
-    itemElement.className = 'pot-item pot-item-new';
-    itemElement.dataset.itemId = item.id;
+    itemElement.className = 'selected-item';
+    itemElement.dataset.id = item.id;
     
-    // Get user color for the color indicator
-    const userColor = getUserColor(item.userId);
-    
-    // Create the HTML structure
     itemElement.innerHTML = `
-        <div class="pot-item-color-indicator" style="background-color: ${userColor};"></div>
-        <img src="${item.imageUrl || '/img/default-item.png'}" alt="${item.name}" class="pot-item-image">
-        <div class="pot-item-info">
-            <div class="pot-item-name">${item.name}</div>
-            <div class="pot-item-value">$${parseFloat(item.value).toFixed(2)}</div>
-            <div class="pot-item-user">
-                <img src="${item.userAvatar || '/img/default-avatar.png'}" alt="${item.userName}" class="pot-item-avatar">
-                <span class="pot-item-username">${item.userName}</span>
+        <img src="${item.image}" alt="${item.name}" class="selected-item-image">
+        <div class="selected-item-info">
+            <div class="selected-item-name">${item.name}</div>
+            <div class="selected-item-value">${formatCurrency(item.value)}</div>
+        </div>
+        <button class="remove-item" data-id="${item.id}">&times;</button>
+    `;
+    
+    // Add remove button event
+    const removeButton = itemElement.querySelector('.remove-item');
+    removeButton.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const itemId = parseInt(this.dataset.id);
+        removeItemSelection(itemId);
+    });
+    
+    selectedItems.appendChild(itemElement);
+}
+
+// Remove item from selected items
+function removeFromSelectedItems(itemId) {
+    // Remove from array
+    selectedItemsArray = selectedItemsArray.filter(item => item.id !== itemId);
+    
+    // Remove from UI
+    const itemElement = selectedItems.querySelector(`.selected-item[data-id="${itemId}"]`);
+    if (itemElement) {
+        itemElement.remove();
+    }
+    
+    // Show empty selection message if no items
+    if (selectedItemsArray.length === 0) {
+        selectedItems.innerHTML = '<div class="empty-selection">No items selected</div>';
+    }
+}
+
+// Remove item selection (from both inventory and selected items)
+function removeItemSelection(itemId) {
+    // Update inventory item
+    const item = userInventory.find(item => item.id === itemId);
+    if (item) {
+        item.selected = false;
+    }
+    
+    // Update inventory UI
+    const inventoryItem = inventoryItems.querySelector(`.inventory-item[data-id="${itemId}"]`);
+    if (inventoryItem) {
+        inventoryItem.classList.remove('selected');
+    }
+    
+    // Remove from selected items
+    removeFromSelectedItems(itemId);
+    
+    // Update total value
+    updateTotalValue();
+    
+    // Enable/disable deposit button
+    depositButton.disabled = selectedItemsArray.length === 0;
+}
+
+// Update total value
+function updateTotalValue() {
+    const totalValue = selectedItemsArray.reduce((sum, item) => sum + item.value, 0);
+    totalValueDisplay.textContent = formatCurrency(totalValue);
+}
+
+// Show trade request notification
+function showTradeRequestNotification() {
+    // Create notification
+    const notification = document.createElement('div');
+    notification.className = 'trade-notification';
+    notification.innerHTML = `
+        <div class="trade-notification-content">
+            <div class="trade-notification-header">
+                <i class="fa-solid fa-exchange"></i>
+                <h3>Trade Request Sent</h3>
+            </div>
+            <p>A trade request has been sent to your Steam account.</p>
+            <p>Please accept the trade to complete your deposit.</p>
+            <div class="trade-notification-progress">
+                <div class="trade-progress-bar"></div>
             </div>
         </div>
     `;
     
-    // Add to container
-    itemsContainer.appendChild(itemElement);
+    // Add to body
+    document.body.appendChild(notification);
     
-    // Remove the animation class after animation completes
-    setTimeout(() => {
-        itemElement.classList.remove('pot-item-new');
-    }, 800);
+    // Animate progress bar
+    const progressBar = notification.querySelector('.trade-progress-bar');
+    progressBar.style.width = '100%';
     
-    return itemElement;
+    // Remove notification after animation
+    setTimeout(function() {
+        notification.classList.add('trade-notification-success');
+        notification.innerHTML = `
+            <div class="trade-notification-content">
+                <div class="trade-notification-header">
+                    <i class="fa-solid fa-check-circle"></i>
+                    <h3>Trade Accepted</h3>
+                </div>
+                <p>Your items have been added to the pot!</p>
+            </div>
+        `;
+        
+        setTimeout(function() {
+            notification.remove();
+        }, 2000);
+    }, 3000);
 }
 
-// Function to handle new item deposits
-function handleItemDeposit(item) {
-    // Create visual element
-    createPotItemElement(item);
+// Process deposit
+function processDeposit(items) {
+    // In a real implementation, this would send the deposit to the server
+    // For now, simulate adding items to the pot
     
-    // Update pot value and participant count
-    updatePotStats();
+    // Add user ID to items
+    const itemsWithUserId = items.map(item => ({
+        ...item,
+        userId: 1 // Current user ID (from testUsers[0])
+    }));
+    
+    // Handle deposit
+    handleItemDeposit(1, itemsWithUserId);
 }
 
-// Function to update pot statistics
-function updatePotStats() {
-    // This would typically be called after receiving updated data from the server
-    // For now, we'll just count the items in the container
-    const itemCount = itemsContainer.querySelectorAll('.pot-item').length;
-    
-    // Update the participant count display
-    if (participantCount) {
-        participantCount.textContent = `${itemCount}/200`;
-    }
-    
-    // Calculate total pot value (in a real app, this would come from the server)
-    let totalValue = 0;
-    itemsContainer.querySelectorAll('.pot-item').forEach(item => {
-        const valueText = item.querySelector('.pot-item-value').textContent;
-        const value = parseFloat(valueText.replace('$', ''));
-        if (!isNaN(value)) {
-            totalValue += value;
-        }
-    });
-    
-    // Update pot value display
-    if (potValue) {
-        potValue.textContent = `$${totalValue.toFixed(2)}`;
-    }
-}
+// Socket connection and event handling would go here in a real implementation
+// For example:
+// const socket = io();
+// socket.on('newDeposit', function(data) {
+//     handleItemDeposit(data.userId, data.items);
+// });
 
-// Test function to add sample items to the pot
-function addTestItemsToPot() {
-    // Sample test users
-    const testUsers = [
-        { id: 'user1', name: 'RustPlayer123', avatar: '/img/default-avatar.png' },
-        { id: 'user2', name: 'SkinCollector', avatar: '/img/default-avatar.png' },
-        { id: 'user3', name: 'RaidMaster', avatar: '/img/default-avatar.png' }
-    ];
-    
-    // Sample items
-    const testItems = [
-        { id: 'item1', name: 'AK-47 | Rust Raider', value: 12.50, imageUrl: '/img/default-item.png' },
-        { id: 'item2', name: 'Tactical Gloves', value: 8.75, imageUrl: '/img/default-item.png' },
-        { id: 'item3', name: 'Combat Knife | Fade', value: 22.30, imageUrl: '/img/default-item.png' },
-        { id: 'item4', name: 'Desert Eagle | Blaze', value: 15.20, imageUrl: '/img/default-item.png' },
-        { id: 'item5', name: 'Hoodie | Camo', value: 5.50, imageUrl: '/img/default-item.png' }
-    ];
-    
-    // Clear existing items
-    if (itemsContainer) {
-        itemsContainer.innerHTML = '';
-    }
-    
-    // Add items with a delay between each
-    let delay = 0;
-    testItems.forEach((item, index) => {
-        // Assign a random user to each item
-        const user = testUsers[Math.floor(Math.random() * testUsers.length)];
-        
-        // Create complete item object
-        const completeItem = {
-            ...item,
-            userId: user.id,
-            userName: user.name,
-            userAvatar: user.avatar
-        };
-        
-        // Add with delay for visual effect
-        setTimeout(() => {
-            handleItemDeposit(completeItem);
-        }, delay);
-        
-        delay += 800; // 800ms between items
-    });
-}
+// Additional functions for inventory management, trade offers, etc. would be added here
