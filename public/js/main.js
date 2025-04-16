@@ -71,12 +71,16 @@ const WINNER_DISPLAY_DURATION = 7000; // 7 seconds for winner info display
 const CONFETTI_COUNT = 150; // Increased confetti slightly
 
 // --- NEW Animation constants for enhanced roulette ---
-const EASE_OUT_POWER = 4;         // Power for ease-out curve (e.g., 3=cubic, 4=quart). Higher = more dramatic slowdown.
-const BOUNCE_ENABLED = false;     // Changed from true to false to disable bounce effect
-const BOUNCE_OVERSHOOT_FACTOR = 0.07; // How much to overshoot initially (percentage of total distance, e.g., 0.07 = 7%)
-const BOUNCE_DAMPING = 0.35;      // How quickly the bounce decays (0 to 1, lower = decays faster, 0.3-0.5 is usually good)
+const EASE_OUT_POWER = 2.5;       // Changed from 4 to create a more gradual slowdown
+const BOUNCE_ENABLED = false;     // Keep bounce disabled as requested
+const BOUNCE_OVERSHOOT_FACTOR = 0.07; // How much to overshoot initially (percentage of total distance)
+const BOUNCE_DAMPING = 0.35;      // How quickly the bounce decays (0 to 1, lower = decays faster)
 const BOUNCE_FREQUENCY = 3.5;     // How many bounces (approx). Higher = more bounces in the same time.
-const LANDING_POSITION_VARIATION = 0.25; // Added: Controls how much the final position can vary (0.25 = ±25% of an item width)
+const LANDING_POSITION_VARIATION = 0.6; // Increased from 0.25 for more variation
+// Add these new dramatic ending constants
+const DRAMATIC_ENDING_ENABLED = true; // Enable dramatic ending effects
+const DRAMATIC_ENDING_DURATION = 1.2; // Seconds to spend on the dramatic ending
+const DRAMATIC_TENSION_FACTOR = 0.03; // How much oscillation effect to apply (subtle effect)
 
 // User Color Map - 20 distinct colors for players
 const userColorMap = new Map();
@@ -186,12 +190,26 @@ async function showRoundDetails(roundId) {
  * @returns {number} Eased progress (0 to 1)
  */
 function easeOutAnimation(t) {
-    // Using easeOutQuart (power=4) for a smooth but noticeable slowdown
+    // Using customized easing for dramatic effect
     // Clamp input time t to the range [0, 1]
     const clampedT = Math.max(0, Math.min(1, t));
-    return 1 - Math.pow(1 - clampedT, EASE_OUT_POWER);
+    
+    // Combine multiple ease functions for a more dramatic curve
+    // This creates a faster initial movement but much more gradual ending
+    
+    // Start with standard power ease out
+    let eased = 1 - Math.pow(1 - clampedT, EASE_OUT_POWER);
+    
+    // Add a bit of cubic bezier style curve for more gradual slowdown at the end
+    if (clampedT > 0.7) {
+        // In the final 30% of animation, make it even more gradual
+        const finalPhaseT = (clampedT - 0.7) / 0.3; // Normalize to 0-1 for final phase
+        const cubicBlend = 3 * Math.pow(1 - finalPhaseT, 2) * finalPhaseT * 0.1;
+        eased = eased - cubicBlend;
+    }
+    
+    return eased;
 }
-
 /**
  * Calculates the bounce effect displacement after the main ease-out animation finishes.
  * @param {number} t - Normalized time *after* the main animation (0 to 1, represents bounce phase)
@@ -986,7 +1004,6 @@ function startRouletteAnimation(winnerData) {
     }, 100); // 100ms delay for item rendering check
 }
 
-// -- Handle the animation loop - MODIFIED --
 function handleRouletteSpinAnimation(winningElement, winner) {
     if (!winningElement || !rouletteTrack || !inlineRoulette) {
         console.error("Missing crucial elements for roulette animation.");
@@ -994,6 +1011,160 @@ function handleRouletteSpinAnimation(winningElement, winner) {
         resetToJackpotView();
         return;
     }
+
+    const container = inlineRoulette.querySelector('.roulette-container');
+    if (!container) {
+        console.error("Roulette container element not found.");
+        isSpinning = false;
+        resetToJackpotView();
+        return;
+    }
+
+    // --- Position Calculation with enhanced variation ---
+    const containerWidth = container.offsetWidth;
+    const itemWidth = winningElement.offsetWidth || 90; // Use measured width or fallback
+    const itemOffsetLeft = winningElement.offsetLeft;
+
+    // Calculate the target NEGATIVE translateX value to center the winning item
+    // Add variation to shift the winning item around the center (not always dead center)
+    const centerOffset = (containerWidth / 2) - (itemWidth / 2);
+    
+    // Use sigmoid function to ensure more variation and non-linear distribution
+    // This creates more diverse landing spots while still keeping them reasonable
+    const normalizedRandom = (Math.random() * 2 - 1); // Range -1 to 1
+    const sigmoidVariation = normalizedRandom / (1 + Math.abs(normalizedRandom));
+    const positionVariation = sigmoidVariation * (itemWidth * LANDING_POSITION_VARIATION);
+    
+    // Apply the variation to base position
+    const targetScrollPosition = -(itemOffsetLeft - centerOffset) + positionVariation;
+    const finalTargetPosition = targetScrollPosition;
+    // --- End Position Calculation ---
+
+    const startPosition = 0; // Assuming track starts at translateX(0) after reset
+    
+    // --- Animation variables ---
+    // Set the main movement duration slightly shorter to allow for dramatic ending
+    const mainDuration = DRAMATIC_ENDING_ENABLED ? 
+        (SPIN_DURATION_SECONDS - DRAMATIC_ENDING_DURATION) * 1000 : 
+        SPIN_DURATION_SECONDS * 1000;
+    const dramaticDuration = DRAMATIC_ENDING_ENABLED ? DRAMATIC_ENDING_DURATION * 1000 : 0;
+    const totalAnimationTime = mainDuration + dramaticDuration;
+    let startTime = performance.now();
+
+    // Calculate total distance for animation
+    const totalDistance = finalTargetPosition - startPosition;
+
+    let currentSpeed = 0;
+    let lastPosition = startPosition;
+    let lastTimestamp = startTime;
+
+    // Ensure track has no transition interfering
+    rouletteTrack.style.transition = 'none';
+
+    // --- Enhanced Animation Loop ---
+    function animateRoulette(timestamp) {
+        if (!isSpinning) { 
+            console.log("Animation loop stopped because isSpinning is false.");
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+            return;
+        }
+
+        const elapsed = timestamp - startTime;
+        let currentPosition;
+        let animationFinished = false;
+
+        // --- Main Movement Phase ---
+        if (elapsed <= mainDuration) {
+            const animationPhaseProgress = elapsed / mainDuration; // Progress 0 to 1
+            const easedProgress = easeOutAnimation(animationPhaseProgress);
+            currentPosition = startPosition + totalDistance * easedProgress;
+        }
+        // --- Dramatic Ending Phase (subtle movements) ---
+        else if (DRAMATIC_ENDING_ENABLED && elapsed <= totalAnimationTime) {
+            // We're in the dramatic ending phase
+            const dramaticPhaseProgress = (elapsed - mainDuration) / dramaticDuration;
+            
+            // Start from almost final position (95-99% of the way there)
+            // Apply a decaying sine wave to create subtle back-and-forth movement
+            // This creates tension as the winning item "settles" into place
+            const decayFactor = 1 - dramaticPhaseProgress; // Decays from 1 to 0
+            const tensionWave = Math.sin(dramaticPhaseProgress * Math.PI * 6) * decayFactor;
+            
+            // Base position (already 95-99% there) + subtle oscillation
+            const basePos = finalTargetPosition - (totalDistance * 0.02 * decayFactor);
+            currentPosition = basePos + (tensionWave * totalDistance * DRAMATIC_TENSION_FACTOR);
+            
+            // Finish when we reach the end of dramatic phase
+            if (dramaticPhaseProgress >= 0.99) {
+                animationFinished = true;
+                currentPosition = finalTargetPosition;
+            }
+        }
+        // --- Animation End ---
+        else {
+            currentPosition = finalTargetPosition; // Ensure it lands exactly at the end
+            animationFinished = true;
+        }
+
+        // Apply the transform
+        rouletteTrack.style.transform = `translateX(${currentPosition}px)`;
+
+        // --- Sound Pitch / Speed Calculation ---
+        const deltaTime = (timestamp - lastTimestamp) / 1000; // Time diff in seconds
+        if (deltaTime > 0.001) { // Avoid calculations on near-zero delta times
+             const deltaPosition = Math.abs(currentPosition - lastPosition);
+             currentSpeed = deltaPosition / deltaTime; // Speed in pixels per second
+
+             if (spinSound && !spinSound.paused) {
+                 const minRate = 0.4; // Lower minimum rate for more dramatic slowdown
+                 const maxRate = 2.0; // Keep same max rate
+                 const speedThresholdLow = 200; // Lower threshold for even slower pitch at end
+                 const speedThresholdHigh = 5000; // Keep same max threshold
+                 
+                 let targetRate;
+                 if (animationFinished) {
+                     targetRate = 1.0; // Reset rate at the very end
+                 } else if (elapsed > mainDuration && DRAMATIC_ENDING_ENABLED) {
+                     // In dramatic phase, pitch should be very low and pulsing slightly
+                     const tensionPulse = Math.sin(elapsed * 0.01) * 0.05; // Subtle pulse
+                     targetRate = minRate + tensionPulse;
+                 } else if (currentSpeed < speedThresholdLow) {
+                     // More gradual rate change at low speeds for tension
+                     const speedRatio = currentSpeed / speedThresholdLow;
+                     targetRate = minRate + (speedRatio * 0.3); // Very gradual change
+                 } else if (currentSpeed > speedThresholdHigh) {
+                     targetRate = maxRate;
+                 } else {
+                     const speedRange = speedThresholdHigh - speedThresholdLow;
+                     const progressInRange = (currentSpeed - speedThresholdLow) / speedRange;
+                     targetRate = minRate + (maxRate - minRate) * (0.3 + progressInRange * 0.7);
+                 }
+                 
+                 // More sensitive rate adjustment during dramatic phase
+                 const rateChangeFactor = elapsed > mainDuration ? 0.15 : 0.08;
+                 spinSound.playbackRate = spinSound.playbackRate + (targetRate - spinSound.playbackRate) * rateChangeFactor;
+                 spinSound.playbackRate = Math.max(minRate, Math.min(maxRate, spinSound.playbackRate));
+             }
+             lastPosition = currentPosition;
+             lastTimestamp = timestamp;
+        }
+        // --- End Sound Pitch ---
+
+        // Continue animation or finalize
+        if (!animationFinished) {
+            animationFrameId = requestAnimationFrame(animateRoulette);
+        } else {
+            console.log("Enhanced dramatic animation finished");
+            animationFrameId = null; // Stop requesting new frames
+            finalizeSpin(winningElement, winner); // Handle highlighting, sound fade, winner display etc.
+        }
+    }
+
+    // Start the animation loop
+    if (animationFrameId) cancelAnimationFrame(animationFrameId); // Ensure no duplicates
+    animationFrameId = requestAnimationFrame(animateRoulette);
+}
 
     const container = inlineRoulette.querySelector('.roulette-container');
     if (!container) {
