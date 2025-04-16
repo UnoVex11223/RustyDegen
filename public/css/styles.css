@@ -425,6 +425,99 @@ a:hover {
 
 /* ----- END JACKPOT HEADER STYLES ----- */
 
+/* Styles for item cards in the pot */
+.pot-item {
+    width: 120px;
+    height: 150px;
+    margin: 10px;
+    background-color: var(--background-light);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border: 2px solid transparent;
+}
+
+.pot-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+}
+
+.pot-item-image {
+    width: 100%;
+    height: 90px;
+    object-fit: cover;
+    background-color: var(--background-medium);
+}
+
+.pot-item-info {
+    padding: 8px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.pot-item-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pot-item-value {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 4px;
+}
+
+.pot-item-user {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    margin-top: auto;
+}
+
+.pot-item-avatar {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    margin-right: 4px;
+}
+
+.pot-item-username {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 80px;
+}
+
+/* Animation for new items */
+@keyframes newItemPulse {
+    0% { transform: scale(0.8); opacity: 0; }
+    50% { transform: scale(1.05); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.pot-item-new {
+    animation: newItemPulse 0.6s ease-out forwards;
+}
+
+/* User color indicator */
+.pot-item-color-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+}
+
 
 /* Inline Roulette - MODIFIED */
 .inline-roulette {
@@ -574,11 +667,11 @@ a:hover {
     width: 100%;
     height: 100%;
     background: linear-gradient(to bottom,
-                   rgba(255, 255, 255, 0),
-                   rgba(255, 255, 255, 0.8) 40%, /* Start fade */
-                   rgba(255, 255, 255, 0.8) 60%, /* Solid center */
-                   rgba(255, 255, 255, 0)); /* End fade */
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+                   rgba(244, 67, 54, 0),
+                   rgba(244, 67, 54, 0.8) 40%, /* Start fade */
+                   rgba(244, 67, 54, 0.8) 60%, /* Solid center */
+                   rgba(244, 67, 54, 0)); /* End fade */
+    box-shadow: 0 0 10px rgba(244, 67, 54, 0.7);
 }
 
 /* Optional: Ticker arrows */
@@ -592,15 +685,15 @@ a:hover {
     height: 0;
     border-left: 6px solid transparent;
     border-right: 6px solid transparent;
-    filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.5));
+    filter: drop-shadow(0 0 3px rgba(244, 67, 54, 0.5));
 }
 .roulette-ticker::before { /* Top arrow */
     top: -6px;
-    border-bottom: 8px solid rgba(255, 255, 255, 0.8);
+    border-bottom: 8px solid rgba(244, 67, 54, 0.8);
 }
 .roulette-ticker::after { /* Bottom arrow */
     bottom: -6px;
-    border-top: 8px solid rgba(255, 255, 255, 0.8);
+    border-top: 8px solid rgba(244, 67, 54, 0.8);
 }
 
 /* Winner Info Box - ENHANCED */
