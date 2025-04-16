@@ -71,16 +71,12 @@ const WINNER_DISPLAY_DURATION = 7000; // 7 seconds for winner info display
 const CONFETTI_COUNT = 150; // Increased confetti slightly
 
 // --- NEW Animation constants for enhanced roulette ---
-const EASE_OUT_POWER = 2.5;       // Changed from 4 to create a more gradual slowdown
-const BOUNCE_ENABLED = false;     // Keep bounce disabled as requested
-const BOUNCE_OVERSHOOT_FACTOR = 0.07; // How much to overshoot initially (percentage of total distance)
-const BOUNCE_DAMPING = 0.35;      // How quickly the bounce decays (0 to 1, lower = decays faster)
+const EASE_OUT_POWER = 4;         // Power for ease-out curve (e.g., 3=cubic, 4=quart). Higher = more dramatic slowdown.
+const BOUNCE_ENABLED = false;     // Changed from true to false to disable bounce effect
+const BOUNCE_OVERSHOOT_FACTOR = 0.07; // How much to overshoot initially (percentage of total distance, e.g., 0.07 = 7%)
+const BOUNCE_DAMPING = 0.35;      // How quickly the bounce decays (0 to 1, lower = decays faster, 0.3-0.5 is usually good)
 const BOUNCE_FREQUENCY = 3.5;     // How many bounces (approx). Higher = more bounces in the same time.
-const LANDING_POSITION_VARIATION = 0.6; // Increased from 0.25 for more variation
-// Add these new dramatic ending constants
-const DRAMATIC_ENDING_ENABLED = true; // Enable dramatic ending effects
-const DRAMATIC_ENDING_DURATION = 1.2; // Seconds to spend on the dramatic ending
-const DRAMATIC_TENSION_FACTOR = 0.03; // How much oscillation effect to apply (subtle effect)
+const LANDING_POSITION_VARIATION = 0.25; // Added: Controls how much the final position can vary (0.25 = ±25% of an item width)
 
 // User Color Map - 20 distinct colors for players
 const userColorMap = new Map();
@@ -190,26 +186,12 @@ async function showRoundDetails(roundId) {
  * @returns {number} Eased progress (0 to 1)
  */
 function easeOutAnimation(t) {
-    // Using customized easing for dramatic effect
+    // Using easeOutQuart (power=4) for a smooth but noticeable slowdown
     // Clamp input time t to the range [0, 1]
     const clampedT = Math.max(0, Math.min(1, t));
-    
-    // Combine multiple ease functions for a more dramatic curve
-    // This creates a faster initial movement but much more gradual ending
-    
-    // Start with standard power ease out
-    let eased = 1 - Math.pow(1 - clampedT, EASE_OUT_POWER);
-    
-    // Add a bit of cubic bezier style curve for more gradual slowdown at the end
-    if (clampedT > 0.7) {
-        // In the final 30% of animation, make it even more gradual
-        const finalPhaseT = (clampedT - 0.7) / 0.3; // Normalize to 0-1 for final phase
-        const cubicBlend = 3 * Math.pow(1 - finalPhaseT, 2) * finalPhaseT * 0.1;
-        eased = eased - cubicBlend;
-    }
-    
-    return eased;
+    return 1 - Math.pow(1 - clampedT, EASE_OUT_POWER);
 }
+
 /**
  * Calculates the bounce effect displacement after the main ease-out animation finishes.
  * @param {number} t - Normalized time *after* the main animation (0 to 1, represents bounce phase)
@@ -643,12 +625,17 @@ function startClientTimer(initialTime = 120) {
 // Update timer circle
 function updateTimerCircle(timeLeft, totalTime) {
     if (!timerForeground) return;
-    const radius = timerForeground.r.baseVal.value; // Get radius from SVG element
-    const circumference = 2 * Math.PI * radius;
-    const progress = Math.min(1, Math.max(0, timeLeft / totalTime));
-    const offset = circumference * (1 - progress);
-    timerForeground.style.strokeDasharray = `${circumference}`;
-    timerForeground.style.strokeDashoffset = `${Math.max(0, offset)}`;
+    // Added check for baseVal which exists on SVG elements
+    if (timerForeground.r && timerForeground.r.baseVal) {
+        const radius = timerForeground.r.baseVal.value; // Get radius from SVG element
+        const circumference = 2 * Math.PI * radius;
+        const progress = Math.min(1, Math.max(0, timeLeft / totalTime));
+        const offset = circumference * (1 - progress);
+        timerForeground.style.strokeDasharray = `${circumference}`;
+        timerForeground.style.strokeDashoffset = `${Math.max(0, offset)}`;
+    } else {
+        console.warn("timerForeground is not an SVG circle element or 'r' attribute is missing.");
+    }
 }
 
 // Update participants UI
@@ -958,6 +945,7 @@ function startRouletteAnimation(winnerData) {
 
         // Find all indices of items matching the winner ID within our target range
         for (let i = minIndex; i <= maxIndex; i++) {
+            // Add null/undefined check for items[i]
             if (items[i]?.dataset?.userId === winner.user.id) {
                 winnerItemsIndices.push(i);
             }
@@ -967,6 +955,7 @@ function startRouletteAnimation(winnerData) {
         if (winnerItemsIndices.length === 0) {
             console.warn(`No winner items found in preferred range [${minIndex}-${maxIndex}]. Expanding search.`);
             for (let i = 0; i < items.length; i++) {
+                 // Add null/undefined check for items[i]
                 if (items[i]?.dataset?.userId === winner.user.id) {
                     winnerItemsIndices.push(i);
                 }
@@ -992,6 +981,13 @@ function startRouletteAnimation(winnerData) {
             const randomWinnerIndex = winnerItemsIndices[Math.floor(Math.random() * winnerItemsIndices.length)];
             targetIndex = randomWinnerIndex;
             winningElement = items[targetIndex];
+             // Add check here too in case the randomly selected index somehow points to an invalid item
+            if (!winningElement) {
+                 console.error(`Selected winning element at index ${targetIndex} is invalid!`);
+                 isSpinning = false;
+                 resetToJackpotView();
+                 return;
+            }
         }
 
         console.log(`Selected winning element at index ${targetIndex} of ${items.length} total items`);
@@ -1004,6 +1000,7 @@ function startRouletteAnimation(winnerData) {
     }, 100); // 100ms delay for item rendering check
 }
 
+// -- Handle the animation loop - MODIFIED --
 function handleRouletteSpinAnimation(winningElement, winner) {
     if (!winningElement || !rouletteTrack || !inlineRoulette) {
         console.error("Missing crucial elements for roulette animation.");
@@ -1011,160 +1008,6 @@ function handleRouletteSpinAnimation(winningElement, winner) {
         resetToJackpotView();
         return;
     }
-
-    const container = inlineRoulette.querySelector('.roulette-container');
-    if (!container) {
-        console.error("Roulette container element not found.");
-        isSpinning = false;
-        resetToJackpotView();
-        return;
-    }
-
-    // --- Position Calculation with enhanced variation ---
-    const containerWidth = container.offsetWidth;
-    const itemWidth = winningElement.offsetWidth || 90; // Use measured width or fallback
-    const itemOffsetLeft = winningElement.offsetLeft;
-
-    // Calculate the target NEGATIVE translateX value to center the winning item
-    // Add variation to shift the winning item around the center (not always dead center)
-    const centerOffset = (containerWidth / 2) - (itemWidth / 2);
-    
-    // Use sigmoid function to ensure more variation and non-linear distribution
-    // This creates more diverse landing spots while still keeping them reasonable
-    const normalizedRandom = (Math.random() * 2 - 1); // Range -1 to 1
-    const sigmoidVariation = normalizedRandom / (1 + Math.abs(normalizedRandom));
-    const positionVariation = sigmoidVariation * (itemWidth * LANDING_POSITION_VARIATION);
-    
-    // Apply the variation to base position
-    const targetScrollPosition = -(itemOffsetLeft - centerOffset) + positionVariation;
-    const finalTargetPosition = targetScrollPosition;
-    // --- End Position Calculation ---
-
-    const startPosition = 0; // Assuming track starts at translateX(0) after reset
-    
-    // --- Animation variables ---
-    // Set the main movement duration slightly shorter to allow for dramatic ending
-    const mainDuration = DRAMATIC_ENDING_ENABLED ? 
-        (SPIN_DURATION_SECONDS - DRAMATIC_ENDING_DURATION) * 1000 : 
-        SPIN_DURATION_SECONDS * 1000;
-    const dramaticDuration = DRAMATIC_ENDING_ENABLED ? DRAMATIC_ENDING_DURATION * 1000 : 0;
-    const totalAnimationTime = mainDuration + dramaticDuration;
-    let startTime = performance.now();
-
-    // Calculate total distance for animation
-    const totalDistance = finalTargetPosition - startPosition;
-
-    let currentSpeed = 0;
-    let lastPosition = startPosition;
-    let lastTimestamp = startTime;
-
-    // Ensure track has no transition interfering
-    rouletteTrack.style.transition = 'none';
-
-    // --- Enhanced Animation Loop ---
-    function animateRoulette(timestamp) {
-        if (!isSpinning) { 
-            console.log("Animation loop stopped because isSpinning is false.");
-            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-            animationFrameId = null;
-            return;
-        }
-
-        const elapsed = timestamp - startTime;
-        let currentPosition;
-        let animationFinished = false;
-
-        // --- Main Movement Phase ---
-        if (elapsed <= mainDuration) {
-            const animationPhaseProgress = elapsed / mainDuration; // Progress 0 to 1
-            const easedProgress = easeOutAnimation(animationPhaseProgress);
-            currentPosition = startPosition + totalDistance * easedProgress;
-        }
-        // --- Dramatic Ending Phase (subtle movements) ---
-        else if (DRAMATIC_ENDING_ENABLED && elapsed <= totalAnimationTime) {
-            // We're in the dramatic ending phase
-            const dramaticPhaseProgress = (elapsed - mainDuration) / dramaticDuration;
-            
-            // Start from almost final position (95-99% of the way there)
-            // Apply a decaying sine wave to create subtle back-and-forth movement
-            // This creates tension as the winning item "settles" into place
-            const decayFactor = 1 - dramaticPhaseProgress; // Decays from 1 to 0
-            const tensionWave = Math.sin(dramaticPhaseProgress * Math.PI * 6) * decayFactor;
-            
-            // Base position (already 95-99% there) + subtle oscillation
-            const basePos = finalTargetPosition - (totalDistance * 0.02 * decayFactor);
-            currentPosition = basePos + (tensionWave * totalDistance * DRAMATIC_TENSION_FACTOR);
-            
-            // Finish when we reach the end of dramatic phase
-            if (dramaticPhaseProgress >= 0.99) {
-                animationFinished = true;
-                currentPosition = finalTargetPosition;
-            }
-        }
-        // --- Animation End ---
-        else {
-            currentPosition = finalTargetPosition; // Ensure it lands exactly at the end
-            animationFinished = true;
-        }
-
-        // Apply the transform
-        rouletteTrack.style.transform = `translateX(${currentPosition}px)`;
-
-        // --- Sound Pitch / Speed Calculation ---
-        const deltaTime = (timestamp - lastTimestamp) / 1000; // Time diff in seconds
-        if (deltaTime > 0.001) { // Avoid calculations on near-zero delta times
-             const deltaPosition = Math.abs(currentPosition - lastPosition);
-             currentSpeed = deltaPosition / deltaTime; // Speed in pixels per second
-
-             if (spinSound && !spinSound.paused) {
-                 const minRate = 0.4; // Lower minimum rate for more dramatic slowdown
-                 const maxRate = 2.0; // Keep same max rate
-                 const speedThresholdLow = 200; // Lower threshold for even slower pitch at end
-                 const speedThresholdHigh = 5000; // Keep same max threshold
-                 
-                 let targetRate;
-                 if (animationFinished) {
-                     targetRate = 1.0; // Reset rate at the very end
-                 } else if (elapsed > mainDuration && DRAMATIC_ENDING_ENABLED) {
-                     // In dramatic phase, pitch should be very low and pulsing slightly
-                     const tensionPulse = Math.sin(elapsed * 0.01) * 0.05; // Subtle pulse
-                     targetRate = minRate + tensionPulse;
-                 } else if (currentSpeed < speedThresholdLow) {
-                     // More gradual rate change at low speeds for tension
-                     const speedRatio = currentSpeed / speedThresholdLow;
-                     targetRate = minRate + (speedRatio * 0.3); // Very gradual change
-                 } else if (currentSpeed > speedThresholdHigh) {
-                     targetRate = maxRate;
-                 } else {
-                     const speedRange = speedThresholdHigh - speedThresholdLow;
-                     const progressInRange = (currentSpeed - speedThresholdLow) / speedRange;
-                     targetRate = minRate + (maxRate - minRate) * (0.3 + progressInRange * 0.7);
-                 }
-                 
-                 // More sensitive rate adjustment during dramatic phase
-                 const rateChangeFactor = elapsed > mainDuration ? 0.15 : 0.08;
-                 spinSound.playbackRate = spinSound.playbackRate + (targetRate - spinSound.playbackRate) * rateChangeFactor;
-                 spinSound.playbackRate = Math.max(minRate, Math.min(maxRate, spinSound.playbackRate));
-             }
-             lastPosition = currentPosition;
-             lastTimestamp = timestamp;
-        }
-        // --- End Sound Pitch ---
-
-        // Continue animation or finalize
-        if (!animationFinished) {
-            animationFrameId = requestAnimationFrame(animateRoulette);
-        } else {
-            console.log("Enhanced dramatic animation finished");
-            animationFrameId = null; // Stop requesting new frames
-            finalizeSpin(winningElement, winner); // Handle highlighting, sound fade, winner display etc.
-        }
-    }
-
-    // Start the animation loop
-    if (animationFrameId) cancelAnimationFrame(animationFrameId); // Ensure no duplicates
-    animationFrameId = requestAnimationFrame(animateRoulette);
-}
 
     const container = inlineRoulette.querySelector('.roulette-container');
     if (!container) {
@@ -1528,11 +1371,11 @@ function launchConfetti(mainColor = '#00ffaa') {
         confetti.style.height = `${size}px`;
 
         // Randomize shape and rotation
-          const rotation = Math.random() * 360;
-          const fallX = (Math.random() - 0.5) * 100; // Horizontal movement
-          confetti.style.setProperty('--fall-x', `${fallX}px`);
-          confetti.style.setProperty('--rotation-start', `${rotation}deg`);
-          confetti.style.setProperty('--rotation-end', `${rotation + (Math.random() - 0.5) * 720}deg`); // Add random spin
+        const rotation = Math.random() * 360;
+        const fallX = (Math.random() - 0.5) * 100; // Horizontal movement
+        confetti.style.setProperty('--fall-x', `${fallX}px`);
+        confetti.style.setProperty('--rotation-start', `${rotation}deg`);
+        confetti.style.setProperty('--rotation-end', `${rotation + (Math.random() - 0.5) * 720}deg`); // Add random spin
 
         const shape = Math.random();
         if (shape < 0.33) {
@@ -1562,7 +1405,10 @@ function clearConfetti() {
       document.querySelectorAll('.roulette-item.winner-highlight').forEach(el => {
           el.classList.remove('winner-highlight');
           el.style.transform = ''; // Reset any transform applied by highlight
-          el.style.borderColor = getUserColor(el.dataset.userId); // Reset border to base user color
+          // Add null check for el.dataset before accessing userId
+          if (el.dataset?.userId) {
+             el.style.borderColor = getUserColor(el.dataset.userId); // Reset border to base user color
+          }
       });
 }
 
@@ -1758,6 +1604,7 @@ function testRouletteAnimation() {
             ]
         };
         // Temporarily set currentRound for the test if using mock data
+        // Note: This might cause issues if real data arrives concurrently
         currentRound = testData;
         updateParticipantsUI(); // Update UI with mock participants
     }
@@ -1796,12 +1643,45 @@ async function verifyRound() {
         resultEl.style.display = 'block'; resultEl.className = 'verification-result loading'; resultEl.innerHTML = '<p>Verifying...</p>';
         const response = await fetch('/api/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roundId, serverSeed, clientSeed }) });
         const result = await response.json(); if (!response.ok) throw new Error(result.error || `Verify fail (${response.status})`);
-        resultEl.className = `verification-result ${result.verified ? 'success' : 'error'}`; let html = `<h4>Result (Round #${result.roundId || roundId})</h4>`;
-        if (result.verified) { html += `<p style="color: var(--success-color); font-weight: bold;">✅ Verified Fair.</p><p><strong>Server Seed Hash:</strong> ${result.serverSeedHash || 'N/A'}</p><p><strong>Server Seed:</strong> ${result.serverSeed}</p><p><strong>Client Seed:</strong> ${result.clientSeed}</p><p><strong>Combined:</strong> ${result.combinedString || 'N/A'}</p><p><strong>Result Hash:</strong> ${result.finalHash || 'N/A'}</p><p><strong>Winning Ticket:</strong> ${result.winningTicket ?? 'N/A'}</p><p><strong>Winner:</strong> ${result.winnerUsername || 'N/A'}</p>`; }
-        else { html += `<p style="color: var(--error-color); font-weight: bold;">❌ Verification Failed.</p><p><strong>Reason:</strong> ${result.reason || 'Mismatch.'}</p>${result.serverSeedHash ? `<p><strong>Server Seed Hash:</strong> ${result.serverSeedHash}</p>` : ''}${result.serverSeed ? `<p><strong>Provided Server Seed:</strong> ${result.serverSeed}</p>` : ''}${result.clientSeed ? `<p><strong>Provided Client Seed:</strong> ${result.clientSeed}</p>` : ''}${result.winningTicket !== undefined ? `<p><strong>Calculated Ticket:</strong> ${result.winningTicket}</p>` : ''}${result.actualWinningTicket !== undefined ? `<p><strong>Actual Ticket:</strong> ${result.actualWinningTicket}</p>` : ''}${result.winnerUsername ? `<p><strong>Actual Winner:</strong> ${result.winnerUsername}</p>` : ''}`; }
+        resultEl.className = `verification-result ${result.verified ? 'success' : 'error'}`;
+        let html = `<h4>Result (Round #${result.roundId || roundId})</h4>`;
+
+        if (result.verified) {
+             html += `<p style="color: var(--success-color); font-weight: bold;">✅ Verified Fair.</p>`;
+             if (result.serverSeedHash) html += `<p><strong>Server Seed Hash:</strong> ${result.serverSeedHash}</p>`;
+             if (result.serverSeed) html += `<p><strong>Server Seed:</strong> ${result.serverSeed}</p>`;
+             if (result.clientSeed) html += `<p><strong>Client Seed:</strong> ${result.clientSeed}</p>`;
+             if (result.combinedString) html += `<p><strong>Combined:</strong> ${result.combinedString}</p>`;
+             if (result.finalHash) html += `<p><strong>Result Hash:</strong> ${result.finalHash}</p>`;
+             if (result.winningTicket !== undefined) html += `<p><strong>Winning Ticket:</strong> ${result.winningTicket}</p>`;
+             if (result.winnerUsername) html += `<p><strong>Winner:</strong> ${result.winnerUsername}</p>`;
+        } else {
+            // **FIXED**: Corrected the logic for constructing the failure message HTML
+            html += `<p style="color: var(--error-color); font-weight: bold;">❌ Verification Failed.</p>`;
+            html += `<p><strong>Reason:</strong> ${result.reason || 'Mismatch.'}</p>`;
+            if (result.serverSeedHash) {
+                html += `<p><strong>Server Seed Hash:</strong> ${result.serverSeedHash}</p>`;
+            }
+            if (result.serverSeed) {
+                html += `<p><strong>Provided Server Seed:</strong> ${result.serverSeed}</p>`;
+            }
+            if (result.clientSeed) {
+                html += `<p><strong>Provided Client Seed:</strong> ${result.clientSeed}</p>`;
+            }
+            if (result.winningTicket !== undefined) {
+                html += `<p><strong>Calculated Ticket:</strong> ${result.winningTicket}</p>`;
+            }
+            if (result.actualWinningTicket !== undefined) {
+                html += `<p><strong>Actual Ticket:</strong> ${result.actualWinningTicket}</p>`;
+            }
+            if (result.winnerUsername) {
+                html += `<p><strong>Actual Winner:</strong> ${result.winnerUsername}</p>`;
+            }
+        }
         resultEl.innerHTML = html;
     } catch (error) { resultEl.style.display = 'block'; resultEl.className = 'verification-result error'; resultEl.innerHTML = `<p>Error: ${error.message}</p>`; console.error('Error verifying:', error); }
 }
+
 
 async function loadPastRounds(page = 1) {
     if (!roundsTableBody || !roundsPagination) { console.warn("Rounds history elements missing."); return; }
