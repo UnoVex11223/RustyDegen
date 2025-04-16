@@ -1,953 +1,285 @@
-// main.js (Complete and Modified for Enhanced Roulette Animation)
-// Ensure the Socket.IO client library is included in your HTML:
-// <script src="/socket.io/socket.io.js"></script>
-const socket = io();
+// Required dependencies
+const express = require('express');
+const session = require('express-session');
+const passport = require('passport');
+const SteamStrategy = require('passport-steam').Strategy;
+const mongoose = require('mongoose');
+const http = require('http');
+const socketIo = require('socket.io');
+const crypto = require('crypto');
+const SteamCommunity = require('steamcommunity');
+const TradeOfferManager = require('steam-tradeoffer-manager');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const SteamTotp = require('steam-totp');
+const axios = require('axios'); // Still needed
+const NodeCache = require('node-cache');
+require('dotenv').config();
 
-// DOM Elements - Navigation
-const homeLink = document.querySelector('.main-nav a.active'); // Might need adjustment if 'active' isn't default
-const faqLink = document.getElementById('faq-link');
-const fairLink = document.getElementById('fair-link');
-const homePage = document.getElementById('home-page');
-const faqPage = document.getElementById('faq-page');
-const fairPage = document.getElementById('fair-page');
+// --- Configuration Constants ---
+const RUST_APP_ID = 252490;
+const RUST_CONTEXT_ID = 2;
+const ROUND_DURATION = parseInt(process.env.ROUND_DURATION_SECONDS) || 120;
+const TICKET_VALUE_RATIO = parseFloat(process.env.TICKET_VALUE) || 0.01;
+const DEPOSIT_TOKEN_EXPIRY_MS = 5 * 60 * 1000;
+const PRICE_CACHE_TTL_SECONDS = parseInt(process.env.PRICE_CACHE_TTL_SECONDS) || 15 * 60; // 15 minutes default cache validity
+const PRICE_REFRESH_INTERVAL_MS = (parseInt(process.env.PRICE_REFRESH_MINUTES) || 10) * 60 * 1000; // Default 10 mins refresh interval
+const MIN_ITEM_VALUE = parseFloat(process.env.MIN_ITEM_VALUE) || 0.10;
+const PRICE_FETCH_TIMEOUT_MS = 30000; // 30 seconds timeout for SCMM API
 
-// DOM Elements - User
-const loginButton = document.getElementById('loginButton');
-const userProfile = document.getElementById('userProfile');
-const userAvatar = document.getElementById('userAvatar');
-const userName = document.getElementById('userName');
+// Initialize Express app
+const app = express();
+const server = http.createServer(app);
+const io = socketIo(server, { cors: { origin: process.env.SITE_URL || "*", methods: ["GET", "POST"] } });
 
-// DOM Elements - Jackpot
-const potValue = document.getElementById('potValue');
-const timerValue = document.getElementById('timerValue');
-const timerForeground = document.querySelector('.timer-foreground');
-const participantCount = document.getElementById('participantCount');
-const participantsContainer = document.getElementById('participantsContainer');
-const emptyPotMessage = document.getElementById('emptyPotMessage'); // Ensure this exists in HTML or handle null
+// Configure middleware
+app.use(cors({ origin: process.env.SITE_URL || "*", credentials: true }));
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.static('public'));
+app.use(session({ secret: process.env.SESSION_SECRET, resave: false, saveUninitialized: false, cookie: { maxAge: 3600000 } }));
+app.use(passport.initialize());
+app.use(passport.session());
 
-// DOM Elements - Deposit
-const showDepositModal = document.getElementById('showDepositModal');
-const depositModal = document.getElementById('depositModal');
-const closeDepositModal = document.getElementById('closeDepositModal');
-const depositButton = document.getElementById('depositButton');
-const inventoryItems = document.getElementById('inventory-items');
-const selectedItems = document.getElementById('selectedItems');
-const totalValue = document.getElementById('totalValue');
-const inventoryLoading = document.getElementById('inventory-loading');
+// --- Steam Strategy ---
+if (!process.env.SITE_URL || !process.env.STEAM_API_KEY || !process.env.SESSION_SECRET) { console.error("FATAL: Missing Steam Auth env vars."); process.exit(1); }
+passport.use(new SteamStrategy({ returnURL: `${process.env.SITE_URL}/auth/steam/return`, realm: process.env.SITE_URL, apiKey: process.env.STEAM_API_KEY, providerURL: 'https://steamcommunity.com/openid' },
+    async (identifier, profile, done) => { try { let u = await User.findOne({ steamId: profile.id }); if (!u) { console.log(`Creating user: ${profile.displayName}`); u = await new User({ steamId: profile.id, username: profile.displayName, avatar: profile._json.avatarfull || '', tradeUrl: '' }).save(); } else { let upd = false; if (u.username !== profile.displayName) { u.username = profile.displayName; upd = true; } if (profile._json.avatarfull && u.avatar !== profile._json.avatarfull) { u.avatar = profile._json.avatarfull; upd = true; } if (upd) await u.save(); } return done(null, u); } catch (err) { console.error('SteamStrategy Error:', err); return done(err); } }
+));
+passport.serializeUser((user, done) => done(null, user.id));
+passport.deserializeUser(async (id, done) => { try { const u = await User.findById(id); done(null, u); } catch (err) { console.error("DeserializeUser Err:", err); done(err); } });
 
-// DOM Elements - Trade URL
-const tradeUrlModal = document.getElementById('tradeUrlModal');
-const closeTradeUrlModal = document.getElementById('closeTradeUrlModal');
-const tradeUrlInput = document.getElementById('tradeUrlInput');
-const saveTradeUrl = document.getElementById('saveTradeUrl');
+// --- MongoDB Connection ---
+if (!process.env.MONGODB_URI) { console.error("FATAL: MONGODB_URI missing."); process.exit(1); }
+mongoose.connect(process.env.MONGODB_URI).then(() => console.log('Connected to MongoDB')).catch(err => { console.error('MongoDB Connect Err:', err); process.exit(1); });
 
-// DOM Elements - Roulette
-const jackpotHeader = document.getElementById('jackpotHeader');
-const inlineRoulette = document.getElementById('inlineRoulette');
-const rouletteTrack = document.getElementById('rouletteTrack');
-const winnerInfo = document.getElementById('winnerInfo');
-const winnerAvatar = document.getElementById('winnerAvatar');
-const winnerName = document.getElementById('winnerName');
-const winnerDeposit = document.getElementById('winnerDeposit');
-const winnerChance = document.getElementById('winnerChance');
-const returnToJackpot = document.getElementById('returnToJackpot'); // This will be hidden, but keep the reference
-const confettiContainer = document.getElementById('confettiContainer'); // Ensure this exists
-const spinSound = document.getElementById('spinSound'); // Ensure this <audio> element exists
+// --- MongoDB Schemas ---
+const userSchema = new mongoose.Schema({ steamId: { type: String, required: true, unique: true, index: true }, username: { type: String, required: true }, avatar: { type: String }, tradeUrl: { type: String, default: '' }, balance: { type: Number, default: 0 }, createdAt: { type: Date, default: Date.now }, banned: { type: Boolean, default: false } });
+const itemSchema = new mongoose.Schema({ assetId: { type: String, required: true, index: true }, name: { type: String, required: true }, image: { type: String, required: true }, price: { type: Number, required: true }, owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, roundId: { type: mongoose.Schema.Types.ObjectId, ref: 'Round', required: true, index: true }, depositedAt: { type: Date, default: Date.now } });
+const roundSchema = new mongoose.Schema({ roundId: { type: Number, required: true, unique: true, index: true }, status: { type: String, enum: ['pending', 'active', 'rolling', 'completed', 'error'], default: 'pending', index: true }, startTime: { type: Date }, endTime: { type: Date }, completedTime: { type: Date }, totalValue: { type: Number, default: 0 }, items: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }], participants: [{ user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, itemsValue: { type: Number, required: true }, tickets: { type: Number, required: true } }], winner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, winningTicket: { type: Number }, serverSeed: { type: String, required: true }, serverSeedHash: { type: String, required: true }, clientSeed: { type: String }, provableHash: { type: String } });
+const User = mongoose.model('User', userSchema);
+const Item = mongoose.model('Item', itemSchema);
+const Round = mongoose.model('Round', roundSchema);
 
-// DOM Elements - Provably Fair
-const verifyBtn = document.getElementById('verify-btn');
-const roundsTableBody = document.getElementById('rounds-table-body');
-const roundsPagination = document.getElementById('rounds-pagination'); // Ensure this exists
+// --- Steam Bot Setup ---
+const community = new SteamCommunity();
+const manager = new TradeOfferManager({ steam: community, domain: process.env.SITE_URL ? process.env.SITE_URL.replace(/^https?:\/\//, '') : 'localhost', language: 'en', pollInterval: 15000, cancelTime: 10 * 60 * 1000 });
+let isBotReady = false; // Track bot readiness
 
-// Age Verification
-const ageVerificationModal = document.getElementById('ageVerificationModal');
-const agreeCheckbox = document.getElementById('agreeCheckbox');
-const agreeButton = document.getElementById('agreeButton');
+// --- 2FA Code Generation ---
+function generateAuthCode() { const s=process.env.STEAM_SHARED_SECRET; if(!s){console.error("STEAM_SHARED_SECRET missing.");return null;} try{return SteamTotp.generateAuthCode(s);} catch(e){console.error("2FA gen err:",e);return null;} }
+const isBotConfigured = process.env.STEAM_USERNAME && process.env.STEAM_PASSWORD && process.env.STEAM_SHARED_SECRET;
 
-// Constants
-const ROULETTE_REPETITIONS = 20; // How many times to repeat participant list (used in older logic, potentially unused now)
-const SPIN_DURATION_SECONDS = 6.5; // Duration of the main spin animation
-const WINNER_DISPLAY_DURATION = 7000; // 7 seconds for winner info display
-const CONFETTI_COUNT = 150;
+// --- Steam Bot Login ---
+if (isBotConfigured) {
+   const creds = { accountName: process.env.STEAM_USERNAME, password: process.env.STEAM_PASSWORD, twoFactorCode: generateAuthCode() };
+   if (creds.twoFactorCode) {
+       console.log(`Attempting Steam login: ${creds.accountName}...`);
+       community.login(creds, (err, sessionID, cookies) => {
+           if (err) { console.error('FATAL STEAM LOGIN ERROR:', err); isBotReady = false; }
+           else {
+               console.log(`Steam bot ${creds.accountName} logged in (ID: ${community.steamID}).`);
+               manager.setCookies(cookies, e => { if (e) { console.error('TOM cookie err:', e); isBotReady = false; return; } console.log('TOM cookies set.'); community.setCookies(cookies); community.gamesPlayed(process.env.SITE_NAME||'RustyDegen'); community.setPersona(SteamCommunity.EPersonaState.Online); isBotReady=true; console.log("Bot is ready, creating initial round..."); createNewRound(); });
+               community.on('friendRelationship',(id,rel)=>{if(rel===SteamCommunity.EFriendRelationship.RequestRecipient){console.log(`Accept friend: ${id}`); community.addFriend(id, e=>{if(e)console.error(`Friend add err ${id}:`,e);});}});
+           }
+       });
+   } else { console.warn("No 2FA code. Bot login skipped."); isBotReady = false; }
+} else { console.warn("Bot creds incomplete. Trade features disabled."); isBotReady = false; }
 
-// --- NEW Animation constants for enhanced roulette ---
-// MODIFIED: Increased power for a more dramatic final slowdown
-const EASE_OUT_POWER = 5;           // Power for ease-out curve (e.g., 3=cubic, 4=quart, 5=quint). Higher = more dramatic slowdown.
-const BOUNCE_ENABLED = false;      // Keep bounce disabled as per previous code
-const BOUNCE_OVERSHOOT_FACTOR = 0.07; // How much to overshoot initially (percentage of total distance, e.g., 0.07 = 7%)
-const BOUNCE_DAMPING = 0.35;       // How quickly the bounce decays (0 to 1, lower = decays faster, 0.3-0.5 is usually good)
-const BOUNCE_FREQUENCY = 3.5;      // How many bounces (approx). Higher = more bounces in the same time.
-// MODIFIED: Increased variation for more unpredictable stops (e.g., rollover, stop early/late)
-const LANDING_POSITION_VARIATION = 0.60; // Controls how much the final position can vary (0.60 = ±60% of an item width)
-
-// User Color Map - 20 distinct colors for players
-const userColorMap = new Map();
-const colorPalette = [
-    '#00bcd4', // Cyan
-    '#ff5722', // Deep Orange
-    '#9c27b0', // Purple
-    '#4caf50', // Green
-    '#ffeb3b', // Yellow
-    '#2196f3', // Blue
-    '#f44336', // Red
-    '#ff9800', // Orange
-    '#e91e63', // Pink
-    '#8bc34a', // Light Green
-    '#3f51b5', // Indigo
-    '#009688', // Teal
-    '#cddc39', // Lime
-    '#795548', // Brown
-    '#607d8b', // Blue Grey
-    '#673ab7', // Deep Purple
-    '#ffc107', // Amber
-    '#03a9f4', // Light Blue
-    '#9e9e9e', // Grey
-    '#8d6e63'  // Brown Light
-];
-
-// App State
-let currentUser = null;
+// --- Active Round Data ---
 let currentRound = null;
-let selectedItemsList = [];
-let userInventory = [];
-let isSpinning = false;
-let timerActive = false;
 let roundTimer = null;
-let animationFrameId = null; // To store the requestAnimationFrame ID
-let spinStartTime = 0; // Track when the spin animation starts
+let isRolling = false;
 
-// --- Helper Functions ---
-function showModal(modalElement) {
-    if (modalElement) modalElement.style.display = 'flex';
-    console.log('Showing modal:', modalElement?.id);
-}
+// --- Deposit Security Token Store ---
+const depositTokens = {};
+function generateDepositToken(userId){const t=crypto.randomBytes(16).toString('hex'); const exp=Date.now()+DEPOSIT_TOKEN_EXPIRY_MS; depositTokens[t]={userId:userId.toString(),expiry:exp}; console.log(`Gen token ${t} for ${userId}`); setTimeout(()=>{if(depositTokens[t]?.expiry<=Date.now()){delete depositTokens[t];console.log(`Expired token ${t}`);}},DEPOSIT_TOKEN_EXPIRY_MS+1000); return t;}
+async function verifyDepositToken(token, partnerSteamId){const s=depositTokens[token]; if(!s||s.expiry<=Date.now()){if(s)delete depositTokens[token];console.log(`Token ${token} invalid/expired.`);return null;} try{const u=await User.findOne({steamId:partnerSteamId}).lean(); if(!u||u._id.toString()!==s.userId){console.log(`Token ${token} verify fail.`);return null;} delete depositTokens[token]; console.log(`Verified token ${token} for ${u.username}`); return u;} catch(err){console.error(`Token verify err ${token}:`,err);return null;}}
 
-function hideModal(modalElement) {
-    if (modalElement) modalElement.style.display = 'none';
-    console.log('Hiding modal:', modalElement?.id);
-}
+// --- Pricing Cache and Functions --- NEW APPROACH ---
+const priceCache = new NodeCache({ stdTTL: PRICE_CACHE_TTL_SECONDS, checkperiod: PRICE_CACHE_TTL_SECONDS * 0.2 });
 
-function showPage(pageElement) {
-    [homePage, faqPage, fairPage].forEach(page => { if (page) page.style.display = 'none'; });
-    if (pageElement) pageElement.style.display = 'block';
-    console.log('Showing page:', pageElement?.id);
-    // Update active link state
-    document.querySelectorAll('.main-nav a, .side-nav a').forEach(link => link.classList.remove('active'));
-    if (pageElement === homePage && homeLink) homeLink.classList.add('active');
-    if (pageElement === faqPage && faqLink) faqLink.classList.add('active');
-    if (pageElement === fairPage && fairLink) fairLink.classList.add('active');
-    // Load data if showing fair page
-    if (pageElement === fairPage) loadPastRounds();
-}
+// Fallback function remains the same
+function getFallbackPrice(marketHashName) { const ci={'AK-47 | Alien Red': 45.00, 'Metal Chest Plate':5.20,'Semi-Automatic Rifle':10.00,'Garage Door':3.50,'Assault Rifle':8.50,'Metal Facemask':6.00,'Road Sign Kilt':1.50,'Coffee Can Helmet':1.20,'Double Barrel Shotgun':0.80,'Revolver':0.50,'Sheet Metal Door':0.75,'Medical Syringe':0.15,'MP5A4':2.50,'Python Revolver':1.80,'Satchel Charge':0.60,'Rocket Launcher':12.00,'Explosive 5.56 Rifle Ammo':0.20,'Timed Explosive Charge':4.50, 'Pump Shotgun': 1.00, 'Waterpipe Shotgun': 0.60, 'Thompson': 2.00,'Custom SMG': 1.50, 'Bolt Action Rifle': 9.00, 'L96 Rifle': 15.00,'M249': 18.00, 'Large Wood Box': 0.30, 'Small Oil Refinery': 1.00,'Furnace': 0.25, 'Blue Beenie Hat': 0.15, 'Blue Hoodie': 0.40, 'Wooden Door': 0.15 }; const fb=ci[marketHashName]; const minV=MIN_ITEM_VALUE>0?MIN_ITEM_VALUE:0; if(fb!==undefined){console.warn(`PRICE_INFO: Using fallback $${fb.toFixed(2)} for: ${marketHashName}`); return Math.max(fb,minV);}else{console.warn(`PRICE_INFO: No specific fallback for ${marketHashName}, using min $${minV.toFixed(2)}.`); return minV;}}
 
-// Get consistent color for user
-function getUserColor(userId) {
-    if (!userColorMap.has(userId)) {
-        // Assign a consistent color from the palette
-        const colorIndex = userColorMap.size % colorPalette.length;
-        userColorMap.set(userId, colorPalette[colorIndex]);
-    }
-    return userColorMap.get(userId);
-}
+/**
+ * Fetches ALL item prices from rust.scmm.app and updates the local cache.
+ */
+async function refreshPriceCache() {
+    console.log("PRICE_INFO: Attempting to refresh price cache from rust.scmm.app...");
+    const apiUrl = `https://rust.scmm.app/api/item/prices?currency=USD`;
 
-function showNotification(title, message) {
-    console.log(`Notification: ${title} - ${message}`);
-    // Replace with a more sophisticated notification system if available
-    alert(`Notification: ${title}\n${message}`); // Basic alert fallback
-}
-
-function shuffleArray(array) {
-    let currentIndex = array.length, randomIndex;
-    while (currentIndex !== 0) {
-        randomIndex = Math.floor(Math.random() * currentIndex);
-        currentIndex--;
-        [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
-    }
-    return array;
-}
-
-async function showRoundDetails(roundId) {
-    console.log(`Showing details for round ${roundId}`);
     try {
-        const response = await fetch(`/api/rounds/${roundId}`);
-        if (!response.ok) throw new Error(`Failed to fetch round details (${response.status})`);
-        const roundData = await response.json();
-        // Consider showing details in a modal instead of alert for better UX
-        alert(`Round Details (ID: ${roundId}):\nWinner: ${roundData.winner?.username || 'N/A'}\nValue: ${roundData.totalValue?.toFixed(2)}\nServer Seed: ${roundData.serverSeed || 'N/A'}\nClient Seed: ${roundData.clientSeed || 'N/A'}\nWinning Ticket: ${roundData.winningTicket}`);
+        const response = await axios.get(apiUrl, { timeout: PRICE_FETCH_TIMEOUT_MS }); // Use configured timeout
+
+        if (response.data && Array.isArray(response.data)) {
+            const items = response.data;
+            let updatedCount = 0;
+            let newItems = [];
+
+            items.forEach(item => {
+                // ** Correction for Price Magnitude **
+                // Assuming SCMM API returns price in the smallest currency unit (e.g., cents for USD)
+                if (item?.name && typeof item.price === 'number' && item.price >= 0) { // Check if price is a non-negative number
+                    const key = item.name;
+                    // Divide by 100 to convert from cents (or smallest unit) to dollars/main unit
+                    const priceInDollars = item.price / 100.0;
+
+                    // Add to cache list (even if $0, as API provided it)
+                    newItems.push({ key: key, val: priceInDollars, ttl: PRICE_CACHE_TTL_SECONDS });
+                    updatedCount++;
+
+                    // Optional: Log if price was exactly 0 from API
+                    // if (item.price === 0) {
+                    //     console.log(`PRICE_DEBUG: Storing $0.00 from API for ${key}`);
+                    // }
+                } else if (item?.name) { // Log items with invalid price fields
+                     console.warn(`PRICE_WARN: Invalid or missing price field for item ${item.name} in SCMM response. Raw price: ${item.price}`);
+                }
+            });
+
+            if (newItems.length > 0) {
+                const success = priceCache.mset(newItems);
+                if (success) { console.log(`PRICE_SUCCESS: Refreshed price cache with ${updatedCount} items from rust.scmm.app.`); }
+                else { console.error("PRICE_ERROR: Failed to bulk set price cache."); }
+            } else { console.warn("PRICE_WARN: No valid items found in the response from rust.scmm.app price refresh."); }
+        } else {
+            console.error("PRICE_ERROR: Invalid or empty array response received from rust.scmm.app price refresh. Response:", response.data);
+        }
     } catch (error) {
-        showNotification('Error', `Could not load details for round ${roundId}: ${error.message}`);
-        console.error('Error fetching round details:', error);
+        console.error(`PRICE_ERROR: Failed to fetch prices from ${apiUrl}.`);
+        if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+             console.error(` -> Error: Request timed out after ${PRICE_FETCH_TIMEOUT_MS}ms. SCMM API might be slow/unreachable.`);
+        } else if (error.response) { console.error(` -> Status: ${error.response.status}, Response:`, error.response.data || error.message); }
+        else if (error.request) { console.error(` -> Error: No response received (Network issue?).`, error.message); }
+        else { console.error(' -> Error setting up request:', error.message); }
     }
 }
 
-// --- UPDATED EASING LOGIC ---
-
 /**
- * Calculates the eased progress using an ease-out function.
- * Uses EASE_OUT_POWER to control the curve. Higher power = more dramatic slowdown at the end.
- * @param {number} t - Normalized time (0 to 1)
- * @returns {number} Eased progress (0 to 1)
+ * Gets item price from local cache, falling back if not found.
+ * @param {string} marketHashName
+ * @returns {number} Price in USD
  */
-function easeOutAnimation(t) {
-    // Clamp input time t to the range [0, 1]
-    const clampedT = Math.max(0, Math.min(1, t));
-    return 1 - Math.pow(1 - clampedT, EASE_OUT_POWER);
-}
-
-/**
- * Calculates the bounce effect displacement after the main ease-out animation finishes.
- * @param {number} t - Normalized time *after* the main animation (0 to 1, represents bounce phase)
- * @returns {number} Normalized bounce displacement (-1 to 1, relative to overshoot amount)
- */
-function calculateBounce(t) {
-    if (!BOUNCE_ENABLED) return 0;
-    // Clamp input time t to the range [0, 1]
-    const clampedT = Math.max(0, Math.min(1, t));
-    // Simple decaying sine wave for bounce effect
-    const decay = Math.exp(-clampedT / BOUNCE_DAMPING); // Exponential decay
-    const oscillations = Math.sin(clampedT * Math.PI * 2 * BOUNCE_FREQUENCY); // Sine wave for oscillation
-    // Start the bounce from the overshoot position (positive displacement initially)
-    // We multiply by -1 because the initial overshoot moves opposite to the first bounce swing
-    return -decay * oscillations;
-}
-
-// Helper functions for color manipulation
-function getComplementaryColor(hex) {
-    // Remove # if present
-    hex = hex.replace('#', '');
-
-    // Convert to RGB
-    let r = parseInt(hex.substring(0, 2), 16);
-    let g = parseInt(hex.substring(2, 4), 16);
-    let b = parseInt(hex.substring(4, 6), 16);
-
-    // Invert the colors
-    r = 255 - r;
-    g = 255 - g;
-    b = 255 - b;
-
-    // Convert back to hex
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-}
-
-function lightenColor(hex, percent) {
-    // Remove # if present
-    hex = hex.replace('#', '');
-
-    // Convert to RGB
-    let r = parseInt(hex.substring(0, 2), 16);
-    let g = parseInt(hex.substring(2, 4), 16);
-    let b = parseInt(hex.substring(4, 6), 16);
-
-    // Lighten
-    r = Math.min(255, Math.floor(r + (255 - r) * (percent / 100)));
-    g = Math.min(255, Math.floor(g + (255 - g) * (percent / 100)));
-    b = Math.min(255, Math.floor(b + (255 - b) * (percent / 100)));
-
-    // Convert back to hex
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-}
-
-function darkenColor(hex, percent) {
-    // Remove # if present
-    hex = hex.replace('#', '');
-
-    // Convert to RGB
-    let r = parseInt(hex.substring(0, 2), 16);
-    let g = parseInt(hex.substring(2, 4), 16);
-    let b = parseInt(hex.substring(4, 6), 16);
-
-    // Darken
-    r = Math.max(0, Math.floor(r * (1 - percent / 100)));
-    g = Math.max(0, Math.floor(g * (1 - percent / 100)));
-    b = Math.max(0, Math.floor(b * (1 - percent / 100)));
-
-    // Convert back to hex
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-}
-
-// Initialize the application
-document.addEventListener('DOMContentLoaded', function() {
-    if (ageVerificationModal && !localStorage.getItem('ageVerified')) {
-        showModal(ageVerificationModal);
+function getItemPrice(marketHashName) {
+    const cachedPrice = priceCache.get(marketHashName);
+    // Check if the value exists in cache (it might be 0, which is valid now)
+    if (cachedPrice !== undefined) {
+        // console.log(`PRICE_INFO: Cache hit for ${marketHashName}: $${cachedPrice.toFixed(2)}`); // Optional
+        return cachedPrice;
+    } else {
+        // console.warn(`PRICE_WARN: Cache miss for ${marketHashName}. Using fallback.`); // Optional
+        return getFallbackPrice(marketHashName); // Use fallback if not in cache
     }
-    checkLoginStatus();
-    setupEventListeners();
-    setupSocketConnection();
-    showPage(homePage); // Default to home page
+}
+
+
+// --- Core Game Logic --- (No changes needed here)
+async function createNewRound() { if (isRolling) return; try { isRolling=false; const sS=crypto.randomBytes(32).toString('hex'); const sSH=crypto.createHash('sha256').update(sS).digest('hex'); const lR=await Round.findOne().sort('-rId'); const nId=lR?lR.rId+1:1; const r=new Round({rId:nId,s:'a',st:new Date(),sS,sSH,i:[],p:[],tV:0}); await r.save(); currentRound=r; startRoundTimer(); io.emit('rC',{rId:r.rId,sSH:r.sSH,tL:ROUND_DURATION,tV:0,p:[],i:[]}); console.log(`Round ${r.rId} created.`); return r; } catch (err) { console.error('Create round err:', err); setTimeout(createNewRound, 10000); } }
+function startRoundTimer() { if (roundTimer) clearInterval(roundTimer); if (!currentRound?.startTime) { console.error("Start timer invalid state."); return; } currentRound.endTime=new Date(currentRound.startTime.getTime()+ROUND_DURATION*1000); currentRound.save().catch(e=>console.error("Save end time err:",e)); let tL=ROUND_DURATION; io.emit('tU',{tL}); roundTimer=setInterval(async()=>{ if(!currentRound?.endTime){clearInterval(roundTimer);roundTimer=null;console.error("Timer invalid state.");return;} const n=Date.now(); tL=Math.max(0,Math.floor((currentRound.endTime.getTime()-n)/1000)); io.emit('tU',{tL}); if(tL<=0){clearInterval(roundTimer);roundTimer=null;await endRound();} },1000); console.log(`Round ${currentRound.rId} timer start (${ROUND_DURATION}s).`); }
+async function endRound() { if (!currentRound || isRolling || currentRound.status !== 'active') return; isRolling = true; console.log(`Ending round ${currentRound.roundId}...`); currentRound.status = 'rolling'; currentRound.endTime = new Date(); await currentRound.save(); io.emit('rRoll',{rId:currentRound.rId}); try { const round = await Round.findById(currentRound._id).populate('participants.user','u a s tU').populate('items'); if (!round) throw new Error(`Round ${currentRound._id} missing.`); currentRound=round; if (round.participants.length === 0 || round.totalValue <= 0) { console.log(`Round ${round.rId} empty.`); round.status='completed'; round.completedTime=new Date(); await round.save(); io.emit('rComp',{rId:round.rId, m:"Empty."}); } else { round.clientSeed=crypto.randomBytes(16).toString('hex'); const cbS=round.serverSeed+round.clientSeed; round.provableHash=crypto.createHash('sha256').update(cbS).digest('hex'); const dec=parseInt(round.provableHash.substring(0,8),16); const tT=round.participants.reduce((s,p)=>s+(p?.t||0),0); if(tT<=0) throw new Error(`Zero tickets round ${round.rId}.`); round.winningTicket=dec%tT; let tC=0, winner=null; for(const p of round.participants){if(!p?.t)continue; tC+=p.tickets; if(round.winningTicket<tC){winner=p.user;break;}} if(!winner) throw new Error(`Winner fail ${round.rId}.`); round.winner=winner._id; round.status='completed'; await round.save(); console.log(`Round ${round.rId} end. W: ${winner.username} (${round.winningTicket})`); io.emit('rWin',{rId:round.rId, w:{id:winner._id,sId:winner.sId,u:winner.u,a:winner.a}, wT:round.wT, tV:round.tV, tT:tT, sS:round.sS, cS:round.cS, pH:round.pH, sSH:round.sSH}); await sendWinningTradeOffer(round, winner); round.completedTime=new Date(); await round.save(); } } catch(err) { console.error(`End round err ${currentRound?.rId}:`, err); if(currentRound){currentRound.status='error';await currentRound.save().catch(e=>console.error("Save err status:",e)); io.emit('rErr',{rId:currentRound.rId, e:'Internal error.'});}} finally { isRolling=false; console.log("Scheduling next round..."); setTimeout(createNewRound, 10000); } }
+async function sendWinningTradeOffer(round, winner) { if (!isBotReady) { console.error(`Cannot send winnings ${round.rId}: Bot not ready.`); io.emit('notif',{t:'warn', uId:winner._id.toString(), m:`Payout round ${round.rId} manual.`}); return; } console.log(`Sending winnings ${round.rId} to ${winner.username}...`); if (!winner.tradeUrl) { console.error(`Winner ${winner.u} no TU.`); io.emit('notif',{t:'err',uId:winner._id.toString(), m:'Set TU for winnings.'}); return; } if (!round.items?.length) { console.warn(`Round ${round.rId} no items.`); return; } try { const offer=manager.createOffer(winner.tradeUrl); offer.addMyItems(round.items.map(i=>({assetid:i.assetId,appid:RUST_APP_ID,contextid:RUST_CONTEXT_ID}))); offer.setMessage(`Win Round ${round.rId} on ${process.env.SITE_NAME||'RustyDegen'}!`); const st=await new Promise((res,rej)=>{offer.send((e,s)=>e?rej(e):res(s));}); console.log(`Offer ${offer.id} sent ${winner.u}. Status: ${st}`); io.emit('tOS',{rId:round.rId,uId:winner._id,u:winner.u,oId:offer.id, s:st}); } catch(err){ console.error(`Fail send offer ${round.rId}:`, err); io.emit('notif',{t:'err', uId:winner._id.toString(), m:`Fail send win ${round.rId}. Contact support.`}); } }
+
+// --- Authentication Routes ---
+app.get('/auth/steam', passport.authenticate('steam', { failureRedirect: '/' }));
+app.get('/auth/steam/return', passport.authenticate('steam', { failureRedirect: '/' }), (req, res) => { res.redirect('/'); });
+app.post('/logout', (req, res, next) => { req.logout(e => { if(e) return next(e); req.session.destroy(e => { if(e) return res.status(500).json({e:'Logout failed'}); res.clearCookie('connect.sid'); res.json({success:true}); }); }); });
+
+// --- Middleware & API Routes ---
+function ensureAuthenticated(req, res, next) { if (req.isAuthenticated()) return next(); res.status(401).json({ error: 'Not authenticated' }); }
+app.get('/api/user', ensureAuthenticated, (req, res) => { const { _id, steamId, username, avatar, tradeUrl, balance, createdAt } = req.user; res.json({ _id, steamId, username, avatar, tradeUrl, balance, createdAt }); });
+app.post('/api/user/tradeurl', ensureAuthenticated, async (req, res) => { const { tradeUrl } = req.body; if (!tradeUrl?.includes('steamcommunity.com/tradeoffer/new/')) return res.status(400).json({e:'Invalid format'}); try { const url = new URL(tradeUrl); if (!url.searchParams.get('partner') || !url.searchParams.get('token')) return res.status(400).json({ e:'Invalid params'}); } catch (e) { return res.status(400).json({ e:'Invalid URL'}); } try { const u = await User.findByIdAndUpdate(req.user._id, {tradeUrl},{new:true}); if(!u) return res.status(404).json({e:'User missing'}); console.log(`TU Upd: ${u.username}`); res.json({success:true, tradeUrl:u.tradeUrl}); } catch(err) { console.error(`TU Upd Err ${req.user._id}:`, err); res.status(500).json({e:'Server error'}); } });
+
+// GET USER INVENTORY - Uses getItemPrice (which reads cache)
+app.get('/api/inventory', ensureAuthenticated, async (req, res) => {
+    try {
+       if (!manager) { console.error("Inv API fail: TOM not init."); return res.status(503).json({ error: "Trade service initialization failed." }); }
+        const inventory = await new Promise((resolve, reject) => {
+            manager.getUserInventoryContents(req.user.steamId, RUST_APP_ID, RUST_CONTEXT_ID, true, (err, inv) => {
+                if (err) { if (err.message?.includes('profile is private')) return reject(new Error('Inv private.')); console.error(`Inv Fetch Err (Mgr): User ${req.user.steamId}:`, err.message||err); return reject(new Error(`Could not fetch inventory: ${err.message||'Steam err'}. Bot offline/Inv private?`)); }
+                resolve(inv || []);
+            });
+        });
+        if (!inventory?.length) return res.json([]);
+        // Get prices from cache (or fallback) - This is now synchronous
+        const itemsWithPrices = inventory.map(item => {
+             const itemName = item.market_hash_name;
+             let price = 0;
+             if(itemName) { price = getItemPrice(itemName); } // Reads cache/fallback
+             else { console.warn(`Inv item missing name: assetId ${item.assetid}`); }
+             return { assetId: item.assetid, name: itemName || 'Unknown Item', displayName: item.name, image: `https://community.akamai.steamstatic.com/economy/image/${item.icon_url}`, price: price || 0, tradable: item.tradable, marketable: item.marketable };
+        });
+        const validItems = itemsWithPrices.filter(item => item.tradable && item.price >= MIN_ITEM_VALUE );
+        res.json(validItems);
+    } catch (err) { console.error(`Error in /api/inventory for ${req.user?.username}:`, err.message); res.status(500).json({ error: err.message || 'Server error fetching inventory.' }); }
 });
 
-// Setup event listeners
-function setupEventListeners() {
-    // Navigation
-    if (homeLink) homeLink.addEventListener('click', (e) => { e.preventDefault(); showPage(homePage); });
-    if (faqLink) faqLink.addEventListener('click', (e) => { e.preventDefault(); showPage(faqPage); });
-    if (fairLink) fairLink.addEventListener('click', (e) => { e.preventDefault(); showPage(fairPage); });
+// Initiate Deposit - REQUIRES BOT READY
+app.post('/api/deposit/initiate', ensureAuthenticated, (req, res) => { if (!isBotReady || !process.env.BOT_TRADE_URL) { console.warn(`Deposit init fail ${req.user.username}: Bot unavailable.`); return res.status(503).json({ error: "Deposit service unavailable." }); } if (!currentRound || currentRound.status !== 'active' || isRolling) { return res.status(400).json({ error: 'Deposits closed.' }); } const token = generateDepositToken(req.user._id); res.json({ success: true, depositToken: token, botTradeUrl: process.env.BOT_TRADE_URL }); });
 
-    // Login
-    if (loginButton) loginButton.addEventListener('click', () => { window.location.href = '/auth/steam'; });
+// --- Trade Offer Manager Event Handling --- Uses getItemPrice (cache)
+if (isBotConfigured) {
+   manager.on('newOffer', async (offer) => {
+       if (!isBotReady) return;
+       if(offer.isOurOffer||offer.itemsToReceive.length===0||!offer.message)return; if(!currentRound||currentRound.status!=='active'||isRolling){console.log(`Offer ${offer.id} dep closed.`);return offer.decline().catch(e=>console.error(`Decline err ${offer.id}:`,e));} const token=offer.message.trim(); let user; try{user=await verifyDepositToken(token,offer.partner.getSteamID64()); if(!user){console.log(`Offer ${offer.id} invalid token.`);return offer.decline().catch(e=>console.error(`Decline err ${offer.id}:`,e));}}catch(vErr){console.error(`Token verify err ${offer.id}:`,vErr);return offer.decline().catch(e=>console.error(`Decline err ${offer.id}:`,e));}
+       try{
+            const itemsToProcess = offer.itemsToReceive.map(item => { if (!item.market_hash_name) { console.warn(`Asset ${item.assetid} missing name. Skip.`); return null; } const price = getItemPrice(item.market_hash_name); const itemValue = parseFloat(price)||0; if (itemValue < MIN_ITEM_VALUE) return null; return { assetId: item.assetid, name: item.market_hash_name, image: `https://community.akamai.steamstatic.com/economy/image/${item.icon_url}`, price: itemValue, owner: user._id, roundId: currentRound._id }; }).filter(i => i !== null);
+            const depositTotalValue=itemsToProcess.reduce((s,i)=>s+i.price,0);
+            if(itemsToProcess.length===0){console.log(`Offer ${offer.id} no valid items.`);return offer.decline().catch(e=>console.error(`Decline err ${offer.id}:`,e));}
+            offer.accept(async(err,st)=>{ if(err){console.error(`Accept err ${offer.id}:`,err.message||err);if(err.message?.includes('escrow'))console.warn(`Offer ${offer.id} escrow.`);return;} console.log(`Offer ${offer.id} accepted: ${st}. DB Update...`); const latestR=await Round.findById(currentRound._id); if(!latestR||latestR.status!=='active'||isRolling){console.error(`CRITICAL: Round changed after accept ${offer.id}!`);return;} try{const cItems=await Item.insertMany(itemsToProcess); const cIds=cItems.map(i=>i._id); latestR.items.push(...cIds); latestR.totalValue+=depositTotalValue; const tks=Math.max(0,Math.floor(depositTotalValue/TICKET_VALUE_RATIO)); const pIdx=latestR.participants.findIndex(p=>p.user?.equals(user._id)); if(pIdx>-1){latestR.participants[pIdx].itemsValue+=depositTotalValue;latestR.participants[pIdx].tickets+=tks;}else{latestR.participants.push({user:user._id,itemsValue:depositTotalValue,tickets:tks});} await latestR.save(); currentRound=latestR; const pData=latestR.participants.find(p=>p.user?.equals(user._id)); io.emit('participantUpdated',{roundId:latestR.roundId,userId:user._id,username:user.username,avatar:user.avatar,itemsValue:pData?.itemsValue||0,tickets:pData?.tickets||0,totalValue:latestR.totalValue}); cItems.forEach(item=>{io.emit('itemDeposited',{roundId:latestR.roundId,item:{id:item._id,name:item.name,image:item.image,price:item.price},user:{id:user._id,username:user.username,avatar:user.avatar}});}); console.log(`Deposit success ${offer.id}. User: ${user.username}, Val: ${depositTotalValue.toFixed(2)}`);}catch(dbErr){console.error(`CRITICAL DB error after accept ${offer.id}:`,dbErr);if(currentRound){await Round.updateOne({_id:currentRound._id},{$set:{status:'error'}}).catch(e=>console.error("Save err status:",e));io.emit('roundError',{roundId:currentRound.roundId, error:'Deposit error.'});}}});
+        }catch(procErr){console.error(`Price processing err ${offer.id}:`,procErr);return offer.decline().catch(e=>{if(e)console.error(`Decline err ${offer.id}:`,e);});}
+   });
+   manager.on('sentOfferChanged', (offer, oldState) => { console.log(`Offer #${offer.id} state change: ${TradeOfferManager.ETradeOfferState[oldState]}->${TradeOfferManager.ETradeOfferState[offer.state]}`); /* Handle winner payouts */ });
+} else { console.warn("Bot not configured. Trade listeners inactive."); }
 
-    // Deposit Modal Trigger
-    if (showDepositModal) {
-        showDepositModal.addEventListener('click', () => {
-            if (!currentUser) { showNotification('Login Required', 'Please log in first to deposit items.'); return; }
-            if (!currentUser.tradeUrl) {
-                if (tradeUrlModal) showModal(tradeUrlModal); else showNotification('Trade URL Missing', 'Please set your Steam Trade URL.');
-                return;
+// --- Round Info API Routes --- (Unchanged)
+app.get('/api/round/current', async (req, res) => { /* ... */ if (!currentRound?._id) return res.status(404).json({e:'No active round.'}); try { const r = await Round.findById(currentRound._id).populate('participants.user', 'username avatar steamId').populate('items', 'name image price owner').lean(); if (!r){currentRound=null;return res.status(404).json({e:'Round data invalid.'});} const t = r.status==='active'&&r.endTime?Math.max(0,Math.floor((new Date(r.endTime).getTime()-Date.now())/1000)):0; res.json({roundId:r.roundId, status:r.status, startTime:r.startTime, endTime:r.endTime, timeLeft:t, totalValue:r.totalValue, serverSeedHash:r.serverSeedHash, participants:r.participants.map(p=>({user:p.user?{id:p.user._id,steamId:p.user.steamId,username:p.user.username,avatar:p.user.avatar}:null, itemsValue:p.itemsValue, tickets:p.tickets})).filter(p=>p.user), items:r.items.map(i=>({id:i._id, name:i.name, image:i.image, price:i.price, owner:i.owner})), winner:r.winner, winningTicket:r.status==='completed'?r.winningTicket:null, serverSeed:r.status==='completed'?r.serverSeed:null, clientSeed:r.status==='completed'?r.clientSeed:null, provableHash:r.status==='completed'?r.provableHash:null }); } catch(err){ console.error('Err fetch current round:', err); res.status(500).json({e:'Server error'}); } });
+app.get('/api/rounds', async (req, res) => { /* ... */ try { const p=parseInt(req.query.page)||1; const l=parseInt(req.query.limit)||10; const s=(p-1)*l; const qR=Round.find({status:{$in:['completed','error']}}).sort('-roundId').skip(s).limit(l).populate('winner','username avatar steamId').select('roundId startTime endTime completedTime totalValue winner serverSeed serverSeedHash clientSeed winningTicket provableHash status participants items').lean(); const qC=Round.countDocuments({status:{$in:['completed','error']}}); const [rs,c]=await Promise.all([qR,qC]); rs.forEach(r=>{r.totalTickets=r.participants?.reduce((sm,p)=>sm+(p?.t||0),0)??0; r.itemCount=r.items?.length??0; delete r.participants; delete r.items;}); res.json({rounds:rs, totalPages:Math.ceil(c/l), currentPage:p, totalRounds:c}); } catch(err){ console.error('Err fetch rounds:', err); res.status(500).json({e:'Server error'}); } });
+app.post('/api/verify', async (req, res) => { /* ... */ const { roundId, serverSeed, clientSeed }=req.body; if(!roundId||!serverSeed||!clientSeed) return res.status(400).json({e:'Missing fields'}); try { const r=await Round.findOne({roundId:roundId, status:'completed'}).populate('participants.user','username').populate('winner','username').lean(); if(!r) return res.status(404).json({e:'Round not found.'}); const csH=crypto.createHash('sha256').update(serverSeed).digest('hex'); if(csH!==r.serverSeedHash) return res.json({verified:false, reason:'Hash mismatch.'}); if(serverSeed!==r.serverSeed||clientSeed!==r.clientSeed) return res.json({verified:false, reason:'Seeds mismatch.'}); const cbS=serverSeed+clientSeed; const cpHS=crypto.createHash('sha256').update(cbS).digest('hex'); const dec=parseInt(cpHS.substring(0,8),16); const tT=r.participants?.reduce((sm,p)=>sm+(p?.t||0),0)??0; if(tT<=0) return res.json({verified:false, reason:'Zero tickets.'}); const cwT=dec%tT; if(cwT!==r.winningTicket) return res.json({verified:false, reason:'Ticket mismatch.'}); res.json({verified:true, roundId:r.rId, serverSeed:sS, serverSeedHash:r.sSH, clientSeed:cS, combinedHash:cpHS, winningTicket:cwT, totalTickets:tT, totalValue:r.tV, winnerUsername:r.winner?.u||'N/A'}); } catch(err){ console.error(`Verify err ${roundId}:`,err); res.status(500).json({e:'Server error'}); } });
+
+// --- Socket.io Connection Handling ---
+io.on('connection', (socket) => { /* ... unchanged ... */ console.log(`Client connected: ${socket.id}`); if(currentRound?._id){ Round.findById(currentRound._id).populate('participants.user','username avatar steamId').populate('items','name image price owner').lean().then(r=>{ if(r){ const t=r.status==='active'&&r.endTime?Math.max(0,Math.floor((new Date(r.endTime).getTime()-Date.now())/1000)):0; socket.emit('roundData',{roundId:r.roundId, status:r.status, timeLeft:t, totalValue:r.totalValue, serverSeedHash:r.serverSeedHash, participants:r.participants.map(p=>({user:p.user?{id:p.user._id,steamId:p.user.steamId,username:p.user.username,avatar:p.user.avatar}:null, itemsValue:p.itemsValue, tickets:p.tickets})).filter(p=>p.user), items:r.items.map(i=>({id:i._id, name:i.name, image:i.image, price:i.price, owner:i.owner}))}); } else { socket.emit('noActiveRound'); } }).catch(e=>{console.error(`Sock fetch err ${socket.id}:`,e); socket.emit('noActiveRound');}); } else { socket.emit('noActiveRound'); } socket.on('disconnect',(rsn)=>{console.log(`Client disconnected: ${socket.id}. R: ${rsn}`);}); });
+
+// --- Server Startup ---
+// Moved initial cache refresh to happen *before* starting the interval/listening
+async function startApp() {
+    console.log("Performing initial price cache refresh from rust.scmm.app...");
+    await refreshPriceCache(); // Wait for the first refresh attempt
+
+    // Schedule periodic cache refresh AFTER the first one is done
+    setInterval(refreshPriceCache, PRICE_REFRESH_INTERVAL_MS);
+    console.log(`Scheduled price cache refresh every ${PRICE_REFRESH_INTERVAL_MS / 60000} minutes.`);
+
+    // Start HTTP server AFTER initial cache attempt
+    const PORT = process.env.PORT || 3000;
+    server.listen(PORT, () => {
+        console.log(`Server listening on port ${PORT}`);
+
+        // Bot status check (initial round creation moved to login callback)
+        if (!isBotConfigured) { console.log("Bot not configured. Trade features disabled."); }
+        else if (!isBotReady) { console.log("Waiting for bot login attempt..."); }
+
+        // Pricing API Test (will now use cache from initial refresh or fallback)
+        setTimeout(async () => {
+           console.log("Testing Pricing API on startup (uses cache/fallback)...");
+           const testItem1 = "Assault Rifle"; // Common item
+           const testItem2 = "Blue Beenie Hat"; // Low value item
+           try {
+               const price1 = getItemPrice(testItem1); // Reads cache/fallback
+               console.log(`TEST: Price for ${testItem1}: ${price1 !== undefined ? `$${price1.toFixed(2)}` : 'Error/Not Found'}`);
+               const price2 = getItemPrice(testItem2); // Reads cache/fallback
+               console.log(`TEST: Price for ${testItem2}: ${price2 !== undefined ? `$${price2.toFixed(2)}` : 'Error/Not Found'}`);
             }
-            if (depositModal) { showModal(depositModal); loadUserInventory(); }
-        });
-    }
-
-    // Deposit Modal Close
-    if (closeDepositModal) closeDepositModal.addEventListener('click', () => { if (depositModal) hideModal(depositModal); });
-    if (depositButton) depositButton.addEventListener('click', submitDeposit);
-
-    // Trade URL Modal Close
-    if (closeTradeUrlModal) closeTradeUrlModal.addEventListener('click', () => { if (tradeUrlModal) hideModal(tradeUrlModal); });
-    if (saveTradeUrl) saveTradeUrl.addEventListener('click', saveUserTradeUrl);
-
-    // Age Verification
-    if (agreeCheckbox && agreeButton && ageVerificationModal) {
-        agreeCheckbox.addEventListener('change', () => { agreeButton.disabled = !agreeCheckbox.checked; });
-        agreeButton.addEventListener('click', () => { if (agreeCheckbox.checked) { localStorage.setItem('ageVerified', 'true'); hideModal(ageVerificationModal); } });
-        agreeButton.disabled = !agreeCheckbox.checked;
-    }
-
-    // Test Spin Button (If you have one)
-    const testSpinButton = document.getElementById('testSpinButton');
-    if (testSpinButton) testSpinButton.addEventListener('click', testRouletteAnimation);
-
-    // Provably Fair Verify Button
-    if (verifyBtn) verifyBtn.addEventListener('click', verifyRound);
-
-    // Handle clicks outside modals
-    window.addEventListener('click', (e) => {
-        if (depositModal && e.target === depositModal) hideModal(depositModal);
-        if (tradeUrlModal && e.target === tradeUrlModal) hideModal(tradeUrlModal);
-        // Add other modals here if needed (e.g., age verification)
-        if (ageVerificationModal && e.target === ageVerificationModal && localStorage.getItem('ageVerified')) {
-            // Optional: hide age modal on outside click only if already verified?
-            // hideModal(ageVerificationModal);
-        }
-    });
-
-    // Add keyboard event listeners for spinning (optional test)
-    document.addEventListener('keydown', function(event) {
-        // Easter egg: Press spacebar to test the roulette while on home page
-        if (event.code === 'Space' && homePage.style.display === 'block' && !isSpinning) {
-            // Only if not already spinning
-            testRouletteAnimation();
-            event.preventDefault(); // Prevent page scrolling
-        }
+           catch(e){ console.error("Error testing price API:", e);}
+        }, 2000); // Run test slightly sooner after listen starts
     });
 }
 
-// Socket connection and events
-function setupSocketConnection() {
-    socket.on('connect', () => { console.log('Socket connected:', socket.id); socket.emit('requestRoundData'); });
-    socket.on('disconnect', (reason) => { console.log('Socket disconnected:', reason); showNotification('Connection Lost', 'Disconnected from server.'); });
-    socket.on('connect_error', (error) => { console.error('Socket connection error:', error); showNotification('Connection Error', 'Could not connect to server.'); });
-    socket.on('roundCreated', (data) => { console.log('New round created:', data); currentRound = data; updateRoundUI(); resetToJackpotView(); });
-    socket.on('participantUpdated', (data) => {
-        console.log('Participant updated:', data);
-        if (currentRound && data.roundId === currentRound.id) {
-            updateParticipantUI(data.participant);
-        }
-    });
-    socket.on('timerUpdated', (data) => {
-        console.log('Timer updated:', data);
-        if (currentRound && data.roundId === currentRound.id) {
-            updateTimerUI(data.seconds);
-        }
-    });
-    socket.on('roundEnded', (data) => {
-        console.log('Round ended:', data);
-        if (currentRound && data.roundId === currentRound.id) {
-            currentRound.winner = data.winner;
-            currentRound.winningTicket = data.winningTicket;
-            startRouletteAnimation(data);
-        }
-    });
-    socket.on('error', (error) => { console.error('Socket error:', error); showNotification('Error', error.message || 'An error occurred.'); });
-}
+startApp(); // Call the async startup function
 
-// Check login status
-async function checkLoginStatus() {
-    try {
-        const response = await fetch('/api/user/me');
-        if (response.ok) {
-            const userData = await response.json();
-            console.log('User data:', userData);
-            currentUser = userData;
-            updateUserUI();
-        } else {
-            console.log('User not logged in');
-            currentUser = null;
-            updateUserUI();
-        }
-    } catch (error) {
-        console.error('Error checking login status:', error);
-        showNotification('Error', 'Could not check login status.');
-    }
-}
+// Graceful shutdown handler
+process.on('SIGTERM', () => { console.log('SIGTERM: closing server...'); io.close(); server.close(() => { console.log('HTTP closed.'); mongoose.connection.close(false).then(() => { console.log('Mongo closed.'); process.exit(0); }).catch(e => { console.error("Mongo close err:", e); process.exit(1); }); }); setTimeout(() => { console.error('Timeout force exit.'); process.exit(1); }, 10000); });
+process.on('SIGINT', () => { console.log('SIGINT: shutting down...'); process.emit('SIGTERM'); });
 
-// Update user UI
-function updateUserUI() {
-    if (currentUser) {
-        if (loginButton) loginButton.style.display = 'none';
-        if (userProfile) {
-            userProfile.style.display = 'flex';
-            if (userAvatar) userAvatar.src = currentUser.avatar || '/img/default-avatar.png';
-            if (userName) userName.textContent = currentUser.username || 'User';
-        }
-    } else {
-        if (loginButton) loginButton.style.display = 'flex';
-        if (userProfile) userProfile.style.display = 'none';
-    }
-}
-
-// Update round UI
-function updateRoundUI() {
-    if (!currentRound) return;
-    if (potValue) potValue.textContent = `$${currentRound.totalValue?.toFixed(2) || '0.00'}`;
-    if (timerValue && currentRound.timeLeft !== undefined) updateTimerUI(currentRound.timeLeft);
-    if (participantCount) participantCount.textContent = `${currentRound.itemCount || 0}/200`;
-    updateParticipantsContainer();
-}
-
-// Update timer UI
-function updateTimerUI(seconds) {
-    if (!timerValue) return;
-    const timeLeft = Math.max(0, Math.floor(seconds));
-    timerValue.textContent = timeLeft;
-    // Update timer circle if it exists
-    if (timerForeground) {
-        const radius = 42; // Match the r attribute in your SVG
-        const circumference = 2 * Math.PI * radius;
-        const dashOffset = circumference * (1 - timeLeft / 120); // Assuming 120 seconds total
-        timerForeground.style.strokeDasharray = `${circumference} ${circumference}`;
-        timerForeground.style.strokeDashoffset = dashOffset;
-    }
-}
-
-// Update participants container
-function updateParticipantsContainer() {
-    if (!participantsContainer || !currentRound) return;
-    if (!currentRound.participants || currentRound.participants.length === 0) {
-        if (emptyPotMessage) emptyPotMessage.style.display = 'block';
-        return;
-    }
-    if (emptyPotMessage) emptyPotMessage.style.display = 'none';
-    // Clear existing participants
-    participantsContainer.innerHTML = '';
-    // Add each participant
-    currentRound.participants.forEach(participant => {
-        updateParticipantUI(participant);
-    });
-}
-
-// Update or add a single participant
-function updateParticipantUI(participant) {
-    if (!participantsContainer || !participant) return;
-    if (emptyPotMessage) emptyPotMessage.style.display = 'none';
-    // Check if participant already exists
-    let participantElement = document.getElementById(`participant-${participant.id}`);
-    if (!participantElement) {
-        // Create new participant element
-        participantElement = document.createElement('div');
-        participantElement.id = `participant-${participant.id}`;
-        participantElement.className = 'participant';
-        participantsContainer.appendChild(participantElement);
-    }
-    // Get user color
-    const userColor = getUserColor(participant.userId);
-    // Update participant content
-    participantElement.innerHTML = `
-        <div class="participant-header" style="border-left-color: ${userColor};">
-            <div class="participant-info">
-                <img src="${participant.avatar || '/img/default-avatar.png'}" alt="${participant.username}" class="participant-avatar" style="border-color: ${userColor};">
-                <div class="participant-details">
-                    <span class="participant-name">${participant.username}</span>
-                    <div class="participant-stats">
-                        <span class="participant-value" style="color: ${userColor};">$${participant.value.toFixed(2)}</span>
-                        <span class="participant-percentage">${participant.percentage.toFixed(2)}%</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="participant-items">
-            ${participant.items.map(item => `
-                <div class="item">
-                    <img src="${item.image}" alt="${item.name}">
-                    <div class="item-value" style="color: ${userColor};">$${item.value.toFixed(2)}</div>
-                </div>
-            `).join('')}
-        </div>
-    `;
-}
-
-// Load user inventory
-async function loadUserInventory() {
-    if (!currentUser) return;
-    if (inventoryLoading) inventoryLoading.style.display = 'block';
-    if (inventoryItems) inventoryItems.innerHTML = '<div class="loading">Loading inventory...</div>';
-    try {
-        const response = await fetch(`/api/inventory/${currentUser.id}`);
-        if (!response.ok) throw new Error(`Failed to fetch inventory (${response.status})`);
-        const data = await response.json();
-        userInventory = data.items || [];
-        console.log('User inventory:', userInventory);
-        renderInventory();
-    } catch (error) {
-        console.error('Error loading inventory:', error);
-        if (inventoryItems) inventoryItems.innerHTML = `<div class="error-message">Error loading inventory: ${error.message}</div>`;
-    } finally {
-        if (inventoryLoading) inventoryLoading.style.display = 'none';
-    }
-}
-
-// Render inventory
-function renderInventory() {
-    if (!inventoryItems) return;
-    if (!userInventory || userInventory.length === 0) {
-        inventoryItems.innerHTML = '<div class="empty-inventory-message">Your inventory is empty.</div>';
-        return;
-    }
-    inventoryItems.innerHTML = '';
-    userInventory.forEach(item => {
-        const itemElement = document.createElement('div');
-        itemElement.className = 'inventory-item';
-        itemElement.dataset.id = item.id;
-        itemElement.dataset.value = item.value;
-        itemElement.innerHTML = `
-            <img src="${item.image}" alt="${item.name}">
-            <div class="item-details">
-                <div class="item-name">${item.name}</div>
-                <div class="item-value">$${item.value.toFixed(2)}</div>
-            </div>
-        `;
-        itemElement.addEventListener('click', () => toggleItemSelection(item, itemElement));
-        inventoryItems.appendChild(itemElement);
-    });
-}
-
-// Toggle item selection
-function toggleItemSelection(item, element) {
-    if (!element) return;
-    const isSelected = element.classList.contains('selected');
-    if (isSelected) {
-        // Remove from selection
-        element.classList.remove('selected');
-        selectedItemsList = selectedItemsList.filter(i => i.id !== item.id);
-    } else {
-        // Add to selection
-        element.classList.add('selected');
-        selectedItemsList.push(item);
-    }
-    updateSelectedItemsUI();
-}
-
-// Update selected items UI
-function updateSelectedItemsUI() {
-    if (!selectedItems || !totalValue) return;
-    selectedItems.innerHTML = '';
-    if (selectedItemsList.length === 0) {
-        depositButton.disabled = true;
-        totalValue.textContent = '$0.00';
-        return;
-    }
-    let total = 0;
-    selectedItemsList.forEach(item => {
-        const itemElement = document.createElement('div');
-        itemElement.className = 'selected-item';
-        itemElement.dataset.id = item.id;
-        itemElement.innerHTML = `
-            <img src="${item.image}" alt="${item.name}">
-            <div class="item-value">$${item.value.toFixed(2)}</div>
-        `;
-        itemElement.addEventListener('click', () => {
-            // Remove from selection
-            selectedItemsList = selectedItemsList.filter(i => i.id !== item.id);
-            // Update inventory item display
-            const inventoryItem = document.querySelector(`.inventory-item[data-id="${item.id}"]`);
-            if (inventoryItem) inventoryItem.classList.remove('selected');
-            updateSelectedItemsUI();
-        });
-        selectedItems.appendChild(itemElement);
-        total += item.value;
-    });
-    totalValue.textContent = `$${total.toFixed(2)}`;
-    depositButton.disabled = total < 1.00; // Minimum deposit $1.00
-}
-
-// Submit deposit
-async function submitDeposit() {
-    if (!currentUser || selectedItemsList.length === 0) return;
-    const itemIds = selectedItemsList.map(item => item.id);
-    try {
-        const response = await fetch('/api/deposit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ itemIds, roundId: currentRound?.id })
-        });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || `Failed to deposit (${response.status})`);
-        }
-        const data = await response.json();
-        console.log('Deposit successful:', data);
-        showNotification('Success', 'Deposit successful! Check your Steam trade offers to complete the transaction.');
-        // Clear selection and close modal
-        selectedItemsList = [];
-        updateSelectedItemsUI();
-        hideModal(depositModal);
-    } catch (error) {
-        console.error('Error submitting deposit:', error);
-        showNotification('Error', `Failed to deposit: ${error.message}`);
-    }
-}
-
-// Save user trade URL
-async function saveUserTradeUrl() {
-    if (!currentUser || !tradeUrlInput) return;
-    const tradeUrl = tradeUrlInput.value.trim();
-    if (!tradeUrl) {
-        showNotification('Error', 'Please enter a valid trade URL.');
-        return;
-    }
-    try {
-        const response = await fetch('/api/user/tradeurl', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tradeUrl })
-        });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || `Failed to save trade URL (${response.status})`);
-        }
-        const data = await response.json();
-        console.log('Trade URL saved:', data);
-        currentUser.tradeUrl = tradeUrl;
-        showNotification('Success', 'Trade URL saved successfully!');
-        hideModal(tradeUrlModal);
-    } catch (error) {
-        console.error('Error saving trade URL:', error);
-        showNotification('Error', `Failed to save trade URL: ${error.message}`);
-    }
-}
-
-// Verify round
-async function verifyRound() {
-    const roundIdInput = document.getElementById('roundId');
-    if (!roundIdInput) return;
-    const roundId = roundIdInput.value.trim();
-    if (!roundId) {
-        showNotification('Error', 'Please enter a valid round ID.');
-        return;
-    }
-    const resultElement = document.getElementById('verification-result');
-    if (resultElement) {
-        resultElement.className = 'loading';
-        resultElement.style.display = 'block';
-        resultElement.innerHTML = '<div class="spinner"></div><p>Verifying round...</p>';
-    }
-    try {
-        const response = await fetch(`/api/verify/${roundId}`);
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || `Failed to verify round (${response.status})`);
-        }
-        const data = await response.json();
-        console.log('Round verification:', data);
-        if (resultElement) {
-            resultElement.className = 'success';
-            resultElement.innerHTML = `
-                <h4>Round Verification</h4>
-                <p>Round ID: <strong>${data.roundId}</strong></p>
-                <p>Server Seed: <strong>${data.serverSeed}</strong></p>
-                <p>Server Seed Hash: <strong>${data.serverSeedHash}</strong></p>
-                <p>Client Seed: <strong>${data.clientSeed}</strong></p>
-                <p>Combined Hash: <strong>${data.combinedHash}</strong></p>
-                <p>Winning Ticket: <strong>${data.winningTicket}</strong></p>
-                <p>Winner: <strong>${data.winner?.username || 'N/A'}</strong></p>
-                <p>Verification: <strong>${data.verified ? 'Valid ✓' : 'Invalid ✗'}</strong></p>
-            `;
-        }
-    } catch (error) {
-        console.error('Error verifying round:', error);
-        if (resultElement) {
-            resultElement.className = 'error';
-            resultElement.innerHTML = `<h4>Verification Error</h4><p>${error.message}</p>`;
-        }
-    }
-}
-
-// Load past rounds
-async function loadPastRounds(page = 1) {
-    const recentRounds = document.getElementById('recentRounds');
-    if (!recentRounds) return;
-    try {
-        const response = await fetch(`/api/rounds?page=${page}&limit=10`);
-        if (!response.ok) throw new Error(`Failed to fetch rounds (${response.status})`);
-        const data = await response.json();
-        console.log('Past rounds:', data);
-        recentRounds.innerHTML = '';
-        data.rounds.forEach(round => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${round.id}</td>
-                <td>${new Date(round.endTime).toLocaleString()}</td>
-                <td>$${round.totalValue.toFixed(2)}</td>
-                <td>${round.winner?.username || 'N/A'}</td>
-                <td>
-                    <button class="btn btn-details" onclick="showRoundDetails('${round.id}')">Details</button>
-                    <button class="btn btn-verify" onclick="document.getElementById('roundId').value='${round.id}';document.getElementById('verifyButton').click()">Verify</button>
-                </td>
-            `;
-            recentRounds.appendChild(row);
-        });
-        // Update pagination
-        if (roundsPagination) {
-            roundsPagination.innerHTML = '';
-            const totalPages = Math.ceil(data.total / 10);
-            for (let i = 1; i <= totalPages; i++) {
-                const pageBtn = document.createElement('button');
-                pageBtn.className = `pagination-btn ${i === page ? 'active' : ''}`;
-                pageBtn.textContent = i;
-                pageBtn.addEventListener('click', () => loadPastRounds(i));
-                roundsPagination.appendChild(pageBtn);
-            }
-        }
-    } catch (error) {
-        console.error('Error loading past rounds:', error);
-        recentRounds.innerHTML = `<tr><td colspan="5">Error loading rounds: ${error.message}</td></tr>`;
-    }
-}
-
-// Reset to jackpot view
-function resetToJackpotView() {
-    if (jackpotHeader) jackpotHeader.classList.remove('roulette-mode');
-    if (inlineRoulette) inlineRoulette.style.display = 'none';
-    if (winnerInfo) {
-        winnerInfo.style.display = 'none';
-        winnerInfo.style.opacity = '0';
-    }
-    if (confettiContainer) confettiContainer.innerHTML = '';
-    isSpinning = false;
-    if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-        animationFrameId = null;
-    }
-}
-
-// --- ROULETTE ANIMATION FUNCTIONS ---
-
-// Test roulette animation with mock data
-function testRouletteAnimation() {
-    if (isSpinning) return; // Prevent multiple spins
-    console.log('Testing roulette animation');
-    // Create mock participants if needed
-    if (!currentRound || !currentRound.participants || currentRound.participants.length === 0) {
-        const mockParticipants = [];
-        for (let i = 0; i < 5; i++) {
-            const userId = `user-${i}`;
-            mockParticipants.push({
-                id: `participant-${i}`,
-                userId,
-                username: `Player ${i + 1}`,
-                avatar: `/img/default-avatar.png`,
-                value: Math.random() * 100 + 10,
-                percentage: 20,
-                items: [
-                    { id: `item-${i}-1`, name: 'Test Item 1', image: '/img/default-item.png', value: Math.random() * 50 + 5 },
-                    { id: `item-${i}-2`, name: 'Test Item 2', image: '/img/default-item.png', value: Math.random() * 50 + 5 }
-                ]
-            });
-        }
-        if (!currentRound) currentRound = { id: 'test-round', participants: mockParticipants };
-        else currentRound.participants = mockParticipants;
-        updateParticipantsContainer();
-    }
-    // Pick a random winner
-    const winnerIndex = Math.floor(Math.random() * currentRound.participants.length);
-    const winner = currentRound.participants[winnerIndex];
-    // Start animation
-    startRouletteAnimation({
-        winner,
-        winningTicket: Math.floor(Math.random() * 10000)
-    });
-}
-
-// Start roulette animation
-function startRouletteAnimation(data) {
-    if (isSpinning || !data.winner || !currentRound || !currentRound.participants || currentRound.participants.length === 0) return;
-    console.log('Starting roulette animation with winner:', data.winner);
-    isSpinning = true;
-    // Prepare UI
-    if (jackpotHeader) jackpotHeader.classList.add('roulette-mode');
-    if (inlineRoulette) inlineRoulette.style.display = 'block';
-    if (rouletteTrack) rouletteTrack.innerHTML = '';
-    // Create roulette items
-    const participants = currentRound.participants;
-    const itemWidth = 100; // Width of each item including margin
-    const winnerColor = getUserColor(data.winner.userId);
-    // Create a weighted list of participants based on their percentage
-    let rouletteItems = [];
-    participants.forEach(participant => {
-        // Add items proportional to percentage (minimum 1)
-        const count = Math.max(1, Math.round(participant.percentage / 5));
-        for (let i = 0; i < count; i++) {
-            rouletteItems.push(participant);
-        }
-    });
-    // Shuffle the items to make it more random
-    rouletteItems = shuffleArray(rouletteItems);
-    // Make sure the winner is included
-    const winnerIncluded = rouletteItems.some(item => item.id === data.winner.id);
-    if (!winnerIncluded) {
-        // Replace a random item with the winner
-        const randomIndex = Math.floor(Math.random() * rouletteItems.length);
-        rouletteItems[randomIndex] = data.winner;
-    }
-    // Find the winner's index
-    const winnerIndex = rouletteItems.findIndex(item => item.id === data.winner.id);
-    // Create the roulette track with items
-    rouletteItems.forEach(participant => {
-        const isWinner = participant.id === data.winner.id;
-        const userColor = getUserColor(participant.userId);
-        const itemElement = document.createElement('div');
-        itemElement.className = `roulette-item ${isWinner ? 'winner-highlight' : ''}`;
-        itemElement.style.borderColor = userColor;
-        itemElement.innerHTML = `
-            <div class="profile-pic-container">
-                <img src="${participant.avatar || '/img/default-avatar.png'}" alt="${participant.username}" class="roulette-avatar">
-            </div>
-            <div class="roulette-info">
-                <div class="roulette-name">${participant.username}</div>
-                <div class="roulette-percentage" style="color: ${userColor};">${participant.percentage.toFixed(2)}%</div>
-            </div>
-        `;
-        rouletteTrack.appendChild(itemElement);
-    });
-    // Set up winner info
-    if (winnerInfo) {
-        if (winnerAvatar) winnerAvatar.src = data.winner.avatar || '/img/default-avatar.png';
-        if (winnerName) {
-            winnerName.textContent = data.winner.username;
-            winnerName.style.color = winnerColor;
-        }
-        if (winnerDeposit) winnerDeposit.textContent = `$${data.winner.value.toFixed(2)}`;
-        if (winnerChance) winnerChance.textContent = `${data.winner.percentage.toFixed(2)}%`;
-    }
-    // Play sound if available
-    if (spinSound) {
-        spinSound.currentTime = 0;
-        spinSound.play().catch(e => console.log('Could not play sound:', e));
-    }
-    // Calculate final position
-    // We want the winner to end up at the center ticker
-    const trackWidth = rouletteItems.length * itemWidth;
-    // Calculate the position where the winner should end up (center of viewport)
-    const viewportWidth = rouletteTrack.parentElement.offsetWidth;
-    const centerPosition = viewportWidth / 2;
-    // Calculate the position of the winner item
-    const winnerPosition = winnerIndex * itemWidth + itemWidth / 2;
-    // Calculate how far we need to move the track so the winner is at the center
-    let finalPosition = centerPosition - winnerPosition;
-    // Add some randomness to the final position (within the item width)
-    const randomVariation = (Math.random() * 2 - 1) * LANDING_POSITION_VARIATION * itemWidth;
-    finalPosition += randomVariation;
-    // Start the animation
-    spinStartTime = performance.now();
-    animateRoulette(finalPosition);
-}
-
-// Animate the roulette
-function animateRoulette(finalPosition) {
-    const currentTime = performance.now();
-    const elapsedTime = (currentTime - spinStartTime) / 1000; // Convert to seconds
-    const duration = SPIN_DURATION_SECONDS;
-    // Calculate progress (0 to 1)
-    let progress = Math.min(elapsedTime / duration, 1);
-    // Apply easing to the progress
-    const easedProgress = easeOutAnimation(progress);
-    // Calculate current position
-    let currentPosition;
-    if (progress < 1) {
-        // Main animation phase
-        currentPosition = finalPosition * easedProgress;
-    } else {
-        // Bounce phase (if enabled)
-        const bounceProgress = Math.min((elapsedTime - duration) / 0.5, 1); // 0.5 seconds for bounce
-        const bounceDisplacement = calculateBounce(bounceProgress);
-        const overshootAmount = finalPosition * BOUNCE_OVERSHOOT_FACTOR;
-        currentPosition = finalPosition + bounceDisplacement * overshootAmount;
-    }
-    // Apply the transform
-    if (rouletteTrack) {
-        rouletteTrack.style.transform = `translateX(${currentPosition}px)`;
-    }
-    // Continue animation if not complete
-    if (progress < 1 || (BOUNCE_ENABLED && elapsedTime < duration + 0.5)) {
-        animationFrameId = requestAnimationFrame(() => animateRoulette(finalPosition));
-    } else {
-        // Animation complete
-        finishRouletteAnimation();
-    }
-}
-
-// Finish the roulette animation
-function finishRouletteAnimation() {
-    console.log('Roulette animation complete');
-    // Show winner info
-    if (winnerInfo) {
-        winnerInfo.style.display = 'flex';
-        // Fade in
-        setTimeout(() => {
-            winnerInfo.style.opacity = '1';
-        }, 100);
-    }
-    // Create confetti
-    createConfetti();
-    // Schedule reset
-    setTimeout(() => {
-        resetToJackpotView();
-        // Request new round data
-        socket.emit('requestRoundData');
-    }, WINNER_DISPLAY_DURATION);
-}
-
-// Create confetti
-function createConfetti() {
-    if (!confettiContainer) return;
-    confettiContainer.innerHTML = '';
-    for (let i = 0; i < CONFETTI_COUNT; i++) {
-        const confetti = document.createElement('div');
-        confetti.className = 'confetti';
-        // Random properties
-        const size = Math.random() * 8 + 4; // 4-12px
-        const color = `hsl(${Math.random() * 360}, 80%, 60%)`; // Random hue
-        const duration = Math.random() * 2 + 2; // 2-4s
-        const delay = Math.random() * 0.5; // 0-0.5s
-        const fallX = (Math.random() * 2 - 1) * 100; // -100px to 100px
-        const rotationStart = Math.random() * 360; // 0-360deg
-        const rotationEnd = rotationStart + Math.random() * 720 - 360; // -360 to 360 from start
-        // Set styles
-        confetti.style.setProperty('--color', color);
-        confetti.style.setProperty('--duration', `${duration}s`);
-        confetti.style.setProperty('--delay', `${delay}s`);
-        confetti.style.setProperty('--fall-x', `${fallX}px`);
-        confetti.style.setProperty('--rotation-start', `${rotationStart}deg`);
-        confetti.style.setProperty('--rotation-end', `${rotationEnd}deg`);
-        confetti.style.width = `${size}px`;
-        confetti.style.height = `${size}px`;
-        confetti.style.left = `${Math.random() * 100}%`;
-        // Add to container
-        confettiContainer.appendChild(confetti);
-    }
-}
-
-// Export functions for global access if needed
-window.showRoundDetails = showRoundDetails;
-window.verifyRound = verifyRound;
+// Basic Error Handling Middleware (LAST)
+app.use((err, req, res, next) => { console.error("Unhandled Error:", err.stack || err); const status = err.status || 500; const message = process.env.NODE_ENV === 'production' ? 'Server error.' : (err.message || 'Error'); res.status(status).json({ error: message }); });
