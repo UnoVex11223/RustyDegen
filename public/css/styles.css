@@ -1,8 +1,1024 @@
-/* CSS Additions for Item Deposit Flow */
+/* style.css (Complete and Modified) */
+/* Enhanced color scheme */
+:root {
+    --primary-color: #00e676;
+    --primary-dark: #00c853;
+    --primary-light: #69f0ae;
+    --secondary-color: #ff9100;
+    --secondary-dark: #ff6d00;
+    --secondary-light: #ffab40;
+    --background-dark: #0d1117;
+    --background-medium: #161b22;
+    --background-light: #21262d;
+    --text-primary: #ffffff;
+    --text-secondary: #b3b3b3;
+    --text-accent: #69f0ae;
+    --border-color: #30363d;
+    --error-color: #f44336;
+    --success-color: #4caf50;
+}
 
-/* Inventory and Selected Items */
-.inventory-container, .selected-items {
+/* Base styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Rajdhani', sans-serif;
+    background-color: var(--background-dark);
+    color: var(--text-primary);
+    line-height: 1.6;
+    overflow-x: hidden; /* Prevent horizontal scrollbars */
+}
+
+.container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 15px;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Titillium Web', sans-serif;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+a {
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: color 0.3s ease;
+}
+
+a:hover {
+    color: var(--primary-color);
+}
+
+/* Buttons */
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    font-size: 1rem;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background-color: var(--background-light);
+    color: var(--text-primary);
+}
+
+.btn:hover:not(:disabled) { /* Added :not(:disabled) */
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 230, 118, 0.3);
+}
+
+.btn:disabled {
+    background-color: var(--background-light);
+    color: var(--text-secondary);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+    opacity: 0.6;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: var(--background-dark);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: var(--primary-dark);
+}
+
+.btn-deposit {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: var(--background-dark);
+    font-size: 1.2rem;
+    padding: 12px 30px;
+    width: 100%;
+    text-align: center;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 230, 118, 0.4);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-deposit:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease; /* Changed transition property */
+}
+
+.btn-deposit:hover:not(:disabled):before {
+    left: 100%;
+}
+
+.btn-secondary {
+    background-color: var(--background-light);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    width: 100%;
+    text-align: center;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    padding: 12px 30px;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background-color: var(--background-medium);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.btn-login {
+    background-color: transparent;
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+    padding: 8px 16px;
+    border-radius: 30px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-login:hover {
+    background-color: var(--primary-color);
+    color: var(--background-dark);
+}
+
+.btn-details, .btn-verify {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    margin-right: 5px; /* Add some space between buttons */
+    margin-bottom: 5px; /* Allow wrapping */
+    vertical-align: middle;
+}
+
+.btn-verify {
+    background-color: var(--secondary-color);
+    color: var(--background-dark);
+}
+.btn-verify:hover:not(:disabled) { /* Added :not(:disabled) */
+    background-color: var(--secondary-dark);
+}
+
+
+/* Header */
+.main-header {
+    background-color: var(--background-medium);
+    padding: 15px 0;
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.main-header .container {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+}
+
+.logo {
+    margin-right: 20px; /* Add space between logo and nav/user */
+}
+
+.logo h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: 1px;
+    text-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
+    color: var(--text-primary); /* Ensure base color */
+}
+
+.logo span {
+    color: var(--primary-color);
+}
+
+.main-nav {
+    flex: 1; /* Allow nav to take up space */
+    display: flex;
+    justify-content: center; /* Center nav links */
+    min-width: 0; /* Prevent overflow issues */
+}
+
+.main-nav ul {
+    list-style: none;
+    display: flex;
+    padding: 0; /* Remove default padding */
+}
+
+.main-nav li {
+    margin-right: 15px; /* Slightly reduced spacing */
+}
+.main-nav li:last-child {
+    margin-right: 0;
+}
+
+.main-nav a {
+    font-weight: 600;
+    font-size: 1rem;
+    padding: 8px 12px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    position: relative;
+    color: var(--text-secondary); /* Default color */
+    display: block; /* Ensure padding works correctly */
+    white-space: nowrap; /* Prevent link text wrapping */
+}
+
+.main-nav a:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background-color: var(--primary-color);
+    transition: all 0.3s ease;
+    transform: translateX(-50%);
+}
+
+.main-nav a:hover:after,
+.main-nav a.active:after {
+    width: 80%;
+}
+
+.main-nav a.active {
+    color: var(--primary-color);
+}
+.main-nav a:hover {
+    color: var(--text-primary); /* Hover color */
+}
+
+
+.user-controls {
+    margin-left: auto; /* Push user controls to the right */
+    display: flex;
+    align-items: center;
+    white-space: nowrap; /* Prevent wrapping within user controls */
+}
+
+.user-profile {
+    display: flex; /* Changed from none by JS */
+    align-items: center;
+    gap: 10px;
+    /* margin-left: 15px; */ /* Removed margin, let gap handle spacing */
+}
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--primary-color);
+    flex-shrink: 0; /* Prevent avatar shrinking */
+}
+
+.user-name {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px; /* Limit username width if needed */
+}
+
+/* Main Content */
+.main-content {
+    padding: 30px 0;
+}
+
+.content-card {
+    background-color: var(--background-medium);
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+}
+
+.jackpot-section {
+    background-color: var(--background-medium);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+    position: relative;
+}
+
+/* ----- JACKPOT HEADER STYLES ----- */
+.jackpot-header {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 20px;
+    background: linear-gradient(135deg, var(--background-medium), var(--background-light));
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 12px 12px 0 0;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    min-height: 150px; /* Minimum height to contain elements */
+    position: relative;
+    overflow: hidden; /* Needed for absolute positioned children like roulette */
+    z-index: 5;
+    transition: height 0.3s ease, background 0.3s ease;
+    gap: 20px;
+    flex-wrap: wrap; /* Allow wrapping */
+}
+
+.jackpot-header.roulette-mode {
+    background: linear-gradient(135deg, var(--background-dark), var(--background-medium));
+    /* Height might adjust based on roulette container, or keep min-height */
+}
+
+.jackpot-value, .jackpot-timer, .jackpot-stats {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center; /* Ensure text aligns center */
+    flex: 1; /* Allow flex items to grow/shrink */
+    min-width: 120px; /* Prevent elements becoming too small */
+}
+
+.jackpot-value h2 {
+    font-size: 2.8rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin: 0;
+    text-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.1;
+}
+
+.value-label, .timer-label, .stat-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: block;
+    margin-top: 5px;
+}
+
+.timer-circle {
+    position: relative;
+    width: 90px;
+    height: 90px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto; /* Center the circle within its flex item */
+}
+
+.timer-progress {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.timer-background, .timer-foreground {
+    fill: none;
+    stroke-width: 6;
+}
+
+.timer-background {
+    stroke: var(--background-light);
+}
+
+.timer-foreground {
+    stroke: var(--primary-color);
+    stroke-linecap: round;
+    /* stroke-dasharray calculated dynamically based on radius */
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1s linear; /* Animate the offset change */
+    filter: drop-shadow(0 0 4px var(--primary-color));
+}
+
+.timer-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.stat-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: block;
+    line-height: 1.1;
+}
+
+/* ----- END JACKPOT HEADER STYLES ----- */
+
+/* Player deposit container styles */
+.player-deposit-container {
+    background: linear-gradient(to bottom, var(--background-light), var(--background-medium));
+    border-radius: 8px;
+    margin: 15px 0;
+    padding: 15px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.player-deposit-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+}
+
+.player-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 12px;
+    border: 2px solid var(--primary-color);
+}
+
+.player-info {
+    flex: 1;
+}
+
+.player-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.player-deposit-value {
+    font-size: 0.9rem;
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.player-items-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+/* Smaller item cards for player deposits */
+.player-deposit-item {
+    width: 80px;
+    height: 100px;
+    background: rgba(22, 27, 34, 0.7);
+    border-radius: 5px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s ease;
+    border: 1px solid var(--border-color);
+}
+
+.player-deposit-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 8px rgba(0, 230, 118, 0.2);
+}
+
+.player-deposit-item-image {
+    width: 100%;
+    height: 60px;
+    object-fit: cover;
+    background-color: var(--background-medium);
+    border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+}
+
+.player-deposit-item-info {
+    padding: 4px;
+    height: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.player-deposit-item-name {
+    font-size: 0.65rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.player-deposit-item-value {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+/* Animation for new player deposits */
+@keyframes newDepositPulse {
+    0% { transform: translateY(20px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+}
+
+.player-deposit-new {
+    animation: newDepositPulse 0.5s ease-out forwards;
+}
+
+/* Styles for item cards in the pot - Rustypot style */
+.pot-item {
+    width: 100px;
+    height: 130px;
+    margin: 8px;
+    background: linear-gradient(to bottom, var(--background-light), var(--background-medium));
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s ease;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-color);
+}
+
+.pot-item:hover {
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 230, 118, 0.3);
+    z-index: 5;
+}
+
+.pot-item-image {
+    width: 100%;
+    height: 70px;
+    object-fit: cover;
+    background-color: var(--background-medium);
+    border-bottom: 1px solid rgba(48, 54, 61, 0.8);
+}
+
+.pot-item-info {
+    padding: 6px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    background: rgba(22, 27, 34, 0.9);
+}
+
+.pot-item-name {
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-primary);
+}
+
+.pot-item-value {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 3px;
+    text-shadow: 0 0 5px rgba(0, 230, 118, 0.5);
+}
+
+.pot-item-user {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    margin-top: auto;
+}
+
+.pot-item-avatar {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    margin-right: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.pot-item-username {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 70px;
+}
+
+/* Animation for new items - Enhanced */
+@keyframes newItemPulse {
+    0% { transform: scale(0.7); opacity: 0; filter: brightness(1.5); }
+    40% { transform: scale(1.1); opacity: 1; filter: brightness(1.3); }
+    70% { transform: scale(0.95); filter: brightness(1.1); }
+    100% { transform: scale(1); opacity: 1; filter: brightness(1); }
+}
+
+.pot-item-new {
+    animation: newItemPulse 0.8s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+/* User color indicator */
+.pot-item-color-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Jackpot tab pulse animation */
+@keyframes jackpotPulse {
+    0% { text-shadow: 0 0 5px rgba(0, 230, 118, 0.3); }
+    50% { text-shadow: 0 0 15px rgba(0, 230, 118, 0.8); }
+    100% { text-shadow: 0 0 5px rgba(0, 230, 118, 0.3); }
+}
+
+.jackpot-pulse {
+    animation: jackpotPulse 2s infinite ease-in-out;
+}
+
+
+/* Inline Roulette - MODIFIED */
+.inline-roulette {
+    display: none; /* Hidden by default, shown by JS */
+    position: absolute; /* Positioned within jackpot-header */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent; /* Blend with header background */
+    z-index: 10; /* Above header content, below winner info */
+    overflow: hidden; /* Crucial */
+    border-radius: 12px 12px 0 0; /* Match header rounding if needed */
+}
+
+/* Roulette Container - MODIFIED */
+.roulette-container {
+    position: relative; /* Changed from absolute to relative for easier centering if needed */
+    width: 100%;
+    height: 90px; /* Fixed height for the track viewport */
+    overflow: hidden; /* Crucial for containing the track */
+    background-color: rgba(13, 17, 23, 0.7); /* Semi-transparent */
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    /* Center the container within inline-roulette if needed */
+    margin: auto; /* Centers horizontally if parent (.inline-roulette) is flex/grid */
+    margin-top: 30px; /* Space from top */
+    box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
+}
+
+/* Roulette Track - MODIFIED */
+.roulette-track {
+    display: flex;
+    position: absolute; /* Position track absolutely within container */
+    left: 0; /* JS controls horizontal position via transform */
+    top: 0;
+    height: 100%;
+    padding-left: calc(50% - 45px); /* Offset start for centering first item (adjust 45px = itemWidth/2) */
+    padding-right: calc(50% - 45px); /* Offset end for centering last item */
+    /* CRITICAL FOR PERFORMANCE with requestAnimationFrame + transform */
+    will-change: transform;
+    /* Remove CSS transition, JS handles movement */
+    transition: none;
+}
+
+/* Roulette Items - MODIFIED */
+.roulette-item {
+    flex: 0 0 auto; /* Prevent shrinking/growing */
+    width: 90px; /* Fixed width */
+    height: 80px; /* Fixed height */
+    margin: 5px; /* Spacing between items */
+    background: rgba(30, 35, 40, 0.8);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease; /* Hover effects */
+    border: 2px solid transparent; /* Border color set dynamically by user color */
+    position: relative;
+    box-sizing: border-box; /* Include border in width/height */
+    /* Add backface-visibility for potential performance gain */
+    backface-visibility: hidden;
+}
+
+.roulette-item:hover {
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
+    z-index: 1; /* Bring hovered item slightly forward */
+}
+
+/* Profile container - ENHANCED */
+.profile-pic-container {
+    width: 100%;
+    height: 45px;
+    overflow: hidden;
+    background: #1a1e23;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.roulette-avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.3s ease;
+}
+
+.roulette-item:hover .roulette-avatar {
+    transform: scale(1.1);
+}
+
+/* Item info - ENHANCED */
+.roulette-info {
+    padding: 3px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(to bottom, rgba(20, 25, 30, 0.9), rgba(13, 17, 23, 0.95));
+    flex-grow: 1;
+    text-align: center;
+    width: 100%;
+}
+
+.roulette-name {
+    font-size: 10px;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 80px; /* Limit width */
+}
+
+.roulette-percentage {
+    font-size: 9px;
+    font-weight: 500;
+    /* Color set dynamically based on user color */
+}
+
+/* Winning item highlight - Base style (Animation/Border applied via JS) */
+.winner-highlight {
+    position: relative; /* Needed for z-index */
+    z-index: 5; /* Bring winner forward */
+    /* JS adds border, box-shadow animation, and potentially transform */
+}
+/* Keyframes 'winnerPulse' are generated dynamically in JS */
+
+
+/* Center Ticker Line - MODIFIED */
+.roulette-ticker {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px; /* Ticker line width */
+    height: 100%; /* Full height of the container */
+    z-index: 15; /* Above items, below winner info/confetti */
+    pointer-events: none; /* Make sure it doesn't interfere */
+}
+
+.ticker-line {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom,
+                   rgba(0, 230, 118, 0),
+                   rgba(0, 230, 118, 0.8) 40%, /* Start fade */
+                   rgba(0, 230, 118, 0.8) 60%, /* Solid center */
+                   rgba(0, 230, 118, 0)); /* End fade */
+    box-shadow: 0 0 10px rgba(0, 230, 118, 0.7);
+}
+
+/* Optional: Ticker arrows */
+.roulette-ticker::before,
+.roulette-ticker::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    filter: drop-shadow(0 0 3px rgba(0, 230, 118, 0.5));
+}
+.roulette-ticker::before { /* Top arrow */
+    top: -6px;
+    border-bottom: 8px solid rgba(0, 230, 118, 0.8);
+}
+.roulette-ticker::after { /* Bottom arrow */
+    bottom: -6px;
+    border-top: 8px solid rgba(0, 230, 118, 0.8);
+}
+
+/* Winner Info Box - ENHANCED */
+.winner-info {
+    /* display: none; */ /* Shown by JS */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, rgba(20, 25, 30, 0.95), rgba(13, 17, 23, 0.98));
+    padding: 10px;
+    display: flex; /* Use flex for layout */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    z-index: 20; /* Above roulette items and ticker */
+    opacity: 0; /* Start hidden, fade in with JS */
+    transition: opacity 0.5s ease;
+}
+
+.winner-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.winner-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 3px solid var(--primary-color);
+    margin-bottom: 10px;
+    box-shadow: 0 0 20px rgba(0, 230, 118, 0.5);
+}
+
+.winner-info h3 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin: 0;
+    text-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
+}
+
+.winner-details {
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+.winner-details p {
+    margin: 5px 0;
+}
+
+.winner-details span {
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.congrats {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-top: 15px;
+    color: var(--primary-color);
+    text-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
+    animation: jackpotPulse 2s infinite ease-in-out;
+}
+
+/* Return button */
+.return-btn {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 25;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+/* Confetti container */
+.confetti-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 15; /* Above roulette items, below winner info */
+}
+
+/* Confetti pieces */
+.confetti-piece {
+    position: absolute;
+    top: -20px; /* Start above the container */
+    width: 10px;
+    height: 10px;
+    background-color: var(--primary-color);
+    opacity: 0.8;
+    border-radius: 2px;
+    z-index: 1;
+}
+
+/* Confetti animations */
+@keyframes fall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    70% { opacity: 1; }
+    100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Inventory Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background-color: var(--background-medium);
+    border-radius: 12px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    padding: 15px 20px;
+    background: linear-gradient(135deg, var(--background-medium), var(--background-light));
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: var(--text-primary);
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.close-btn:hover {
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    max-height: calc(90vh - 130px); /* Adjust based on header/footer height */
+}
+
+.modal-footer {
+    padding: 15px 20px;
+    background-color: var(--background-light);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* Inventory Styles */
+.inventory-container {
     margin-bottom: 20px;
+}
+
+.inventory-container h3, .selected-items h3 {
+    font-size: 1.2rem;
+    margin-bottom: 15px;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 8px;
 }
 
 .inventory-items {
@@ -11,8 +1027,8 @@
     gap: 10px;
     max-height: 300px;
     overflow-y: auto;
-    padding: 10px;
-    background: var(--background-dark);
+    padding: 5px;
+    background-color: var(--background-dark);
     border-radius: 8px;
     border: 1px solid var(--border-color);
 }
@@ -20,81 +1036,58 @@
 .inventory-item {
     width: 100px;
     height: 130px;
-    background: var(--background-medium);
+    background-color: var(--background-light);
     border-radius: 6px;
     overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    transition: all 0.2s ease;
-    position: relative;
     cursor: pointer;
-    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    position: relative;
 }
 
 .inventory-item:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.5);
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
 .inventory-item.selected {
-    border: 2px solid var(--primary-color);
-    box-shadow: 0 0 15px rgba(0, 230, 118, 0.4);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 10px rgba(0, 230, 118, 0.3);
 }
 
-.inventory-item-image {
+.inventory-item img {
     width: 100%;
     height: 70px;
     object-fit: cover;
     background-color: var(--background-medium);
-    border-bottom: 1px solid rgba(48, 54, 61, 0.8);
+    border-bottom: 1px solid var(--border-color);
 }
 
-.inventory-item-info {
-    padding: 6px;
-    height: 40px;
+.item-details {
+    padding: 8px;
+    height: 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
-.inventory-item-name {
-    font-size: 0.7rem;
+.item-name {
+    font-size: 0.75rem;
     font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 5px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    color: var(--text-primary);
-    margin-bottom: 3px;
 }
 
-.inventory-item-value {
-    font-size: 0.8rem;
+.item-value {
+    font-size: 0.85rem;
     font-weight: 700;
     color: var(--primary-color);
 }
 
-.inventory-item-select {
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: rgba(13, 17, 23, 0.7);
-    border: 1px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.tick-marker {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background-color: transparent;
-    transition: background-color 0.2s ease;
-}
-
-.inventory-item.selected .tick-marker {
-    background-color: #00e676; /* Green tick marker */
-}
-
+/* Selected Items */
 .selected-items-container {
     display: flex;
     flex-wrap: wrap;
@@ -102,88 +1095,81 @@
     max-height: 200px;
     overflow-y: auto;
     padding: 10px;
-    background: var(--background-dark);
+    background-color: var(--background-dark);
     border-radius: 8px;
     border: 1px solid var(--border-color);
     min-height: 100px;
 }
 
 .selected-item {
-    width: 100px;
-    height: 130px;
-    background: var(--background-medium);
+    width: 80px;
+    height: 110px;
+    background-color: var(--background-light);
     border-radius: 6px;
     overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     position: relative;
     border: 1px solid var(--border-color);
+    transition: transform 0.3s ease;
 }
 
-.selected-item-image {
+.selected-item:hover {
+    transform: translateY(-3px);
+}
+
+.selected-item img {
     width: 100%;
-    height: 70px;
+    height: 60px;
     object-fit: cover;
     background-color: var(--background-medium);
-    border-bottom: 1px solid rgba(48, 54, 61, 0.8);
+    border-bottom: 1px solid var(--border-color);
 }
 
-.selected-item-info {
+.selected-item-details {
     padding: 6px;
-    height: 40px;
-}
-
-.selected-item-name {
-    font-size: 0.7rem;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    color: var(--text-primary);
-    margin-bottom: 3px;
+    height: 50px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
 }
 
 .selected-item-value {
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     font-weight: 700;
     color: var(--primary-color);
+    text-align: center;
 }
 
 .remove-item {
     position: absolute;
-    top: 5px;
-    right: 5px;
+    top: 0;
+    right: 0;
+    background-color: rgba(244, 67, 54, 0.8);
+    color: white;
+    border: none;
     width: 20px;
     height: 20px;
-    border-radius: 50%;
-    background: rgba(244, 67, 54, 0.8);
-    border: none;
-    color: white;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    border-radius: 0 0 0 6px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background-color 0.3s ease;
 }
 
 .remove-item:hover {
-    background: rgba(244, 67, 54, 1);
-    transform: scale(1.1);
-}
-
-.empty-selection {
-    width: 100%;
-    text-align: center;
-    padding: 30px 0;
-    color: var(--text-secondary);
-    font-style: italic;
+    background-color: rgba(244, 67, 54, 1);
 }
 
 .total-value {
-    margin-top: 10px;
-    text-align: right;
+    margin-top: 15px;
     font-size: 1.1rem;
-    font-weight: 600;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-align: right;
 }
 
 .total-value span:last-child {
@@ -198,95 +1184,238 @@
     align-items: center;
     justify-content: center;
     padding: 30px;
+    color: var(--text-secondary);
 }
 
 .spinner {
     width: 40px;
     height: 40px;
-    border: 4px solid rgba(0, 230, 118, 0.2);
+    border: 4px solid rgba(0, 230, 118, 0.3);
     border-top: 4px solid var(--primary-color);
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin-bottom: 15px;
 }
 
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+/* Empty inventory message */
+.empty-inventory-message, .error-message {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-secondary);
+    width: 100%;
 }
 
-/* Trade notification */
-.trade-notification {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    width: 300px;
-    background: var(--background-medium);
-    border-radius: 8px;
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
-    z-index: 1000;
-    overflow: hidden;
-    animation: slideIn 0.3s ease forwards;
+.error-message {
+    color: var(--error-color);
+}
+
+/* Trade URL Modal */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px;
+    background-color: var(--background-dark);
     border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 1rem;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-@keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
+.form-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(0, 230, 118, 0.2);
 }
 
-.trade-notification-content {
-    padding: 15px;
+.help-text {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 8px;
 }
 
-.trade-notification-header {
-    display: flex;
-    align-items: center;
-    margin-bottom: 10px;
-}
-
-.trade-notification-header i {
-    font-size: 1.5rem;
-    margin-right: 10px;
+.help-text a {
     color: var(--primary-color);
+    text-decoration: underline;
 }
 
-.trade-notification-header h3 {
-    margin: 0;
-    font-size: 1.2rem;
+.help-text a:hover {
+    text-decoration: none;
 }
 
-.trade-notification p {
-    margin-bottom: 10px;
-    font-size: 0.9rem;
+/* Age Verification Modal */
+.age-verification .modal-content {
+    max-width: 500px;
+}
+
+.age-verification .modal-body {
+    padding: 25px;
+}
+
+.age-verification p {
+    margin-bottom: 15px;
+    color: var(--text-primary);
+}
+
+.age-verification ul {
+    margin-left: 20px;
+    margin-bottom: 20px;
     color: var(--text-secondary);
 }
 
-.trade-notification-progress {
-    height: 4px;
-    background: var(--background-dark);
-    border-radius: 2px;
-    overflow: hidden;
-    margin-top: 15px;
+.age-verification li {
+    margin-bottom: 8px;
 }
 
-.trade-progress-bar {
-    height: 100%;
-    background: var(--primary-color);
-    width: 0;
-    transition: width 3s linear;
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    margin-top: 20px;
 }
 
-.trade-notification-success .trade-notification-header i {
-    color: var(--success-color);
+.checkbox-container input[type="checkbox"] {
+    margin-right: 10px;
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary-color);
 }
 
-/* Animation for new deposits */
-@keyframes depositSuccess {
-    0% { transform: scale(0.9); opacity: 0; }
-    100% { transform: scale(1); opacity: 1; }
+.checkbox-container label {
+    color: var(--text-primary);
+    font-weight: 600;
 }
 
-.deposit-success {
-    animation: depositSuccess 0.5s ease forwards;
+/* Provably Fair Page */
+.rounds-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.rounds-table th, .rounds-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.rounds-table th {
+    background-color: var(--background-light);
+    color: var(--text-primary);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+}
+
+.rounds-table tr:hover {
+    background-color: rgba(33, 38, 45, 0.5);
+}
+
+.winner-avatar-small {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+    border: 1px solid var(--primary-color);
+}
+
+.no-rounds, .error-message {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+.pagination-btn {
+    padding: 8px 12px;
+    background-color: var(--background-light);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background-color: var(--background-medium);
+    transform: translateY(-2px);
+}
+
+.pagination-btn.active {
+    background-color: var(--primary-color);
+    color: var(--background-dark);
+    border-color: var(--primary-color);
+}
+
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .main-header .container {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .logo {
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+    
+    .user-controls {
+        margin-left: 0;
+        margin-top: 10px;
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .jackpot-header {
+        flex-direction: column;
+        gap: 15px;
+        padding: 15px;
+    }
+    
+    .inventory-items, .selected-items-container {
+        justify-content: center;
+    }
+    
+    .rounds-table {
+        display: block;
+        overflow-x: auto;
+    }
+}
+
+/* Animation classes */
+.timer-pulse {
+    animation: timerPulse 1.5s infinite ease-in-out;
+}
+
+.urgent-pulse {
+    animation: urgentPulse 0.7s infinite ease-in-out;
+}
+
+@keyframes timerPulse {
+    0% { text-shadow: 0 0 5px rgba(0, 230, 118, 0.3); }
+    50% { text-shadow: 0 0 10px rgba(0, 230, 118, 0.7); }
+    100% { text-shadow: 0 0 5px rgba(0, 230, 118, 0.3); }
+}
+
+@keyframes urgentPulse {
+    0% { color: var(--primary-color); text-shadow: 0 0 5px rgba(0, 230, 118, 0.3); }
+    50% { color: var(--error-color); text-shadow: 0 0 10px rgba(244, 67, 54, 0.7); }
+    100% { color: var(--primary-color); text-shadow: 0 0 5px rgba(0, 230, 118, 0.3); }
 }
