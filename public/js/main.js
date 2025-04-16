@@ -22,7 +22,7 @@ const potValue = document.getElementById('potValue');
 const timerValue = document.getElementById('timerValue');
 const timerForeground = document.querySelector('.timer-foreground');
 const participantCount = document.getElementById('participantCount');
-const participantsContainer = document.getElementById('participantsContainer');
+const participantsContainer = document.getElementById('participantsContainer'); // Container for items in pot
 const emptyPotMessage = document.getElementById('emptyPotMessage'); // Ensure this exists in HTML or handle null
 
 // DOM Elements - Deposit
