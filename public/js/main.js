@@ -66,17 +66,19 @@ const agreeButton = document.getElementById('agreeButton');
 
 // Constants
 const ROULETTE_REPETITIONS = 20; // How many times to repeat participant list (used in older logic, potentially unused now)
-const SPIN_DURATION_SECONDS = 6.5; // Changed from 9 to 6.5 seconds
+const SPIN_DURATION_SECONDS = 6.5; // Duration of the main spin animation
 const WINNER_DISPLAY_DURATION = 7000; // 7 seconds for winner info display
-const CONFETTI_COUNT = 150; // Increased confetti slightly
+const CONFETTI_COUNT = 150;
 
 // --- NEW Animation constants for enhanced roulette ---
-const EASE_OUT_POWER = 4;         // Power for ease-out curve (e.g., 3=cubic, 4=quart). Higher = more dramatic slowdown.
-const BOUNCE_ENABLED = false;     // Changed from true to false to disable bounce effect
+// MODIFIED: Increased power for a more dramatic final slowdown
+const EASE_OUT_POWER = 5;           // Power for ease-out curve (e.g., 3=cubic, 4=quart, 5=quint). Higher = more dramatic slowdown.
+const BOUNCE_ENABLED = false;      // Keep bounce disabled as per previous code
 const BOUNCE_OVERSHOOT_FACTOR = 0.07; // How much to overshoot initially (percentage of total distance, e.g., 0.07 = 7%)
-const BOUNCE_DAMPING = 0.35;      // How quickly the bounce decays (0 to 1, lower = decays faster, 0.3-0.5 is usually good)
-const BOUNCE_FREQUENCY = 3.5;     // How many bounces (approx). Higher = more bounces in the same time.
-const LANDING_POSITION_VARIATION = 0.25; // Added: Controls how much the final position can vary (0.25 = ±25% of an item width)
+const BOUNCE_DAMPING = 0.35;       // How quickly the bounce decays (0 to 1, lower = decays faster, 0.3-0.5 is usually good)
+const BOUNCE_FREQUENCY = 3.5;      // How many bounces (approx). Higher = more bounces in the same time.
+// MODIFIED: Increased variation for more unpredictable stops (e.g., rollover, stop early/late)
+const LANDING_POSITION_VARIATION = 0.60; // Controls how much the final position can vary (0.60 = ±60% of an item width)
 
 // User Color Map - 20 distinct colors for players
 const userColorMap = new Map();
@@ -182,11 +184,11 @@ async function showRoundDetails(roundId) {
 
 /**
  * Calculates the eased progress using an ease-out function.
+ * Uses EASE_OUT_POWER to control the curve. Higher power = more dramatic slowdown at the end.
  * @param {number} t - Normalized time (0 to 1)
  * @returns {number} Eased progress (0 to 1)
  */
 function easeOutAnimation(t) {
-    // Using easeOutQuart (power=4) for a smooth but noticeable slowdown
     // Clamp input time t to the range [0, 1]
     const clampedT = Math.max(0, Math.min(1, t));
     return 1 - Math.pow(1 - clampedT, EASE_OUT_POWER);
@@ -1025,7 +1027,7 @@ function handleRouletteSpinAnimation(winningElement, winner) {
     // Calculate the target NEGATIVE translateX value to center the winning item
     const centerOffset = (containerWidth / 2) - (itemWidth / 2);
 
-    // Add randomized variation to the landing position
+    // Add randomized variation to the landing position using the increased LANDING_POSITION_VARIATION
     // This creates a random offset within the range of ±LANDING_POSITION_VARIATION of an item width
     const positionVariation = (Math.random() * 2 - 1) * (itemWidth * LANDING_POSITION_VARIATION);
 
@@ -1039,7 +1041,7 @@ function handleRouletteSpinAnimation(winningElement, winner) {
 
     // --- Animation variables ---
     const duration = SPIN_DURATION_SECONDS * 1000; // Main spin duration in ms (now 6.5 seconds)
-    const bounceDuration = BOUNCE_ENABLED ? 1200 : 0; // Duration for bounce effect (ms), increased slightly
+    const bounceDuration = BOUNCE_ENABLED ? 1200 : 0; // Duration for bounce effect (ms)
     const totalAnimationTime = duration + bounceDuration;
     let startTime = performance.now(); // Use performance.now()
 
@@ -1069,6 +1071,7 @@ function handleRouletteSpinAnimation(winningElement, winner) {
         // --- Main Easing Phase ---
         if (elapsed <= duration) {
             const animationPhaseProgress = elapsed / duration; // Progress 0 to 1
+            // Use the modified easeOutAnimation with the higher EASE_OUT_POWER
             const easedProgress = easeOutAnimation(animationPhaseProgress);
             currentPosition = startPosition + totalDistance * easedProgress;
         }
@@ -1077,12 +1080,11 @@ function handleRouletteSpinAnimation(winningElement, winner) {
             const bouncePhaseProgress = (elapsed - duration) / bounceDuration; // Progress 0 to 1 for bounce
             const bounceDisplacementFactor = calculateBounce(bouncePhaseProgress); // Returns -1 to 1 relative value
             // Apply bounce relative to the final position, scaled by the overshoot amount
-            // Note: overshootAmount is likely negative, bounceDisplacementFactor oscillates
             currentPosition = finalTargetPosition - (overshootAmount * bounceDisplacementFactor);
         }
         // --- Animation End ---
         else {
-            currentPosition = finalTargetPosition; // Ensure it lands exactly at the end
+            currentPosition = finalTargetPosition; // Ensure it lands exactly at the calculated final position
             animationFinished = true;
         }
 
@@ -1172,20 +1174,20 @@ function finalizeSpin(winningElement, winner) {
      style.id = 'winner-pulse-style';
      // Use regular spaces for indentation within the style string
      style.textContent = `
-        .winner-highlight {
-            z-index: 5;
-            border-width: 3px; /* Use a noticeable border */
-            border-color: ${userColor}; /* Set initial border color */
-            animation: winnerPulse 1.5s infinite;
-            /* Store color in CSS variable for the animation */
-            --winner-color: ${userColor};
-            /* Ensure the item stays scaled slightly larger */
-            transform: scale(1.05);
-        }
-        @keyframes winnerPulse {
-            0%, 100% { box-shadow: 0 0 15px var(--winner-color); transform: scale(1.05); }
-            50% { box-shadow: 0 0 25px var(--winner-color); transform: scale(1.1); }
-        }
+         .winner-highlight {
+             z-index: 5;
+             border-width: 3px; /* Use a noticeable border */
+             border-color: ${userColor}; /* Set initial border color */
+             animation: winnerPulse 1.5s infinite;
+             /* Store color in CSS variable for the animation */
+             --winner-color: ${userColor};
+             /* Ensure the item stays scaled slightly larger */
+             transform: scale(1.05);
+         }
+         @keyframes winnerPulse {
+             0%, 100% { box-shadow: 0 0 15px var(--winner-color); transform: scale(1.05); }
+             50% { box-shadow: 0 0 25px var(--winner-color); transform: scale(1.1); }
+         }
      `;
      document.head.appendChild(style);
      // --- End Highlighting ---
@@ -1396,20 +1398,20 @@ function clearConfetti() {
     if (confettiContainer) {
         confettiContainer.innerHTML = '';
     }
-      // Also clear any dynamic winner pulse style
-      const winnerPulseStyle = document.getElementById('winner-pulse-style');
-      if (winnerPulseStyle) {
-          winnerPulseStyle.remove();
-      }
-      // Remove highlight class from any items
-      document.querySelectorAll('.roulette-item.winner-highlight').forEach(el => {
-          el.classList.remove('winner-highlight');
-          el.style.transform = ''; // Reset any transform applied by highlight
-          // Add null check for el.dataset before accessing userId
-          if (el.dataset?.userId) {
+     // Also clear any dynamic winner pulse style
+     const winnerPulseStyle = document.getElementById('winner-pulse-style');
+     if (winnerPulseStyle) {
+         winnerPulseStyle.remove();
+     }
+     // Remove highlight class from any items
+     document.querySelectorAll('.roulette-item.winner-highlight').forEach(el => {
+         el.classList.remove('winner-highlight');
+         el.style.transform = ''; // Reset any transform applied by highlight
+         // Add null check for el.dataset before accessing userId
+         if (el.dataset?.userId) {
              el.style.borderColor = getUserColor(el.dataset.userId); // Reset border to base user color
-          }
-      });
+         }
+     });
 }
 
 // resetToJackpotView - (Keep original implementation, it already cancels animationFrameId)
@@ -1694,10 +1696,10 @@ async function loadPastRounds(page = 1) {
         else if (data.rounds.length === 0 && data.currentPage > 1) roundsTableBody.innerHTML = '<tr><td colspan="5" class="no-rounds-message">No rounds on this page.</td></tr>';
         else data.rounds.forEach(round => {
             const row = document.createElement('tr'); let date = 'N/A'; if (round.endTime) try { const d = new Date(round.endTime); if (!isNaN(d.getTime())) date = d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }); } catch (e) { console.error("Date format error:", e); }
-              // Ensure seeds are strings for the onclick attribute
-              const serverSeedStr = round.serverSeed || '';
-              const clientSeedStr = round.clientSeed || '';
-              row.innerHTML = `<td>#${round.roundId||'N/A'}</td><td>${date}</td><td>$${round.totalValue?round.totalValue.toFixed(2):'0.00'}</td><td>${round.winner?(round.winner.username||'N/A'):'N/A'}</td><td><button class="btn btn-details" onclick="showRoundDetails(${round.roundId})">Details</button><button class="btn btn-verify" onclick="populateVerificationFields(${round.roundId}, '${serverSeedStr}', '${clientSeedStr}')" ${!round.serverSeed ? 'disabled title="Seed not revealed yet"' : ''}>Verify</button></td>`;
+             // Ensure seeds are strings for the onclick attribute
+             const serverSeedStr = round.serverSeed || '';
+             const clientSeedStr = round.clientSeed || '';
+             row.innerHTML = `<td>#${round.roundId||'N/A'}</td><td>${date}</td><td>$${round.totalValue?round.totalValue.toFixed(2):'0.00'}</td><td>${round.winner?(round.winner.username||'N/A'):'N/A'}</td><td><button class="btn btn-details" onclick="showRoundDetails(${round.roundId})">Details</button><button class="btn btn-verify" onclick="populateVerificationFields(${round.roundId}, '${serverSeedStr}', '${clientSeedStr}')" ${!round.serverSeed ? 'disabled title="Seed not revealed yet"' : ''}>Verify</button></td>`;
             row.dataset.roundId = round.roundId; roundsTableBody.appendChild(row);
         });
         createPagination(data.currentPage, data.totalPages);
