@@ -1,4 +1,4 @@
-// main.js (Complete and Modified for Enhanced Roulette Animation)
+// main.js (Complete and Modified for Enhanced Roulette Animation & Deposit Display)
 // Ensure the Socket.IO client library is included in your HTML:
 // <script src="/socket.io/socket.io.js"></script>
 const socket = io();
@@ -73,6 +73,7 @@ const ROULETTE_REPETITIONS = 20; // How many times to repeat participant list (u
 const SPIN_DURATION_SECONDS = 6.5; // Duration of the main spin animation
 const WINNER_DISPLAY_DURATION = 7000; // 7 seconds for winner info display
 const CONFETTI_COUNT = 150;
+const MAX_DISPLAY_DEPOSITS = 5; // Maximum number of deposit history items to show
 
 // --- NEW Animation constants for enhanced roulette ---
 // MODIFIED: Increased power for a more dramatic final slowdown
@@ -322,9 +323,13 @@ function setupEventListeners() {
         agreeButton.disabled = !agreeCheckbox.checked;
     }
 
-    // Test Spin Button (If you have one)
+    // Test Spin Button
     const testSpinButton = document.getElementById('testSpinButton');
     if (testSpinButton) testSpinButton.addEventListener('click', testRouletteAnimation);
+
+    // Test Deposit Button (NEW)
+    const testDepositButton = document.getElementById('testDepositButton');
+    if (testDepositButton) testDepositButton.addEventListener('click', testDeposit);
 
     // Provably Fair Verify Button
     if (verifyBtn) verifyBtn.addEventListener('click', verifyRound);
@@ -465,7 +470,7 @@ function displayInventoryItems() {
         const itemElement = document.createElement('div'); itemElement.className = 'inventory-item';
         itemElement.dataset.assetId = item.assetId; itemElement.dataset.name = item.name;
         itemElement.dataset.image = item.image; itemElement.dataset.price = item.price.toFixed(2);
-        itemElement.innerHTML = `<img src="${item.image}" alt="${item.name}" loading="lazy" onerror="this.onerror=null; this.src='/img/default-item.png';"><div class="item-details"><div class="item-name" title="${item.name}">${item.name}</div><div class="item-value">$${item.price.toFixed(2)}</div></div>`;
+        itemElement.innerHTML = `<img src="${item.image}" alt="${item.name}" loading="lazy" onerror="this.onerror=null; this.src='/img/default-item.png';"><div class="item-details"><div class="item-name" title="${item.name}">${item.name}</div><div class="item-value">${item.price.toFixed(2)}</div></div>`;
         if (selectedItemsList.some(selected => selected.assetId === item.assetId)) itemElement.classList.add('selected');
         itemElement.addEventListener('click', () => toggleItemSelection(itemElement, item));
         inventoryItems.appendChild(itemElement);
@@ -484,7 +489,7 @@ function toggleItemSelection(element, item) {
 function addSelectedItemElement(item) {
     if (!selectedItems) return; const selectedElement = document.createElement('div');
     selectedElement.className = 'selected-item'; selectedElement.dataset.assetId = item.assetId;
-    selectedElement.innerHTML = `<button class="remove-item" data-asset-id="${item.assetId}" title="Remove Item">&times;</button><img src="${item.image}" alt="${item.name}" loading="lazy" onerror="this.onerror=null; this.src='/img/default-item.png';"><div class="selected-item-details"><div class="selected-item-value">$${item.price.toFixed(2)}</div></div>`;
+    selectedElement.innerHTML = `<button class="remove-item" data-asset-id="${item.assetId}" title="Remove Item">&times;</button><img src="${item.image}" alt="${item.name}" loading="lazy" onerror="this.onerror=null; this.src='/img/default-item.png';"><div class="selected-item-details"><div class="selected-item-value">${item.price.toFixed(2)}</div></div>`;
     const inventoryItemElement = inventoryItems.querySelector(`.inventory-item[data-asset-id="${item.assetId}"]`);
     selectedElement.querySelector('.remove-item').addEventListener('click', (e) => {
         e.stopPropagation();
@@ -515,7 +520,7 @@ function removeSelectedItem(assetId) {
 function updateTotalValue() {
     if (!totalValue || !depositButton) return;
     const total = selectedItemsList.reduce((sum, item) => sum + (item.price || 0), 0);
-    totalValue.textContent = `$${total.toFixed(2)}`;
+    totalValue.textContent = `${total.toFixed(2)}`;
     depositButton.disabled = selectedItemsList.length === 0;
 }
 
@@ -562,7 +567,7 @@ async function saveUserTradeUrl() {
 // Update round UI
 function updateRoundUI() {
     if (!currentRound || !potValue) return;
-    potValue.textContent = `$${(currentRound.totalValue || 0).toFixed(2)}`;
+    potValue.textContent = `${(currentRound.totalValue || 0).toFixed(2)}`;
     if (!timerActive) updateTimerUI(currentRound.timeLeft !== undefined ? currentRound.timeLeft : 120);
     updateParticipantsUI();
 }
@@ -577,19 +582,127 @@ function updateTimerUI(timeLeft) {
     else { timerValue.classList.remove('urgent-pulse'); if (timerActive && timeToShow > 10) timerValue.classList.add('timer-pulse'); else timerValue.classList.remove('timer-pulse'); }
 }
 
+// ===== NEW DEPOSIT DISPLAY FUNCTIONS =====
+
+// Function to display latest deposit with animation
+function displayLatestDeposit(data) {
+    if (!participantsContainer) return;
+    
+    // Get user data
+    const username = data.username || 'Unknown';
+    const avatar = data.avatar || '/img/default-avatar.png';
+    const value = data.itemsValue || 0;
+    const items = data.depositedItems || [];
+    
+    // Get or create user color
+    const userColor = getUserColor(data.userId);
+    
+    // Create deposit container
+    const depositContainer = document.createElement('div');
+    depositContainer.className = 'player-deposit-container player-deposit-new';
+    
+    // Create deposit header
+    const depositHeader = document.createElement('div');
+    depositHeader.className = 'player-deposit-header';
+    depositHeader.innerHTML = `
+        <img src="${avatar}" alt="${username}" class="player-avatar" loading="lazy" 
+             onerror="this.onerror=null; this.src='/img/default-avatar.png';">
+        <div class="player-info">
+            <div class="player-name">${username}</div>
+            <div class="player-deposit-value" style="color: ${userColor}">${value.toFixed(2)}</div>
+        </div>
+    `;
+    
+    // Create items grid if there are items
+    const itemsGrid = document.createElement('div');
+    itemsGrid.className = 'player-items-grid';
+    
+    if (items && items.length > 0) {
+        items.forEach(item => {
+            if (!item || typeof item.price !== 'number' || !item.name || !item.image) return;
+            
+            const itemElement = document.createElement('div');
+            itemElement.className = 'player-deposit-item';
+            itemElement.title = `${item.name} (${item.price.toFixed(2)})`;
+            itemElement.style.borderColor = userColor;
+            itemElement.innerHTML = `
+                <img src="${item.image}" alt="${item.name}" class="player-deposit-item-image" loading="lazy" 
+                     onerror="this.onerror=null; this.src='/img/default-item.png';">
+                <div class="player-deposit-item-info">
+                    <div class="player-deposit-item-name" title="${item.name}">${item.name}</div>
+                    <div class="player-deposit-item-value" style="color: ${userColor}">${item.price.toFixed(2)}</div>
+                </div>
+            `;
+            
+            itemsGrid.appendChild(itemElement);
+        });
+    }
+    
+    // Assemble the deposit container
+    depositContainer.appendChild(depositHeader);
+    depositContainer.appendChild(itemsGrid);
+    
+    // Add to the container at the top
+    if (participantsContainer.firstChild) {
+        participantsContainer.insertBefore(depositContainer, participantsContainer.firstChild);
+    } else {
+        participantsContainer.appendChild(depositContainer);
+    }
+    
+    // Hide empty pot message if visible
+    if (emptyPotMessage) {
+        emptyPotMessage.style.display = 'none';
+    }
+    
+    // Remove animation class after animation completes to prevent replaying
+    setTimeout(() => {
+        depositContainer.classList.remove('player-deposit-new');
+    }, 1000);
+    
+    // Limit the number of deposit containers to avoid overwhelming the display
+    const depositContainers = participantsContainer.querySelectorAll('.player-deposit-container');
+    if (depositContainers.length > MAX_DISPLAY_DEPOSITS) {
+        for (let i = MAX_DISPLAY_DEPOSITS; i < depositContainers.length; i++) {
+            depositContainers[i].remove();
+        }
+    }
+}
+
 // Handle new deposit
 function handleNewDeposit(data) {
-    if (!data || !data.roundId || !data.userId || data.itemsValue === undefined || data.totalValue === undefined) { console.error("Invalid participant update:", data); return; }
-    if (!currentRound) { console.warn("Deposit for non-existent round."); currentRound = { roundId: data.roundId, status: 'active', timeLeft: 120, totalValue: 0, participants: [], items: [] }; }
-    else if (currentRound.roundId !== data.roundId) { console.warn(`Deposit for wrong round (${data.roundId}). Current is ${currentRound.roundId}`); return; }
+    if (!data || !data.roundId || !data.userId || data.itemsValue === undefined || data.totalValue === undefined) { 
+        console.error("Invalid participant update:", data); 
+        return; 
+    }
+    
+    if (!currentRound) { 
+        console.warn("Deposit for non-existent round."); 
+        currentRound = { 
+            roundId: data.roundId, 
+            status: 'active', 
+            timeLeft: 120, 
+            totalValue: 0, 
+            participants: [], 
+            items: [] 
+        }; 
+    }
+    else if (currentRound.roundId !== data.roundId) { 
+        console.warn(`Deposit for wrong round (${data.roundId}). Current is ${currentRound.roundId}`); 
+        return; 
+    }
 
     if (!currentRound.participants) currentRound.participants = [];
     let participantFound = false;
+    
+    // Update existing participant or add new one
     currentRound.participants = currentRound.participants.map(p => {
         if (p.user && p.user.id === data.userId) {
             participantFound = true;
-            // Update existing participant
-            return { ...p, itemsValue: (p.itemsValue || 0) + data.itemsValue, tickets: data.tickets };
+            return { 
+                ...p, 
+                itemsValue: (p.itemsValue || 0) + data.itemsValue, 
+                tickets: data.tickets 
+            };
         }
         return p;
     });
@@ -597,7 +710,11 @@ function handleNewDeposit(data) {
     if (!participantFound) {
         // Add new participant
         currentRound.participants.push({
-            user: { id: data.userId, username: data.username || 'Unknown', avatar: data.avatar || '/img/default-avatar.png' },
+            user: { 
+                id: data.userId, 
+                username: data.username || 'Unknown', 
+                avatar: data.avatar || '/img/default-avatar.png' 
+            },
             itemsValue: data.itemsValue,
             tickets: data.tickets
         });
@@ -608,10 +725,13 @@ function handleNewDeposit(data) {
     // Add deposited items to the round's item list
     if (data.depositedItems && Array.isArray(data.depositedItems)) {
         if (!currentRound.items) currentRound.items = [];
-        data.depositedItems.forEach(item => currentRound.items.push({ ...item, owner: data.userId }));
+        data.depositedItems.forEach(item => {
+            currentRound.items.push({ ...item, owner: data.userId });
+        });
     }
 
     updateRoundUI(); // Update pot value, participants display
+    displayLatestDeposit(data); // Display the new deposit animation
 
     // Start timer only if exactly 2 participants and timer isn't already active
     if (currentRound.status === 'active' && currentRound.participants.length >= 2 && !timerActive) {
@@ -619,6 +739,108 @@ function handleNewDeposit(data) {
         timerActive = true;
         startClientTimer(currentRound.timeLeft || 120); // Use timeLeft from server if available
     }
+}
+
+// Update participants UI - modified to accommodate the new deposit display
+function updateParticipantsUI() {
+    if (!participantsContainer || !participantCount || !emptyPotMessage) { 
+        console.error("Participants UI elements missing."); 
+        return; 
+    }
+    
+    const participants = currentRound?.participants || []; 
+    const totalPotValue = currentRound?.totalValue || 0;
+    
+    participantCount.textContent = `${participants.length}/200`; 
+    
+    // Don't clear participantsContainer here anymore, as we now maintain the deposit history
+    // Only clear if there are no participants
+    if (participants.length === 0) {
+        participantsContainer.innerHTML = '';
+        emptyPotMessage.style.display = 'block';
+        // Ensure the message element is actually appended if it wasn't already
+        if (!participantsContainer.contains(emptyPotMessage)) {
+            participantsContainer.appendChild(emptyPotMessage);
+        }
+        return;
+    } else { 
+        emptyPotMessage.style.display = 'none'; 
+    }
+    
+    // Check if we need to refresh the participant display
+    // This prevents duplicating content when called from the updateRoundUI function
+    const refreshDisplay = !participantsContainer.querySelector('.player-deposit-container');
+    
+    if (refreshDisplay) {
+        // Sort participants by value descending for initial display
+        const sortedParticipants = [...participants].sort((a, b) => (b.itemsValue || 0) - (a.itemsValue || 0));
+        
+        // Clear container for fresh start
+        participantsContainer.innerHTML = '';
+        
+        // Create deposit containers for each participant
+        sortedParticipants.forEach(participant => {
+            const userItems = currentRound?.items?.filter(item => 
+                item.owner && participant.user && 
+                item.owner.toString() === participant.user.id.toString()
+            ) || [];
+            
+            // Use a mock deposit data structure for displayLatestDeposit
+            const mockDeposit = {
+                userId: participant.user.id,
+                username: participant.user.username,
+                avatar: participant.user.avatar,
+                itemsValue: participant.itemsValue,
+                depositedItems: userItems
+            };
+            
+            displayLatestDeposit(mockDeposit);
+        });
+    }
+}
+
+// Function to test deposit with mock data
+function testDeposit() {
+    console.log("--- TESTING DEPOSIT DISPLAY ---");
+    
+    // Create a mock deposit for testing
+    const mockDeposit = {
+        roundId: currentRound?.roundId || 'test-round',
+        userId: `test_user_${Math.floor(Math.random() * 1000)}`, // Random user ID
+        username: ["RustPlayer99", "SkinCollector", "AK47Master", "HeadHunter", "RustLord", "TheRaider", "ScrapDealer"][Math.floor(Math.random() * 7)],
+        avatar: "https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg",
+        itemsValue: (Math.random() * 50 + 5).toFixed(2) * 1, // Random value between 5 and 55
+        tickets: Math.floor((Math.random() * 50 + 5) * 100), // Proportional tickets
+        totalValue: currentRound?.totalValue ? currentRound.totalValue + parseFloat((Math.random() * 50 + 5).toFixed(2)) : parseFloat((Math.random() * 50 + 5).toFixed(2))
+    };
+    
+    // Add mock deposited items
+    const itemNames = [
+        "AK-47 | Alien Red", "Metal Chest Plate", "Semi-Automatic Rifle", "Garage Door", 
+        "Assault Rifle", "Metal Facemask", "Road Sign Kilt", "Coffee Can Helmet", 
+        "Double Barrel Shotgun", "Revolver", "Sheet Metal Door", "Medical Syringe"
+    ];
+    
+    const numItems = Math.floor(Math.random() * 4) + 1; // 1-4 items
+    mockDeposit.depositedItems = [];
+    
+    let remainingValue = mockDeposit.itemsValue;
+    
+    for (let i = 0; i < numItems; i++) {
+        const isLastItem = i === numItems - 1;
+        const itemValue = isLastItem ? remainingValue : (Math.random() * remainingValue * 0.7).toFixed(2) * 1;
+        remainingValue -= itemValue;
+        
+        mockDeposit.depositedItems.push({
+            assetId: `test_asset_${Math.floor(Math.random() * 10000)}`,
+            name: itemNames[Math.floor(Math.random() * itemNames.length)],
+            image: `/img/default-item.png`, // Default image for testing
+            price: itemValue
+        });
+    }
+    
+    // Handle the deposit
+    handleNewDeposit(mockDeposit);
 }
 
 // Start client timer
@@ -648,28 +870,7 @@ function updateTimerCircle(timeLeft, totalTime) {
     }
 }
 
-// Update participants UI
-function updateParticipantsUI() {
-    if (!participantsContainer || !participantCount || !emptyPotMessage) { console.error("Participants UI elements missing."); return; }
-    const participants = currentRound?.participants || []; const totalPotValue = currentRound?.totalValue || 0;
-    participantCount.textContent = `${participants.length}/200`; participantsContainer.innerHTML = '';
-    if (participants.length === 0) {
-        emptyPotMessage.style.display = 'block';
-        // Ensure the message element is actually appended if it wasn't already
-        if (!participantsContainer.contains(emptyPotMessage)) {
-            participantsContainer.appendChild(emptyPotMessage);
-        }
-        return;
-    } else { emptyPotMessage.style.display = 'none'; }
-    // Sort participants by value descending
-    participants.sort((a, b) => (b.itemsValue || 0) - (a.itemsValue || 0));
-    participants.forEach(participant => {
-        const userItems = currentRound?.items?.filter(item => item.owner && participant.user && item.owner.toString() === participant.user.id.toString()) || [];
-        const participantElement = createParticipantElement(participant, userItems, totalPotValue); participantsContainer.appendChild(participantElement);
-    });
-}
-
-// Create participant element
+// Create participant element (legacy function, kept for reference or potential fallback)
 function createParticipantElement(participant, items, totalPotValue) {
     if (!participant || !participant.user || typeof participant.itemsValue !== 'number') { console.error("Invalid participant data:", participant); const el = document.createElement('div'); el.textContent = "Err"; return el; }
     const participantElement = document.createElement('div'); participantElement.className = 'participant'; participantElement.dataset.userId = participant.user.id;
@@ -689,7 +890,7 @@ function createParticipantElement(participant, items, totalPotValue) {
             <div class="participant-details">
                 <span class="participant-name" title="${username}">${username}</span>
                 <div class="participant-stats">
-                    <span class="participant-value" title="Deposited Value" style="color: ${userColor}">$${participant.itemsValue.toFixed(2)}</span>
+                    <span class="participant-value" title="Deposited Value" style="color: ${userColor}">${participant.itemsValue.toFixed(2)}</span>
                     <span class="participant-percentage" title="Win Chance">${percentage.toFixed(2)}%</span>
                 </div>
             </div>
@@ -702,10 +903,10 @@ function createParticipantElement(participant, items, totalPotValue) {
             if (!item || typeof item.price !== 'number' || !item.name || !item.image) return;
             const itemElement = document.createElement('div');
             itemElement.className = 'item';
-            itemElement.title = `${item.name} ($${item.price.toFixed(2)})`;
+            itemElement.title = `${item.name} (${item.price.toFixed(2)})`;
             // Add user color to item border
             itemElement.style.borderColor = userColor;
-            itemElement.innerHTML = `<img src="${item.image}" alt="${item.name}" loading="lazy" onerror="this.onerror=null; this.src='/img/default-item.png';"><span class="item-value" style="color: ${userColor}">$${item.price.toFixed(2)}</span>`;
+            itemElement.innerHTML = `<img src="${item.image}" alt="${item.name}" loading="lazy" onerror="this.onerror=null; this.src='/img/default-item.png';"><span class="item-value" style="color: ${userColor}">${item.price.toFixed(2)}</span>`;
             itemsElement.appendChild(itemElement);
         });
     }
@@ -1266,7 +1467,7 @@ function handleSpinEnd(winningElement, winner) {
         winnerName.textContent = winner.user.username || 'Winner';
         winnerName.style.color = userColor;
 
-        const depositValue = `$${(winner.value || 0).toFixed(2)}`;
+        const depositValue = `${(winner.value || 0).toFixed(2)}`;
         const chanceValue = `${(winner.percentage || 0).toFixed(2)}%`;
 
         winnerDeposit.textContent = ''; // Clear first
@@ -1369,410 +1570,4 @@ function launchConfetti(mainColor = '#00ffaa') {
         confetti.style.animationDelay = `${Math.random() * 1.5}s`;
 
         // Randomize the duration for varying fall speeds
-        confetti.style.animationDuration = `${2 + Math.random() * 3}s`;
-
-        // Randomize the color from our palette
-        const color = colors[Math.floor(Math.random() * colors.length)];
-        confetti.style.backgroundColor = color;
-
-        // Randomize size
-        const size = Math.random() * 10 + 5; // 5-15px
-        confetti.style.width = `${size}px`;
-        confetti.style.height = `${size}px`;
-
-        // Randomize shape and rotation
-        const rotation = Math.random() * 360;
-        const fallX = (Math.random() - 0.5) * 100; // Horizontal movement
-        confetti.style.setProperty('--fall-x', `${fallX}px`);
-        confetti.style.setProperty('--rotation-start', `${rotation}deg`);
-        confetti.style.setProperty('--rotation-end', `${rotation + (Math.random() - 0.5) * 720}deg`); // Add random spin
-
-        const shape = Math.random();
-        if (shape < 0.33) {
-            confetti.style.borderRadius = '50%'; // Circle
-        } else if (shape < 0.66) {
-            confetti.style.borderRadius = '0'; // Square (will rotate)
-        } else {
-            // Keep some squares/rectangles, maybe add clip-path later if needed
-            confetti.style.borderRadius = '0';
-        }
-
-        confettiContainer.appendChild(confetti);
-    }
-}
-
-// clearConfetti - (Keep original implementation)
-function clearConfetti() {
-    if (confettiContainer) {
-        confettiContainer.innerHTML = '';
-    }
-     // Also clear any dynamic winner pulse style
-     const winnerPulseStyle = document.getElementById('winner-pulse-style');
-     if (winnerPulseStyle) {
-         winnerPulseStyle.remove();
-     }
-     // Remove highlight class from any items
-     document.querySelectorAll('.roulette-item.winner-highlight').forEach(el => {
-         el.classList.remove('winner-highlight');
-         el.style.transform = ''; // Reset any transform applied by highlight
-         // Add null check for el.dataset before accessing userId
-         if (el.dataset?.userId) {
-             el.style.borderColor = getUserColor(el.dataset.userId); // Reset border to base user color
-         }
-     });
-}
-
-// resetToJackpotView - (Keep original implementation, it already cancels animationFrameId)
-function resetToJackpotView() {
-    console.log("Resetting to jackpot view");
-
-    // Cancel any ongoing animation frame FIRST
-    if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-        animationFrameId = null;
-        console.log("Animation frame cancelled by resetToJackpotView.");
-    }
-    // Also clear any pending timeouts or intervals related to animation phases
-    if (window.soundFadeInInterval) clearInterval(window.soundFadeInInterval);
-    if (window.soundFadeOutInterval) clearInterval(window.soundFadeOutInterval);
-    if (window.winnerFadeInInterval) clearInterval(window.winnerFadeInInterval);
-    if (window.typeDepositInterval) clearInterval(window.typeDepositInterval);
-    if (window.typeChanceInterval) clearInterval(window.typeChanceInterval);
-
-
-    isSpinning = false; // Ensure state is false
-
-    if (!jackpotHeader || !inlineRoulette || !winnerInfo || !rouletteTrack) {
-        console.error("Missing elements required for resetToJackpotView.");
-        return;
-    }
-
-    // Stop sound immediately if playing
-    if (spinSound && !spinSound.paused) {
-        spinSound.pause();
-        spinSound.currentTime = 0;
-        spinSound.volume = 1.0; // Reset volume
-        spinSound.playbackRate = 1.0; // Reset rate
-    }
-
-    // Fade out roulette first
-    inlineRoulette.style.transition = 'opacity 0.5s ease';
-    inlineRoulette.style.opacity = '0';
-    clearConfetti(); // Clear confetti and highlights immediately
-
-    // After roulette fades out, reset everything
-    setTimeout(() => {
-        // Return header to normal state
-        jackpotHeader.classList.remove('roulette-mode');
-
-        // Reset roulette track visuals and clear content
-        rouletteTrack.style.transition = 'none'; // IMPORTANT: Remove transition before resetting transform
-        rouletteTrack.style.transform = 'translateX(0)';
-        rouletteTrack.innerHTML = ''; // Clear items
-
-        // Hide roulette and winner info containers
-        inlineRoulette.style.display = 'none';
-        winnerInfo.style.display = 'none';
-
-        // Show jackpot UI elements with fade-in
-        const value = jackpotHeader.querySelector('.jackpot-value');
-        const timer = jackpotHeader.querySelector('.jackpot-timer');
-        const stats = jackpotHeader.querySelector('.jackpot-stats');
-
-        [value, timer, stats].forEach((el, index) => {
-            if (el) {
-                el.style.display = 'flex'; // Or 'block' depending on original style
-                el.style.opacity = '0'; // Start transparent
-                // Stagger fade-in slightly
-                setTimeout(() => {
-                    el.style.transition = 'opacity 0.5s ease';
-                    el.style.opacity = '1';
-                }, 50 + index * 50); // 50ms stagger
-            }
-        });
-
-
-        // Reset state variables
-        // isSpinning = false; // Already set at the beginning
-        timerActive = false;
-        spinStartTime = 0;
-
-        if (roundTimer) {
-            clearInterval(roundTimer);
-            roundTimer = null;
-        }
-
-        // Reset UI for next round values (timer, pot, participants)
-        initiateNewRoundVisualReset();
-
-        // Get the latest round data in case a new one started during animation
-        console.log("Requesting fresh round data after reset.");
-        socket.emit('requestRoundData');
-    }, 500); // Wait for fade out transition to complete
-}
-
-// initiateNewRoundVisualReset - (Keep original implementation)
-function initiateNewRoundVisualReset() {
-    console.log("Visual reset for next round");
-    updateTimerUI(120); // Reset timer display to default
-
-    if(timerValue) {
-        timerValue.classList.remove('urgent-pulse', 'timer-pulse');
-        timerValue.textContent = '120'; // Or whatever default start time is
-    }
-
-    if (participantsContainer && emptyPotMessage) {
-        participantsContainer.innerHTML = ''; // Clear participants display
-        // Ensure empty message exists and is shown
-        if (!participantsContainer.contains(emptyPotMessage)) {
-            participantsContainer.appendChild(emptyPotMessage);
-        }
-        emptyPotMessage.style.display = 'block';
-    }
-
-    if (potValue) potValue.textContent = "$0.00";
-    if (participantCount) participantCount.textContent = "0/200"; // Reset participant count display
-}
-
-// findWinnerFromData - (Keep original implementation)
-function findWinnerFromData(winnerData) {
-    // Check if winner data is directly provided or needs lookup in currentRound
-    const winnerId = winnerData?.winner?.id;
-
-    if (!winnerId) {
-        console.error("Missing winner ID in findWinnerFromData input:", winnerData);
-        return null;
-    }
-
-    if (!currentRound || !currentRound.participants) {
-        console.error("Missing currentRound or participants data for findWinnerFromData.");
-        // Fallback: return basic winner info if available in input
-        if (winnerData.winner) {
-            return {
-                user: { ...winnerData.winner }, // Clone user data
-                percentage: 0, // Cannot calculate without full round data
-                value: 0
-            };
-        }
-        return null;
-    }
-
-    const winnerParticipant = currentRound.participants.find(p => p.user && p.user.id === winnerId);
-
-    if (!winnerParticipant) {
-        console.warn(`Winner ID ${winnerId} not found in local participants list.`);
-        // Fallback: return basic winner info if available in input
-          if (winnerData.winner) {
-            return {
-                user: { ...winnerData.winner },
-                percentage: 0,
-                value: 0
-            };
-        }
-        return null;
-    }
-
-    const totalValue = currentRound.totalValue > 0 ? currentRound.totalValue : 1; // Avoid division by zero
-    const percentage = (winnerParticipant.itemsValue / totalValue) * 100;
-
-    return {
-        user: { ...winnerParticipant.user }, // Return a clone of the user object
-        percentage: percentage || 0,
-        value: winnerParticipant.itemsValue || 0
-    };
-}
-
-
-// testRouletteAnimation - (Keep original implementation)
-function testRouletteAnimation() {
-    console.log("--- TESTING ENHANCED ROULETTE ANIMATION ---");
-
-    if (isSpinning) {
-        console.log("Already spinning, test cancelled.");
-        return;
-    }
-
-    // Use current round if available and has participants, otherwise mock data
-    let testData = currentRound;
-    if (!testData || !testData.participants || testData.participants.length === 0) {
-        console.log('Using sample test data for animation...');
-        testData = {
-            roundId: `test-${Date.now()}`,
-            status: 'active', // Ensure status allows spinning
-            totalValue: 194.66,
-            participants: [
-                { user: { id: 'test_user_1', username: 'DavE', avatar: 'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg' }, itemsValue: 185.69, tickets: 18569 },
-                { user: { id: 'test_user_2', username: 'Lisqo', avatar: 'https://avatars.steamstatic.com/bb8a0a497b4b1f46b96b6b0775e9368fc8c5c3b4_full.jpg' }, itemsValue: 7.39, tickets: 739 },
-                { user: { id: 'test_user_3', username: 'simon50110', avatar: 'https://avatars.steamstatic.com/3c4c5a7c9968414c3a1ddd1e73cb8e6aeeec5f32_full.jpg' }, itemsValue: 1.04, tickets: 104 },
-                { user: { id: 'test_user_4', username: 'Tester4', avatar: '/img/default-avatar.png' }, itemsValue: 0.54, tickets: 54 }
-            ],
-            items: [ // Add some mock items for display
-                { owner: 'test_user_1', name: 'AK-47 | Redline', price: 15.50, image: '/img/default-item.png' },
-                { owner: 'test_user_1', name: 'AWP | Asiimov', price: 70.19, image: '/img/default-item.png' },
-                { owner: 'test_user_2', name: 'Glock-18 | Water Elem...', price: 1.39, image: '/img/default-item.png' },
-                { owner: 'test_user_3', name: 'USP-S | Cortex', price: 1.04, image: '/img/default-item.png' },
-            ]
-        };
-        // Temporarily set currentRound for the test if using mock data
-        // Note: This might cause issues if real data arrives concurrently
-        currentRound = testData;
-        updateParticipantsUI(); // Update UI with mock participants
-    }
-
-    if (!testData.participants || testData.participants.length === 0) {
-        showNotification('Test Error', 'No participants available for test spin.');
-        return;
-    }
-
-    // Select random winner from the available participants
-    const idx = Math.floor(Math.random() * testData.participants.length);
-    const winningParticipant = testData.participants[idx];
-    const mockWinnerData = {
-        roundId: testData.roundId,
-        winner: winningParticipant.user, // Pass the user object
-        winningTicket: Math.floor(Math.random() * (winningParticipant.tickets || 1)) + 1 // Example ticket number
-    };
-
-    console.log('Test Winner Selected:', mockWinnerData.winner.username);
-    // Use the same function the socket event uses
-    handleWinnerAnnouncement(mockWinnerData);
-}
-
-
-// =================== PROVABLY FAIR ===================
-// (Keep all original Provably Fair functions: verifyRound, loadPastRounds, populateVerificationFields, createPagination)
-
-async function verifyRound() {
-    const idInput = document.getElementById('round-id'), sSeedInput = document.getElementById('server-seed'), cSeedInput = document.getElementById('client-seed'), resultEl = document.getElementById('verification-result');
-    if (!idInput || !sSeedInput || !cSeedInput || !resultEl) { console.error("Verify form elements missing."); return; }
-    const roundId = idInput.value.trim(), serverSeed = sSeedInput.value.trim(), clientSeed = cSeedInput.value.trim();
-    if (!roundId || !serverSeed || !clientSeed) { resultEl.style.display = 'block'; resultEl.className = 'verification-result error'; resultEl.innerHTML = '<p>Please fill in all fields.</p>'; return; }
-    // Basic server seed format validation (SHA256 hex string)
-    if (serverSeed.length !== 64 || !/^[a-f0-9]{64}$/i.test(serverSeed)) { resultEl.style.display = 'block'; resultEl.className = 'verification-result error'; resultEl.innerHTML = '<p>Invalid Server Seed format (should be 64 hex characters).</p>'; return; }
-    try {
-        resultEl.style.display = 'block'; resultEl.className = 'verification-result loading'; resultEl.innerHTML = '<p>Verifying...</p>';
-        const response = await fetch('/api/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roundId, serverSeed, clientSeed }) });
-        const result = await response.json(); if (!response.ok) throw new Error(result.error || `Verify fail (${response.status})`);
-        resultEl.className = `verification-result ${result.verified ? 'success' : 'error'}`;
-        let html = `<h4>Result (Round #${result.roundId || roundId})</h4>`;
-
-        if (result.verified) {
-             html += `<p style="color: var(--success-color); font-weight: bold;">✅ Verified Fair.</p>`;
-             if (result.serverSeedHash) html += `<p><strong>Server Seed Hash:</strong> ${result.serverSeedHash}</p>`;
-             if (result.serverSeed) html += `<p><strong>Server Seed:</strong> ${result.serverSeed}</p>`;
-             if (result.clientSeed) html += `<p><strong>Client Seed:</strong> ${result.clientSeed}</p>`;
-             if (result.combinedString) html += `<p><strong>Combined:</strong> ${result.combinedString}</p>`;
-             if (result.finalHash) html += `<p><strong>Result Hash:</strong> ${result.finalHash}</p>`;
-             if (result.winningTicket !== undefined) html += `<p><strong>Winning Ticket:</strong> ${result.winningTicket}</p>`;
-             if (result.winnerUsername) html += `<p><strong>Winner:</strong> ${result.winnerUsername}</p>`;
-        } else {
-            // **FIXED**: Corrected the logic for constructing the failure message HTML
-            html += `<p style="color: var(--error-color); font-weight: bold;">❌ Verification Failed.</p>`;
-            html += `<p><strong>Reason:</strong> ${result.reason || 'Mismatch.'}</p>`;
-            if (result.serverSeedHash) {
-                html += `<p><strong>Server Seed Hash:</strong> ${result.serverSeedHash}</p>`;
-            }
-            if (result.serverSeed) {
-                html += `<p><strong>Provided Server Seed:</strong> ${result.serverSeed}</p>`;
-            }
-            if (result.clientSeed) {
-                html += `<p><strong>Provided Client Seed:</strong> ${result.clientSeed}</p>`;
-            }
-            if (result.winningTicket !== undefined) {
-                html += `<p><strong>Calculated Ticket:</strong> ${result.winningTicket}</p>`;
-            }
-            if (result.actualWinningTicket !== undefined) {
-                html += `<p><strong>Actual Ticket:</strong> ${result.actualWinningTicket}</p>`;
-            }
-            if (result.winnerUsername) {
-                html += `<p><strong>Actual Winner:</strong> ${result.winnerUsername}</p>`;
-            }
-        }
-        resultEl.innerHTML = html;
-    } catch (error) { resultEl.style.display = 'block'; resultEl.className = 'verification-result error'; resultEl.innerHTML = `<p>Error: ${error.message}</p>`; console.error('Error verifying:', error); }
-}
-
-
-async function loadPastRounds(page = 1) {
-    if (!roundsTableBody || !roundsPagination) { console.warn("Rounds history elements missing."); return; }
-    try {
-        roundsTableBody.innerHTML = '<tr><td colspan="5" class="loading-message">Loading...</td></tr>'; roundsPagination.innerHTML = '';
-        const response = await fetch(`/api/rounds?page=${page}&limit=10`); if (!response.ok) throw new Error(`Load fail (${response.status})`);
-        const data = await response.json(); if (!data || !Array.isArray(data.rounds) || typeof data.currentPage !== 'number' || typeof data.totalPages !== 'number') throw new Error('Invalid rounds data.');
-        roundsTableBody.innerHTML = '';
-        if (data.rounds.length === 0 && data.currentPage === 1) roundsTableBody.innerHTML = '<tr><td colspan="5" class="no-rounds-message">No rounds found.</td></tr>';
-        else if (data.rounds.length === 0 && data.currentPage > 1) roundsTableBody.innerHTML = '<tr><td colspan="5" class="no-rounds-message">No rounds on this page.</td></tr>';
-        else data.rounds.forEach(round => {
-            const row = document.createElement('tr'); let date = 'N/A'; if (round.endTime) try { const d = new Date(round.endTime); if (!isNaN(d.getTime())) date = d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }); } catch (e) { console.error("Date format error:", e); }
-             // Ensure seeds are strings for the onclick attribute
-             const serverSeedStr = round.serverSeed || '';
-             const clientSeedStr = round.clientSeed || '';
-             row.innerHTML = `<td>#${round.roundId||'N/A'}</td><td>${date}</td><td>$${round.totalValue?round.totalValue.toFixed(2):'0.00'}</td><td>${round.winner?(round.winner.username||'N/A'):'N/A'}</td><td><button class="btn btn-details" onclick="showRoundDetails(${round.roundId})">Details</button><button class="btn btn-verify" onclick="populateVerificationFields(${round.roundId}, '${serverSeedStr}', '${clientSeedStr}')" ${!round.serverSeed ? 'disabled title="Seed not revealed yet"' : ''}>Verify</button></td>`;
-            row.dataset.roundId = round.roundId; roundsTableBody.appendChild(row);
-        });
-        createPagination(data.currentPage, data.totalPages);
-    } catch (error) { roundsTableBody.innerHTML = `<tr><td colspan="5" class="error-message">Error loading rounds: ${error.message}</td></tr>`; console.error('Error loading rounds:', error); }
-}
-
-function populateVerificationFields(roundId, serverSeed, clientSeed) {
-    const idInput = document.getElementById('round-id'), sSeedInput = document.getElementById('server-seed'), cSeedInput = document.getElementById('client-seed');
-    if (idInput) idInput.value = roundId || '';
-    if (sSeedInput) sSeedInput.value = serverSeed || ''; // Populate server seed if available
-    if (cSeedInput) cSeedInput.value = clientSeed || ''; // Populate client seed if available
-
-    const verificationSection = document.getElementById('provably-fair-verification');
-    if (verificationSection) {
-          verificationSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-
-    // Provide feedback if server seed isn't populated yet
-    if (!serverSeed && roundId) {
-        showNotification('Info', `Server Seed for Round #${roundId} is revealed after the round ends.`);
-    }
-}
-
-function createPagination(currentPage, totalPages) {
-    if (!roundsPagination) return; roundsPagination.innerHTML = ''; if (totalPages <= 1) return;
-    const maxPagesToShow = 5; // Example: Prev 1 ... 4 5 6 ... 10 Next
-
-    const createButton = (text, page, isActive = false, isDisabled = false, isEllipsis = false) => {
-        if (isEllipsis) { const span = document.createElement('span'); span.className = 'page-ellipsis'; span.textContent = '...'; return span; }
-        const button = document.createElement('button'); button.className = `page-button ${isActive ? 'active' : ''}`; button.textContent = text; button.disabled = isDisabled;
-        if (!isDisabled && typeof page === 'number') { button.addEventListener('click', (e) => { e.preventDefault(); loadPastRounds(page); }); }
-        return button;
-    };
-
-    // Prev Button
-    roundsPagination.appendChild(createButton('« Prev', currentPage - 1, false, currentPage <= 1));
-
-    if (totalPages <= maxPagesToShow) {
-        // Show all pages
-        for (let i = 1; i <= totalPages; i++) { roundsPagination.appendChild(createButton(i, i, i === currentPage)); }
-    } else {
-        // Show ellipsis logic
-        const pages = [];
-        pages.push(1); // Always show first page
-
-        const rangeStart = Math.max(2, currentPage - 1);
-        const rangeEnd = Math.min(totalPages - 1, currentPage + 1);
-
-        if (rangeStart > 2) pages.push('...'); // Ellipsis after page 1
-
-        for (let i = rangeStart; i <= rangeEnd; i++) {
-            pages.push(i);
-        }
-
-        if (rangeEnd < totalPages - 1) pages.push('...'); // Ellipsis before last page
-
-        pages.push(totalPages); // Always show last page
-
-        // Render buttons
-        pages.forEach(page => {
-            if (page === '...') roundsPagination.appendChild(createButton('...', null, false, true, true));
-            else roundsPagination.appendChild(createButton(page, page, page === currentPage));
-        });
-    }
-
-    // Next Button
-    roundsPagination.appendChild(createButton('Next »', currentPage + 1, false, currentPage >= totalPages));
-}
+        confetti.style.animationDuration = `${2 + Math.random() * 3}
