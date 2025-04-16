@@ -88,9 +88,9 @@ const LANDING_VARIATIONS = [
 ];
 
 // Advanced tension effects
-const TENSION_OSCILLATIONS = true; // Enable the slight back-and-forth at end
-const TENSION_FREQUENCY = 4; // Higher = more rapid oscillations
-const TENSION_MAGNITUDE = 0.04; // Higher = more noticeable oscillations
+const TENSION_OSCILLATIONS = false; // Enable the slight back-and-forth at end
+const TENSION_FREQUENCY = 0; // Higher = more rapid oscillations
+const TENSION_MAGNITUDE = 0; // Higher = more noticeable oscillations
 
 // User Color Map - 20 distinct colors for players
 const userColorMap = new Map();
