@@ -188,11 +188,19 @@ a:hover {
 .main-header .container {
     display: flex;
     align-items: center;
+    justify-content: space-between; /* Distribute space between elements */
     flex-wrap: wrap; /* Allow wrapping on smaller screens */
 }
 
+/* New header-left section */
+.header-left {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0; /* Prevent shrinking */
+}
+
 .logo {
-    margin-right: 20px; /* Add space between logo and nav/user */
+    margin-right: 20px; /* Add space between logo and side nav */
 }
 
 .logo h1 {
@@ -209,36 +217,90 @@ a:hover {
     color: var(--primary-color);
 }
 
-.main-nav {
-    flex: 1; /* Allow nav to take up space */
+/* Side navigation (FAQ and Provably Fair) */
+.side-nav {
     display: flex;
-    justify-content: center; /* Center nav links */
-    min-width: 0; /* Prevent overflow issues */
+    align-items: center;
 }
 
-.main-nav ul {
+.side-nav ul {
     list-style: none;
     display: flex;
-    padding: 0; /* Remove default padding */
+    padding: 0;
 }
 
-.main-nav li {
-    margin-right: 15px; /* Slightly reduced spacing */
+.side-nav li {
+    margin-right: 15px;
 }
-.main-nav li:last-child {
+
+.side-nav li:last-child {
     margin-right: 0;
 }
 
-.main-nav a {
+.side-nav a {
     font-weight: 600;
     font-size: 1rem;
     padding: 8px 12px;
     border-radius: 4px;
     transition: all 0.3s ease;
     position: relative;
-    color: var(--text-secondary); /* Default color */
-    display: block; /* Ensure padding works correctly */
-    white-space: nowrap; /* Prevent link text wrapping */
+    color: var(--text-secondary);
+    display: block;
+    white-space: nowrap;
+}
+
+.side-nav a:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background-color: var(--primary-color);
+    transition: all 0.3s ease;
+    transform: translateX(-50%);
+}
+
+.side-nav a:hover:after,
+.side-nav a.active:after {
+    width: 80%;
+}
+
+.side-nav a.active {
+    color: var(--primary-color);
+}
+
+.side-nav a:hover {
+    color: var(--text-primary);
+}
+
+/* Main navigation (Jackpot) */
+.main-nav {
+    display: flex;
+    justify-content: center; /* Center the navigation */
+    flex: 0 1 auto; /* Allow shrinking but not growing */
+}
+
+.main-nav ul {
+    list-style: none;
+    display: flex;
+    padding: 0;
+}
+
+.main-nav li {
+    margin: 0;
+}
+
+.main-nav a {
+    font-weight: 600;
+    font-size: 1.2rem; /* Slightly larger for emphasis */
+    padding: 8px 20px; /* Wider padding */
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    position: relative;
+    color: var(--text-secondary);
+    display: block;
+    white-space: nowrap;
 }
 
 .main-nav a:after {
@@ -261,23 +323,23 @@ a:hover {
 .main-nav a.active {
     color: var(--primary-color);
 }
+
 .main-nav a:hover {
-    color: var(--text-primary); /* Hover color */
+    color: var(--text-primary);
 }
 
-
 .user-controls {
-    margin-left: auto; /* Push user controls to the right */
     display: flex;
     align-items: center;
     white-space: nowrap; /* Prevent wrapping within user controls */
+    margin-left: auto; /* Push to the right */
+    flex-shrink: 0; /* Prevent shrinking */
 }
 
 .user-profile {
     display: flex; /* Changed from none by JS */
     align-items: center;
     gap: 10px;
-    /* margin-left: 15px; */ /* Removed margin, let gap handle spacing */
 }
 
 .user-avatar {
@@ -323,17 +385,17 @@ a:hover {
     display: flex;
     justify-content: space-around;
     align-items: center;
-    padding: 20px;
+    padding: 30px 20px; /* Increased top/bottom padding */
     background: linear-gradient(135deg, var(--background-medium), var(--background-light));
     border-bottom: 1px solid var(--border-color);
     border-radius: 12px 12px 0 0;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    min-height: 150px; /* Minimum height to contain elements */
+    min-height: 170px; /* Increased minimum height */
     position: relative;
     overflow: hidden; /* Needed for absolute positioned children like roulette */
     z-index: 5;
     transition: height 0.3s ease, background 0.3s ease;
-    gap: 20px;
+    gap: 30px; /* Increased gap between elements */
     flex-wrap: wrap; /* Allow wrapping */
 }
 
@@ -348,11 +410,22 @@ a:hover {
     align-items: center;
     text-align: center; /* Ensure text aligns center */
     flex: 1; /* Allow flex items to grow/shrink */
-    min-width: 120px; /* Prevent elements becoming too small */
+    min-width: 150px; /* Increased minimum width */
+    background-color: rgba(13, 17, 23, 0.4); /* Semi-transparent background */
+    padding: 15px; /* Add padding */
+    border-radius: 10px; /* Rounded corners */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* Add shadow for depth */
+    border: 1px solid var(--border-color); /* Add border */
+    transition: transform 0.3s ease, box-shadow 0.3s ease; /* Add hover effect */
+}
+
+.jackpot-value:hover, .jackpot-timer:hover, .jackpot-stats:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
 .jackpot-value h2 {
-    font-size: 2.8rem;
+    font-size: 3rem; /* Increased font size */
     font-weight: 700;
     color: var(--primary-color);
     margin: 0;
@@ -362,18 +435,19 @@ a:hover {
 }
 
 .value-label, .timer-label, .stat-label {
-    font-size: 0.85rem;
+    font-size: 0.9rem; /* Slightly increased */
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 1px;
     display: block;
-    margin-top: 5px;
+    margin-top: 8px; /* Increased margin */
+    font-weight: 600; /* Made bolder */
 }
 
 .timer-circle {
     position: relative;
-    width: 90px;
-    height: 90px;
+    width: 100px; /* Increased size */
+    height: 100px; /* Increased size */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -388,7 +462,7 @@ a:hover {
 
 .timer-background, .timer-foreground {
     fill: none;
-    stroke-width: 6;
+    stroke-width: 8; /* Increased stroke width */
 }
 
 .timer-background {
@@ -401,7 +475,7 @@ a:hover {
     /* stroke-dasharray calculated dynamically based on radius */
     stroke-dashoffset: 0;
     transition: stroke-dashoffset 1s linear; /* Animate the offset change */
-    filter: drop-shadow(0 0 4px var(--primary-color));
+    filter: drop-shadow(0 0 6px var(--primary-color)); /* Increased glow */
 }
 
 .timer-text {
@@ -409,14 +483,14 @@ a:hover {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 1.8rem;
+    font-size: 2rem; /* Increased font size */
     font-weight: 700;
     color: var(--primary-color);
     font-family: 'JetBrains Mono', monospace;
 }
 
 .stat-value {
-    font-size: 1.6rem;
+    font-size: 2rem; /* Increased font size */
     font-weight: 700;
     color: var(--text-primary);
     display: block;
@@ -425,6 +499,58 @@ a:hover {
 
 /* ----- END JACKPOT HEADER STYLES ----- */
 
+/* Current Items Section */
+.current-items-section {
+    padding: 25px;
+    text-align: center; /* Center the content */
+}
+
+.section-title {
+    font-size: 1.5rem;
+    color: var(--primary-color);
+    margin-bottom: 20px;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    position: relative;
+    display: inline-block; /* For the underline effect */
+}
+
+.section-title:after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80px;
+    height: 3px;
+    background-color: var(--primary-color);
+    border-radius: 3px;
+}
+
+.participants-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.empty-pot-message {
+    background-color: rgba(13, 17, 23, 0.4);
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    text-align: center;
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.empty-pot-message p {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+}
 
 /* Inline Roulette - MODIFIED */
 .inline-roulette {
@@ -1138,51 +1264,34 @@ a:hover {
     background-color: var(--background-medium);
     border: 1px solid var(--border-color);
     flex-shrink: 0; /* Prevent shrinking */
+    cursor: pointer; /* Indicate clickable */
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.selected-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
 }
 
 .selected-item img {
     width: 100%;
     height: 60px;
     object-fit: contain;
-    background-color: var(--background-dark);
     display: block;
+    background-color: var(--background-dark);
 }
 
-.selected-item-details {
-    padding: 5px;
-    font-size: 0.8rem;
-    text-align: center;
-}
-
-.selected-item-value {
-    font-weight: 600;
-    color: var(--primary-color);
-}
-
-.remove-item {
+.selected-item .item-value {
     position: absolute;
-    top: 3px;
-    right: 3px;
-    width: 18px;
-    height: 18px;
+    bottom: 0;
+    left: 0;
+    right: 0;
     background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    border-radius: 50%;
-    border: none;
-    font-size: 10px;
-    line-height: 18px; /* Center the 'x' */
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.2s ease, transform 0.2s ease;
-    padding: 0;
-    z-index: 1; /* Above image */
-}
-
-.remove-item:hover {
-    background-color: var(--error-color);
-    transform: scale(1.1);
+    color: var(--primary-color);
+    padding: 3px 5px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-align: center;
 }
 
 .total-value {
@@ -1191,38 +1300,135 @@ a:hover {
     align-items: center;
     padding: 10px 15px;
     background-color: var(--background-light);
-    border-radius: 4px;
+    border-radius: 8px;
     border: 1px solid var(--border-color);
-    margin-top: 10px;
     font-weight: 600;
-    font-size: 1.1rem;
 }
 
 .total-value span:last-child {
     color: var(--primary-color);
+    font-size: 1.2rem;
     font-family: 'JetBrains Mono', monospace;
+}
+
+/* Modal styles */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+.modal-content {
+    background-color: var(--background-medium);
+    border-radius: 12px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    /* Custom scrollbar (optional) */
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) var(--background-dark);
+}
+/* Scrollbar for Webkit browsers */
+.modal-content::-webkit-scrollbar {
+    width: 8px;
+}
+.modal-content::-webkit-scrollbar-track {
+    background: var(--background-dark);
+    border-radius: 4px;
+}
+.modal-content::-webkit-scrollbar-thumb {
+    background-color: var(--primary-color);
+    border-radius: 4px;
+    border: 2px solid var(--background-dark);
+}
+
+
+.modal-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(90deg, var(--background-medium), var(--background-light));
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: var(--text-primary);
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.close-btn:hover {
+    color: var(--primary-color);
+}
+
+.modal-body {
+    padding: 20px;
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+.modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    background-color: var(--background-medium);
+}
+
+/* Age verification modal */
+.age-verification .modal-content {
+    max-width: 500px;
+}
+
+.age-verification ul {
+    margin: 15px 0;
+    padding-left: 20px;
+}
+
+.age-verification li {
+    margin-bottom: 8px;
 }
 
 /* Loading indicator */
 .loading-indicator {
-    /* display: flex; */ /* Use JS to toggle display flex/none */
-    display: none; /* Hidden by default */
+    display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     padding: 30px;
-    background-color: transparent;
-    border-radius: 8px;
-    margin: 20px 0;
-    color: var(--text-secondary);
-    grid-column: 1 / -1; /* Span grid if inside */
+    text-align: center;
 }
-
 
 .spinner {
     width: 40px;
     height: 40px;
-    border: 4px solid rgba(0, 230, 118, 0.3);
+    border: 4px solid rgba(0, 230, 118, 0.2);
     border-radius: 50%;
     border-top-color: var(--primary-color);
     animation: spin 1s linear infinite;
@@ -1234,502 +1440,322 @@ a:hover {
     100% { transform: rotate(360deg); }
 }
 
-/* Timer animations */
-.timer-pulse {
-    animation: timerPulse 2s infinite ease-in-out;
-}
-
-.urgent-pulse {
-    animation: urgentPulse 0.6s infinite ease-in-out;
-    color: var(--error-color) !important; /* Use error color */
-    text-shadow: 0 0 5px rgba(244, 67, 54, 0.5);
-}
-
-@keyframes timerPulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
-}
-
-@keyframes urgentPulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.8; transform: scale(1.08); }
-}
-
-
-/* FAQ & Provably Fair styles */
-.faq-item, .fair-section {
-    margin-bottom: 30px;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 20px;
-}
-.faq-item:last-child, .fair-section:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
-    padding-bottom: 0;
-}
-
-.faq-question, .fair-title {
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: var(--primary-color);
-    padding-bottom: 10px;
-    margin-bottom: 10px;
-    display: block;
-    cursor: default; /* No collapse functionality assumed */
-}
-
-.faq-answer, .fair-content {
-    padding: 0 10px;
-    color: var(--text-secondary);
-    line-height: 1.7;
-}
-.faq-answer p, .fair-content p {
-    margin-bottom: 12px;
-}
-.faq-answer ul, .faq-answer ol,
-.fair-content ul, .fair-content ol {
-    margin: 15px 0 15px 20px;
-    padding-left: 25px;
-}
-.faq-answer li,
-.fair-content li {
-    margin-bottom: 10px;
-}
-.fair-content strong {
-    color: var(--text-accent);
-    font-weight: 600;
-}
-
-.fair-content code {
-    background-color: var(--background-dark);
-    padding: 3px 6px;
-    border-radius: 4px;
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--secondary-light);
-    font-size: 0.9em;
-    border: 1px solid var(--border-color);
-    word-break: break-all; /* Break long code strings */
-}
-.fair-content a {
-    color: var(--primary-light);
-    text-decoration: underline;
-}
-.fair-content a:hover {
-    color: var(--primary-color);
-}
-
+/* Help text */
 .help-text {
     font-size: 0.9rem;
     color: var(--text-secondary);
     margin-top: 10px;
 }
+
 .help-text a {
-    color: var(--primary-light);
+    color: var(--primary-color);
     text-decoration: underline;
 }
+
 .help-text a:hover {
+    text-decoration: none;
+}
+
+/* FAQ Page */
+.faq-item {
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 20px;
+}
+
+.faq-item:last-child {
+    border-bottom: none;
+}
+
+.faq-question {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 10px;
+    cursor: pointer;
+    position: relative;
+    padding-right: 30px;
+}
+
+.faq-question::after {
+    content: '+';
+    position: absolute;
+    right: 0;
+    top: 0;
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+    transition: transform 0.3s ease;
+}
+
+.faq-item.active .faq-question::after {
+    transform: rotate(45deg);
     color: var(--primary-color);
 }
 
+.faq-answer {
+    display: block; /* Changed from none, JS toggles */
+    padding-top: 10px;
+}
+
+/* Provably Fair Page */
+.fair-section {
+    margin-bottom: 30px;
+}
+
+.fair-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+.fair-content {
+    line-height: 1.6;
+}
+
+.fair-content p {
+    margin-bottom: 15px;
+}
+
+.fair-content ol, .fair-content ul {
+    margin: 15px 0;
+    padding-left: 20px;
+}
+
+.fair-content li {
+    margin-bottom: 10px;
+}
+
+.fair-content code {
+    background-color: var(--background-dark);
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9em;
+}
 
 /* Rounds table */
 .rounds-table-container {
-    overflow-x: auto; /* Allow horizontal scroll on small screens */
-    margin-bottom: 20px;
-    background-color: var(--background-light);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    /* Custom scrollbar for container */
-    scrollbar-width: thin;
-    scrollbar-color: var(--secondary-color) var(--background-dark);
-}
-/* Scrollbar for Webkit */
-.rounds-table-container::-webkit-scrollbar {
-    height: 8px; /* Horizontal scrollbar height */
-    width: 8px;
-}
-.rounds-table-container::-webkit-scrollbar-track {
-    background: var(--background-dark);
-    border-radius: 4px;
-}
-.rounds-table-container::-webkit-scrollbar-thumb {
-    background-color: var(--secondary-color);
-    border-radius: 4px;
-    border: 2px solid var(--background-dark);
+    overflow-x: auto;
+    margin: 20px 0;
 }
 
 .rounds-table {
     width: 100%;
-    min-width: 600px; /* Minimum width before scrollbar appears */
     border-collapse: collapse;
-    font-size: 0.9rem;
+    text-align: left;
 }
 
 .rounds-table th, .rounds-table td {
     padding: 12px 15px;
-    text-align: left;
     border-bottom: 1px solid var(--border-color);
-    white-space: nowrap; /* Prevent wrapping by default */
-    vertical-align: middle;
-}
-.rounds-table tr:last-child td {
-    border-bottom: none;
 }
 
 .rounds-table th {
-    background-color: var(--background-medium);
-    color: var(--primary-color);
+    background-color: var(--background-light);
+    color: var(--text-primary);
     font-weight: 600;
     text-transform: uppercase;
-    font-size: 0.85rem;
-    position: sticky; /* Make header sticky if container scrolls */
-    top: 0;
-    z-index: 1;
-}
-/* Style table messages */
-.rounds-table .loading-message,
-.rounds-table .no-rounds-message,
-.rounds-table .error-message {
-    text-align: center;
-    color: var(--text-secondary);
-    padding: 20px;
-    font-style: italic;
-    white-space: normal; /* Allow message text to wrap */
-}
-.rounds-table .error-message {
-    color: var(--error-color);
-    font-style: normal;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
 }
 
-.rounds-table tbody tr:hover {
-    background-color: rgba(255, 255, 255, 0.05);
+.rounds-table tr:hover {
+    background-color: var(--background-light);
 }
-/* Allow buttons cell to wrap */
-.rounds-table td:last-child {
-    white-space: normal;
-    text-align: right; /* Align buttons right */
+
+.rounds-table td {
+    color: var(--text-secondary);
 }
 
 /* Pagination */
 .pagination {
     display: flex;
     justify-content: center;
-    align-items: center;
-    gap: 8px;
+    gap: 5px;
     margin-top: 20px;
-    flex-wrap: wrap; /* Allow pagination buttons to wrap */
 }
 
-.page-button {
-    padding: 6px 10px;
+.pagination-btn {
+    padding: 5px 10px;
     background-color: var(--background-light);
     border: 1px solid var(--border-color);
+    color: var(--text-secondary);
     border-radius: 4px;
-    color: var(--text-primary);
     cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 0.9rem;
+    transition: all 0.3s ease;
 }
 
-.page-button:hover:not(:disabled) {
-    background-color: var(--primary-dark);
-    color: var(--background-dark);
-    border-color: var(--primary-dark);
+.pagination-btn:hover {
+    background-color: var(--background-medium);
+    color: var(--text-primary);
 }
 
-.page-button.active {
+.pagination-btn.active {
     background-color: var(--primary-color);
     color: var(--background-dark);
     border-color: var(--primary-color);
-    cursor: default;
 }
-.page-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-.page-ellipsis {
-    color: var(--text-secondary);
-    padding: 6px 0;
-    margin: 0 2px;
-}
-
-
-/* Modals */
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.85);
-    display: none; /* Use JS to toggle display: flex */
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-    padding: 20px;
-    backdrop-filter: blur(5px);
-}
-
-/* No .active class needed if JS directly sets display: flex */
-
-.modal-content {
-    background-color: var(--background-medium);
-    border-radius: 12px;
-    width: 100%;
-    max-width: 700px; /* Default max width */
-    max-height: 90vh; /* Limit height */
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
-    border: 1px solid var(--border-color);
-    animation: modalIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    overflow: hidden; /* Prevent content overflow before body scrolls */
-}
-
-/* Specific modal max-widths */
-.age-verification .modal-content { max-width: 500px; }
-#depositModal .modal-content { max-width: 900px; } /* Use ID for deposit modal */
-#tradeUrlModal .modal-content { max-width: 600px; }
-
-
-@keyframes modalIn {
-    from { opacity: 0; transform: scale(0.9) translateY(-20px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-.modal-header {
-    padding: 15px 20px;
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: linear-gradient(135deg, var(--background-medium), var(--background-light));
-    border-radius: 12px 12px 0 0;
-    flex-shrink: 0; /* Prevent header shrinking */
-}
-
-
-.modal-header h2 {
-    margin: 0;
-    color: var(--primary-color);
-    font-size: 1.4rem;
-}
-
-.close-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 1.8rem;
-    line-height: 1;
-    cursor: pointer;
-    transition: color 0.3s ease, transform 0.3s ease;
-    padding: 5px;
-}
-
-.close-btn:hover {
-    color: var(--primary-color);
-    transform: rotate(90deg);
-}
-
-.modal-body {
-    padding: 20px;
-    overflow-y: auto; /* Scroll only body */
-    flex-grow: 1; /* Allow body to take available space */
-    line-height: 1.7;
-    /* Custom scrollbar for modal body */
-    scrollbar-width: thin;
-    scrollbar-color: var(--primary-color) var(--background-dark);
-}
-.modal-body::-webkit-scrollbar {
-    width: 8px;
-}
-.modal-body::-webkit-scrollbar-track {
-    background: var(--background-dark);
-    border-radius: 4px;
-}
-.modal-body::-webkit-scrollbar-thumb {
-    background-color: var(--primary-color);
-    border-radius: 4px;
-    border: 2px solid var(--background-dark);
-}
-
-.modal-body p {
-    margin-bottom: 15px;
-    color: var(--text-secondary);
-}
-.modal-body p:last-child {
-    margin-bottom: 0;
-}
-.modal-body ul {
-    list-style: disc;
-    margin: 15px 0 15px 25px;
-    padding-left: 15px;
-}
-.modal-body li {
-    margin-bottom: 8px;
-    color: var(--text-secondary);
-}
-
-
-.modal-footer {
-    padding: 15px 20px;
-    border-top: 1px solid var(--border-color);
-    text-align: right;
-    background-color: var(--background-light);
-    border-radius: 0 0 12px 12px;
-    flex-shrink: 0; /* Prevent footer shrinking */
-    display: flex; /* Use flex for button alignment */
-    justify-content: flex-end; /* Align buttons to the right */
-    gap: 10px; /* Space between buttons */
-}
-
 
 /* Footer */
 .main-footer {
     background-color: var(--background-medium);
-    text-align: center;
-    padding: 25px 15px;
-    margin-top: 50px;
+    padding: 40px 0 20px;
     border-top: 1px solid var(--border-color);
-    font-size: 0.9rem;
-    color: var(--text-secondary);
+    margin-top: 50px;
 }
-.main-footer p {
+
+.footer-content {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    margin-bottom: 30px;
+    gap: 20px;
+}
+
+.footer-logo h2 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.5rem;
     margin: 0;
 }
 
-
-/* Responsive styles */
-@media (max-width: 992px) { /* Tablet breakpoint */
-    .main-nav {
-        justify-content: flex-start; /* Align nav left on tablet */
-        margin-left: 20px; /* Space after logo */
-    }
-    .user-controls {
-         /* Keep user controls pushed right */
-    }
+.footer-logo span {
+    color: var(--primary-color);
 }
 
-@media (max-width: 768px) { /* Mobile breakpoint */
+.footer-links ul {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.footer-links a {
+    color: var(--text-secondary);
+    transition: color 0.3s ease;
+}
+
+.footer-links a:hover {
+    color: var(--primary-color);
+}
+
+.footer-social {
+    display: flex;
+    gap: 15px;
+}
+
+.social-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: var(--background-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    transition: all 0.3s ease;
+}
+
+.social-icon:hover {
+    background-color: var(--primary-color);
+    color: var(--background-dark);
+    transform: translateY(-3px);
+}
+
+.footer-disclaimer {
+    padding: 20px 0;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.footer-disclaimer p {
+    margin-bottom: 10px;
+}
+
+.footer-copyright {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    margin-top: 20px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
     .main-header .container {
-        justify-content: space-between; /* Space between logo and user controls */
-    }
-    .main-nav {
-        order: 3; /* Nav below logo/user */
-        width: 100%;
-        justify-content: center; /* Center nav items */
-        margin-top: 10px;
-        margin-left: 0; /* Reset margin */
-        flex: none; /* Don't allow nav to flex */
-    }
-    .main-nav ul {
-        justify-content: center; /* Center the ul itself */
-    }
-    .user-controls {
-        order: 2; /* User controls after logo */
-        margin-left: 0; /* Reset margin */
-    }
-    .logo {
-        order: 1;
-        margin-right: 0; /* Reset margin */
-    }
-
-    .jackpot-header {
-        padding: 15px;
+        flex-direction: column;
         gap: 10px;
-        min-height: auto; /* Let content define height */
     }
-
-    .jackpot-value h2 { font-size: 2rem; }
-    .timer-circle { width: 70px; height: 70px; }
-    .timer-text { font-size: 1.4rem; }
-    .stat-value { font-size: 1.3rem; }
-    .value-label, .timer-label, .stat-label { font-size: 0.75rem; }
-
-    .roulette-container {
-        margin-top: 20px; /* Adjust spacing */
-        height: 80px; /* Slightly smaller track height */
+    
+    .header-left {
+        width: 100%;
+        justify-content: space-between;
     }
-    .roulette-item {
-        width: 70px;
-        height: 70px; /* Adjust size */
-        margin: 5px;
+    
+    .main-nav {
+        width: 100%;
+        justify-content: center;
+        margin: 10px 0;
     }
-    .profile-pic-container { height: 40px; }
-    .roulette-name { font-size: 9px; max-width: 60px; }
-    .roulette-percentage { font-size: 8px; }
-     .roulette-track {
-        padding-left: calc(50% - 35px); /* Adjust offset for 70px item */
-        padding-right: calc(50% - 35px);
+    
+    .user-controls {
+        width: 100%;
+        justify-content: center;
     }
-
-    .winner-info {
-        /* Styles apply, maybe reduce padding slightly */
-        padding: 8px;
+    
+    .jackpot-header {
+        flex-direction: column;
+        gap: 20px;
+        padding: 20px;
     }
-    .winner-avatar { width: 30px; height: 30px; margin-right: 8px;}
-    .winner-header h3 { font-size: 1rem; }
-    .winner-details p { font-size: 0.8rem; }
-
-    .inventory-items {
-        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-        max-height: 250px; /* Reduce height */
+    
+    .jackpot-value, .jackpot-timer, .jackpot-stats {
+        width: 100%;
     }
-    .inventory-item img { height: 70px; }
-
-    .modal-content { max-width: 95%; } /* Wider modals on mobile */
-    .modal-header h2 { font-size: 1.2rem; }
-    .modal-footer { justify-content: center; flex-wrap: wrap; } /* Center buttons on mobile */
-
-    .rounds-table { font-size: 0.85rem; }
-    .rounds-table th, .rounds-table td { padding: 10px 8px;}
-    .btn-details, .btn-verify { display: block; width: 100%; margin: 5px 0 0 0; } /* Stack buttons */
-    .rounds-table td:last-child { text-align: center; }
+    
+    .footer-content {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    
+    .footer-links ul {
+        justify-content: center;
+    }
 }
 
-@media (max-width: 480px) { /* Small mobile breakpoint */
-    .logo h1 { font-size: 1.5rem; }
-    .main-nav a { font-size: 0.9rem; padding: 6px 8px; }
-    .user-avatar { width: 28px; height: 28px; }
-    .user-name { max-width: 100px; }
-    .btn-login { padding: 6px 12px; font-size: 0.9rem; }
-
-    .btn-deposit, .btn-secondary { font-size: 1rem; padding: 10px 20px; }
-
-    .jackpot-header { gap: 5px; padding: 10px; }
-    .jackpot-value h2 { font-size: 1.6rem; }
-    .timer-circle { width: 60px; height: 60px; }
-    .timer-text { font-size: 1.2rem; }
-    .stat-value { font-size: 1.1rem; }
-    .timer-background, .timer-foreground { stroke-width: 4; }
-
-    .roulette-container { height: 70px; }
-    .roulette-item { width: 60px; height: 60px; margin: 5px;}
-     .profile-pic-container { height: 35px; }
-    .roulette-track {
-        padding-left: calc(50% - 30px); /* Adjust offset for 60px item */
-        padding-right: calc(50% - 30px);
+@media (max-width: 480px) {
+    .logo h1 {
+        font-size: 1.5rem;
     }
-
-    .participant { flex-direction: column; align-items: stretch;} /* Stack participant info */
-    .participant-header { border-bottom: none; }
-    .participant-items { padding-top: 0; }
-    .item { width: 70px; } /* Participant items */
-    .item img { height: 50px; }
-    .item-value { font-size: 0.7rem; padding: 2px 4px; }
-
-    .inventory-items { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
-    .inventory-item img { height: 60px; }
-
-    .rounds-table th, .rounds-table td { padding: 8px 6px; font-size: 0.8rem;}
-    .btn-details, .btn-verify { font-size: 0.7rem; padding: 4px 6px;}
-
-    .modal-body { padding: 15px; }
-    .modal-footer { padding: 10px 15px; }
+    
+    .main-nav a {
+        font-size: 1rem;
+        padding: 8px 12px;
+    }
+    
+    .jackpot-value h2 {
+        font-size: 2.5rem;
+    }
+    
+    .timer-circle {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .timer-text {
+        font-size: 1.5rem;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+    }
+    
+    .footer-links ul {
+        flex-direction: column;
+        gap: 10px;
+    }
 }
-
-/* Make active page visible, others hidden */
-#home-page, #faq-page, #fair-page {
-    display: none; /* JS controls visibility via showPage() */
-}
-/* Ensure the default page (home) is displayed by JS on load */
