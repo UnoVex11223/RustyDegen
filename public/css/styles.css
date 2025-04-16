@@ -425,6 +425,115 @@ a:hover {
 
 /* ----- END JACKPOT HEADER STYLES ----- */
 
+/* Player deposit container styles */
+.player-deposit-container {
+    background: linear-gradient(to bottom, var(--background-light), var(--background-medium));
+    border-radius: 8px;
+    margin: 15px 0;
+    padding: 15px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.player-deposit-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+}
+
+.player-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 12px;
+    border: 2px solid var(--primary-color);
+}
+
+.player-info {
+    flex: 1;
+}
+
+.player-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.player-deposit-value {
+    font-size: 0.9rem;
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.player-items-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+/* Smaller item cards for player deposits */
+.player-deposit-item {
+    width: 80px;
+    height: 100px;
+    background: rgba(22, 27, 34, 0.7);
+    border-radius: 5px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s ease;
+    border: 1px solid var(--border-color);
+}
+
+.player-deposit-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 8px rgba(0, 230, 118, 0.2);
+}
+
+.player-deposit-item-image {
+    width: 100%;
+    height: 60px;
+    object-fit: cover;
+    background-color: var(--background-medium);
+    border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+}
+
+.player-deposit-item-info {
+    padding: 4px;
+    height: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.player-deposit-item-name {
+    font-size: 0.65rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.player-deposit-item-value {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+/* Animation for new player deposits */
+@keyframes newDepositPulse {
+    0% { transform: translateY(20px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+}
+
+.player-deposit-new {
+    animation: newDepositPulse 0.5s ease-out forwards;
+}
+
 /* Styles for item cards in the pot - Rustypot style */
 .pot-item {
     width: 100px;
@@ -686,11 +795,11 @@ a:hover {
     width: 100%;
     height: 100%;
     background: linear-gradient(to bottom,
-                   rgba(244, 67, 54, 0),
-                   rgba(244, 67, 54, 0.8) 40%, /* Start fade */
-                   rgba(244, 67, 54, 0.8) 60%, /* Solid center */
-                   rgba(244, 67, 54, 0)); /* End fade */
-    box-shadow: 0 0 10px rgba(244, 67, 54, 0.7);
+                   rgba(0, 230, 118, 0),
+                   rgba(0, 230, 118, 0.8) 40%, /* Start fade */
+                   rgba(0, 230, 118, 0.8) 60%, /* Solid center */
+                   rgba(0, 230, 118, 0)); /* End fade */
+    box-shadow: 0 0 10px rgba(0, 230, 118, 0.7);
 }
 
 /* Optional: Ticker arrows */
@@ -704,15 +813,24 @@ a:hover {
     height: 0;
     border-left: 6px solid transparent;
     border-right: 6px solid transparent;
-    filter: drop-shadow(0 0 3px rgba(244, 67, 54, 0.5));
+    filter: drop-shadow(0 0 3px rgba(0, 230, 118, 0.5));
 }
 .roulette-ticker::before { /* Top arrow */
     top: -6px;
-    border-bottom: 8px solid rgba(244, 67, 54, 0.8);
+    border-bottom: 8px solid rgba(0, 230, 118, 0.8);
 }
 .roulette-ticker::after { /* Bottom arrow */
     bottom: -6px;
-    border-top: 8px solid rgba(244, 67, 54, 0.8);
+    border-top: 8px solid rgba(0, 230, 118, 0.8);
+}
+
+.roulette-ticker::before { /* Top arrow */
+    top: -6px;
+    border-bottom: 8px solid rgba(0, 230, 118, 0.8);
+}
+.roulette-ticker::after { /* Bottom arrow */
+    bottom: -6px;
+    border-top: 8px solid rgba(0, 230, 118, 0.8);
 }
 
 /* Winner Info Box - ENHANCED */
