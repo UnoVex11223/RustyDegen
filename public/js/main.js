@@ -1775,4 +1775,138 @@ function createPagination(currentPage, totalPages) {
 
     // Next Button
     roundsPagination.appendChild(createButton('Next »', currentPage + 1, false, currentPage >= totalPages));
+    // Function to create a visual item card for the pot
+function createPotItemElement(item) {
+    // Hide empty pot message if it's visible
+    if (emptyPotMessage) {
+        emptyPotMessage.style.display = 'none';
+    }
+    
+    // Create the item card element
+    const itemElement = document.createElement('div');
+    itemElement.className = 'pot-item pot-item-new';
+    itemElement.dataset.itemId = item.id;
+    
+    // Get user color for the color indicator
+    const userColor = getUserColor(item.userId);
+    
+    // Create the HTML structure
+    itemElement.innerHTML = `
+        <div class="pot-item-color-indicator" style="background-color: ${userColor};"></div>
+        <img src="${item.imageUrl || '/img/default-item.png'}" alt="${item.name}" class="pot-item-image">
+        <div class="pot-item-info">
+            <div class="pot-item-name">${item.name}</div>
+            <div class="pot-item-value">$${parseFloat(item.value).toFixed(2)}</div>
+            <div class="pot-item-user">
+                <img src="${item.userAvatar || '/img/default-avatar.png'}" alt="${item.userName}" class="pot-item-avatar">
+                <span class="pot-item-username">${item.userName}</span>
+            </div>
+        </div>
+    `;
+    
+    // Add to container
+    itemsContainer.appendChild(itemElement);
+    
+    // Remove the animation class after animation completes
+    setTimeout(() => {
+        itemElement.classList.remove('pot-item-new');
+    }, 600);
+    
+    return itemElement;
+}
+
+// Function to handle new item deposits
+function handleItemDeposit(item) {
+    // Create visual element
+    createPotItemElement(item);
+    
+    // Update pot value and participant count
+    updatePotStats();
+}
+
+// Function to update pot statistics
+function updatePotStats() {
+    // This would typically be called after receiving updated data from the server
+    // For now, we'll just count the items in the container
+    const itemCount = itemsContainer.querySelectorAll('.pot-item').length;
+    
+    // Update the participant count display
+    if (participantCount) {
+        participantCount.textContent = `${itemCount}/200`;
+    }
+    
+    // Calculate total pot value (in a real app, this would come from the server)
+    let totalValue = 0;
+    itemsContainer.querySelectorAll('.pot-item').forEach(item => {
+        const valueText = item.querySelector('.pot-item-value').textContent;
+        const value = parseFloat(valueText.replace('$', ''));
+        if (!isNaN(value)) {
+            totalValue += value;
+        }
+    });
+    
+    // Update pot value display
+    if (potValue) {
+        potValue.textContent = `$${totalValue.toFixed(2)}`;
+    }
+}
+
+// Test function to add sample items to the pot
+function addTestItemsToPot() {
+    // Sample test users
+    const testUsers = [
+        { id: 'user1', name: 'RustPlayer123', avatar: '/img/default-avatar.png' },
+        { id: 'user2', name: 'SkinCollector', avatar: '/img/default-avatar.png' },
+        { id: 'user3', name: 'RaidMaster', avatar: '/img/default-avatar.png' }
+    ];
+    
+    // Sample items
+    const testItems = [
+        { id: 'item1', name: 'AK-47 | Rust Raider', value: 12.50, imageUrl: '/img/default-item.png' },
+        { id: 'item2', name: 'Tactical Gloves', value: 8.75, imageUrl: '/img/default-item.png' },
+        { id: 'item3', name: 'Combat Knife | Fade', value: 22.30, imageUrl: '/img/default-item.png' },
+        { id: 'item4', name: 'Desert Eagle | Blaze', value: 15.20, imageUrl: '/img/default-item.png' },
+        { id: 'item5', name: 'Hoodie | Camo', value: 5.50, imageUrl: '/img/default-item.png' }
+    ];
+    
+    // Clear existing items
+    if (itemsContainer) {
+        itemsContainer.innerHTML = '';
+    }
+    
+    // Add items with a delay between each
+    let delay = 0;
+    testItems.forEach((item, index) => {
+        // Assign a random user to each item
+        const user = testUsers[Math.floor(Math.random() * testUsers.length)];
+        
+        // Create complete item object
+        const completeItem = {
+            ...item,
+            userId: user.id,
+            userName: user.name,
+            userAvatar: user.avatar
+        };
+        
+        // Add with delay for visual effect
+        setTimeout(() => {
+            handleItemDeposit(completeItem);
+        }, delay);
+        
+        delay += 800; // 800ms between items
+    });
+}
+
+// Add test button event listener
+document.addEventListener('DOMContentLoaded', function() {
+    const testButton = document.getElementById('testSpinButton');
+    if (testButton) {
+        // Add a second click handler for testing item addition
+        testButton.addEventListener('dblclick', function(e) {
+            e.preventDefault();
+            addTestItemsToPot();
+        });
+    }
+});
+
 }
