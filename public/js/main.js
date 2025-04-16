@@ -1,6 +1,9 @@
 // main.js (Complete and Modified for Enhanced Roulette Animation & Deposit Display)
 // Ensure the Socket.IO client library is included in your HTML:
 // <script src="/socket.io/socket.io.js"></script>
+
+// Add a test button in your HTML like: <button id="testDepositButton">Test Deposit</button>
+
 const socket = io();
 
 // DOM Elements - Navigation
@@ -73,11 +76,11 @@ const ROULETTE_REPETITIONS = 20; // How many times to repeat participant list (u
 const SPIN_DURATION_SECONDS = 6.5; // Duration of the main spin animation
 const WINNER_DISPLAY_DURATION = 7000; // 7 seconds for winner info display
 const CONFETTI_COUNT = 150;
-const MAX_DISPLAY_DEPOSITS = 5; // Maximum number of deposit history items to show
+const MAX_DISPLAY_DEPOSITS = 10; // *** NEW: Maximum number of deposit history items to show ***
 
 // --- NEW Animation constants for enhanced roulette ---
 // MODIFIED: Increased power for a more dramatic final slowdown
-const EASE_OUT_POWER = 5;           // Power for ease-out curve (e.g., 3=cubic, 4=quart, 5=quint). Higher = more dramatic slowdown.
+const EASE_OUT_POWER = 5;          // Power for ease-out curve (e.g., 3=cubic, 4=quart, 5=quint). Higher = more dramatic slowdown.
 const BOUNCE_ENABLED = false;      // Keep bounce disabled as per previous code
 const BOUNCE_OVERSHOOT_FACTOR = 0.07; // How much to overshoot initially (percentage of total distance, e.g., 0.07 = 7%)
 const BOUNCE_DAMPING = 0.35;       // How quickly the bounce decays (0 to 1, lower = decays faster, 0.3-0.5 is usually good)
@@ -282,6 +285,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
     setupSocketConnection();
     showPage(homePage); // Default to home page
+    initiateNewRoundVisualReset(); // Ensure initial state is clean
 });
 
 // Setup event listeners
@@ -327,7 +331,7 @@ function setupEventListeners() {
     const testSpinButton = document.getElementById('testSpinButton');
     if (testSpinButton) testSpinButton.addEventListener('click', testRouletteAnimation);
 
-    // Test Deposit Button (NEW)
+    // *** NEW: Test Deposit Button Listener ***
     const testDepositButton = document.getElementById('testDepositButton');
     if (testDepositButton) testDepositButton.addEventListener('click', testDeposit);
 
@@ -364,6 +368,11 @@ function setupSocketConnection() {
     socket.on('roundCreated', (data) => { console.log('New round created:', data); currentRound = data; updateRoundUI(); resetToJackpotView(); });
     socket.on('participantUpdated', (data) => {
         console.log('Participant updated:', data);
+        // *** Assumption: 'data' now contains 'depositedItems' array for this specific deposit ***
+        if (!data.depositedItems) {
+            console.warn("Received participantUpdated event WITHOUT 'depositedItems'. Old format? Cannot display deposit details.");
+            // Optionally handle old format here if needed, or request full data again
+        }
         if (currentRound && currentRound.roundId === data.roundId) handleNewDeposit(data);
         else if (!currentRound && data.roundId) { console.warn("Participant update for unknown round."); socket.emit('requestRoundData'); }
     });
@@ -405,11 +414,38 @@ function setupSocketConnection() {
     });
     socket.on('roundData', (data) => {
         console.log('Received initial round data:', data); if (!data) { console.error("Invalid round data received from server."); return; }
-        currentRound = data; updateRoundUI();
+        currentRound = data;
+        initiateNewRoundVisualReset(); // Clear visual list before updating
+        updateRoundUI();
+        // *** Optional: Populate initial deposit list from current state (without animation) ***
+        // If needed, loop through currentRound.participants and call displayLatestDeposit here
+        // Example (add this if you want initial population):
+        /*
+        if (currentRound.participants && currentRound.participants.length > 0) {
+            console.log("Populating initial participant display from roundData");
+            // Sort for initial display (optional, could be by time if available)
+            const sortedParticipants = [...currentRound.participants].sort((a, b) => (b.itemsValue || 0) - (a.itemsValue || 0));
+            sortedParticipants.forEach(p => {
+                const userItems = currentRound.items?.filter(item => item.owner && p.user && item.owner.toString() === p.user.id.toString()) || [];
+                const mockDepositData = {
+                    userId: p.user.id,
+                    username: p.user.username,
+                    avatar: p.user.avatar,
+                    itemsValue: p.itemsValue, // Display total value here for initial state
+                    depositedItems: userItems
+                };
+                displayLatestDeposit(mockDepositData); // Call without animation? Need to adjust displayLatestDeposit
+                // To call without animation, temporarily remove 'player-deposit-new' class after appending
+                 const element = participantsContainer.querySelector(`.player-deposit-container[data-user-id="${p.user.id}"]`); // Need to add data-user-id to container
+                 if (element) {
+                    setTimeout(() => element.classList.remove('player-deposit-new'), 10); // Remove class quickly
+                 }
+            });
+        }
+        */
+
         if (currentRound.status === 'rolling' && currentRound.winner) {
             console.log("Connected during rolling phase.");
-            // Optionally trigger animation if needed, careful not to double-spin
-            // It might be safer to just wait for the 'roundWinner' event again or reset view
             if (!isSpinning) {
                 console.log("Attempting to handle winner display from initial round data.");
                 handleWinnerAnnouncement(currentRound); // Pass the whole round data which includes winner
@@ -466,30 +502,49 @@ async function loadUserInventory() {
 function displayInventoryItems() {
     if (!inventoryItems) return; inventoryItems.innerHTML = '';
     userInventory.forEach(item => {
-        if (!item || typeof item.price !== 'number' || !item.assetId || !item.name || !item.image) { console.warn("Invalid item:", item); return; }
+        // Add a check for item.price being defined and a number
+        if (!item || typeof item.price !== 'number' || isNaN(item.price) || !item.assetId || !item.name || !item.image) {
+            console.warn("Invalid item:", item);
+            return;
+        }
         const itemElement = document.createElement('div'); itemElement.className = 'inventory-item';
         itemElement.dataset.assetId = item.assetId; itemElement.dataset.name = item.name;
-        itemElement.dataset.image = item.image; itemElement.dataset.price = item.price.toFixed(2);
-        itemElement.innerHTML = `<img src="${item.image}" alt="${item.name}" loading="lazy" onerror="this.onerror=null; this.src='/img/default-item.png';"><div class="item-details"><div class="item-name" title="${item.name}">${item.name}</div><div class="item-value">${item.price.toFixed(2)}</div></div>`;
+        itemElement.dataset.image = item.image;
+        itemElement.dataset.price = item.price.toFixed(2); // Ensure price is formatted correctly
+        itemElement.innerHTML = `<img src="${item.image}" alt="${item.name}" loading="lazy" onerror="this.onerror=null; this.src='/img/default-item.png';"><div class="item-details"><div class="item-name" title="${item.name}">${item.name}</div><div class="item-value">$${item.price.toFixed(2)}</div></div>`; // Add '$' sign
         if (selectedItemsList.some(selected => selected.assetId === item.assetId)) itemElement.classList.add('selected');
         itemElement.addEventListener('click', () => toggleItemSelection(itemElement, item));
         inventoryItems.appendChild(itemElement);
     });
 }
 
+
 // Toggle item selection
 function toggleItemSelection(element, item) {
+    // Add price validation before adding to list
+    if (typeof item.price !== 'number' || isNaN(item.price)) {
+        console.error("Attempted to select item with invalid price:", item);
+        showNotification('Selection Error', 'Cannot select item with invalid price.');
+        return;
+    }
     const assetId = item.assetId; const index = selectedItemsList.findIndex(i => i.assetId === assetId);
     if (index === -1) { selectedItemsList.push(item); element.classList.add('selected'); addSelectedItemElement(item); }
     else { selectedItemsList.splice(index, 1); element.classList.remove('selected'); removeSelectedItemElement(assetId); }
     updateTotalValue();
 }
 
+
 // Add item to selected area
 function addSelectedItemElement(item) {
-    if (!selectedItems) return; const selectedElement = document.createElement('div');
+    if (!selectedItems) return;
+    // Ensure item price is valid before displaying
+    if (typeof item.price !== 'number' || isNaN(item.price)) {
+        console.error("Cannot add selected item element, invalid price:", item);
+        return;
+    }
+    const selectedElement = document.createElement('div');
     selectedElement.className = 'selected-item'; selectedElement.dataset.assetId = item.assetId;
-    selectedElement.innerHTML = `<button class="remove-item" data-asset-id="${item.assetId}" title="Remove Item">&times;</button><img src="${item.image}" alt="${item.name}" loading="lazy" onerror="this.onerror=null; this.src='/img/default-item.png';"><div class="selected-item-details"><div class="selected-item-value">${item.price.toFixed(2)}</div></div>`;
+    selectedElement.innerHTML = `<button class="remove-item" data-asset-id="${item.assetId}" title="Remove Item">&times;</button><img src="${item.image}" alt="${item.name}" loading="lazy" onerror="this.onerror=null; this.src='/img/default-item.png';"><div class="selected-item-details"><div class="selected-item-value">$${item.price.toFixed(2)}</div></div>`; // Add '$' sign
     const inventoryItemElement = inventoryItems.querySelector(`.inventory-item[data-asset-id="${item.assetId}"]`);
     selectedElement.querySelector('.remove-item').addEventListener('click', (e) => {
         e.stopPropagation();
@@ -506,6 +561,7 @@ function addSelectedItemElement(item) {
     selectedItems.appendChild(selectedElement);
 }
 
+
 // Remove item from selected area
 function removeSelectedItemElement(assetId) { const selectedElement = selectedItems.querySelector(`.selected-item[data-asset-id="${assetId}"]`); if (selectedElement) selectedElement.remove(); }
 
@@ -519,10 +575,15 @@ function removeSelectedItem(assetId) {
 // Update total value display
 function updateTotalValue() {
     if (!totalValue || !depositButton) return;
-    const total = selectedItemsList.reduce((sum, item) => sum + (item.price || 0), 0);
-    totalValue.textContent = `${total.toFixed(2)}`;
+    const total = selectedItemsList.reduce((sum, item) => {
+        // Add validation inside reduce as well
+        const price = typeof item.price === 'number' && !isNaN(item.price) ? item.price : 0;
+        return sum + price;
+    }, 0);
+    totalValue.textContent = `$${total.toFixed(2)}`; // Add '$' sign
     depositButton.disabled = selectedItemsList.length === 0;
 }
+
 
 // Submit deposit
 async function submitDeposit() {
@@ -567,9 +628,9 @@ async function saveUserTradeUrl() {
 // Update round UI
 function updateRoundUI() {
     if (!currentRound || !potValue) return;
-    potValue.textContent = `${(currentRound.totalValue || 0).toFixed(2)}`;
+    potValue.textContent = `$${(currentRound.totalValue || 0).toFixed(2)}`; // Add '$' sign
     if (!timerActive) updateTimerUI(currentRound.timeLeft !== undefined ? currentRound.timeLeft : 120);
-    updateParticipantsUI();
+    updateParticipantsUI(); // Now just updates count/empty message
 }
 
 // Update timer UI
@@ -584,156 +645,208 @@ function updateTimerUI(timeLeft) {
 
 // ===== NEW DEPOSIT DISPLAY FUNCTIONS =====
 
-// Function to display latest deposit with animation
+/**
+ * Displays the latest deposit as a new block in the participants container.
+ * @param {object} data - The participant update data from the socket event.
+ * Expected properties: userId, username, avatar, itemsValue (for this deposit), depositedItems (array).
+ */
 function displayLatestDeposit(data) {
     if (!participantsContainer) return;
-    
-    // Get user data
+
+    // --- Validate essential data ---
+    if (!data || !data.userId || typeof data.itemsValue !== 'number' || isNaN(data.itemsValue)) {
+        console.error("Invalid data passed to displayLatestDeposit:", data);
+        return;
+    }
+
+    // --- Get user details and items ---
     const username = data.username || 'Unknown';
     const avatar = data.avatar || '/img/default-avatar.png';
-    const value = data.itemsValue || 0;
-    const items = data.depositedItems || [];
-    
-    // Get or create user color
+    const value = data.itemsValue; // This is the value of THIS deposit
+    const items = data.depositedItems || []; // Items from THIS deposit
+
+    // --- Get user color ---
     const userColor = getUserColor(data.userId);
-    
-    // Create deposit container
+
+    // --- Create Elements ---
     const depositContainer = document.createElement('div');
+    // Add a data attribute for potential targeting if needed later
+    depositContainer.dataset.userId = data.userId;
+    // Add animation class for entry effect (CSS handles the animation)
     depositContainer.className = 'player-deposit-container player-deposit-new';
-    
-    // Create deposit header
+
     const depositHeader = document.createElement('div');
     depositHeader.className = 'player-deposit-header';
+    // Add '$' sign to value display
     depositHeader.innerHTML = `
-        <img src="${avatar}" alt="${username}" class="player-avatar" loading="lazy" 
-             onerror="this.onerror=null; this.src='/img/default-avatar.png';">
+        <img src="${avatar}" alt="${username}" class="player-avatar" loading="lazy"
+             onerror="this.onerror=null; this.src='/img/default-avatar.png';" style="border-color: ${userColor};">
         <div class="player-info">
-            <div class="player-name">${username}</div>
-            <div class="player-deposit-value" style="color: ${userColor}">${value.toFixed(2)}</div>
+            <div class="player-name" title="${username}">${username}</div>
+            <div class="player-deposit-value" style="color: ${userColor}" title="Deposited Value: $${value.toFixed(2)}">$${value.toFixed(2)}</div>
         </div>
     `;
-    
-    // Create items grid if there are items
+
     const itemsGrid = document.createElement('div');
     itemsGrid.className = 'player-items-grid';
-    
+
     if (items && items.length > 0) {
+        // Sort items by price descending for consistent display
+        items.sort((a, b) => (b.price || 0) - (a.price || 0));
+
         items.forEach(item => {
-            if (!item || typeof item.price !== 'number' || !item.name || !item.image) return;
-            
+            // Validate item data before creating element
+            if (!item || typeof item.price !== 'number' || isNaN(item.price) || !item.name || !item.image) {
+                console.warn("Skipping invalid item in deposit display:", item);
+                return;
+            }
+
             const itemElement = document.createElement('div');
             itemElement.className = 'player-deposit-item';
-            itemElement.title = `${item.name} (${item.price.toFixed(2)})`;
-            itemElement.style.borderColor = userColor;
+            itemElement.title = `${item.name} ($${item.price.toFixed(2)})`;
+            itemElement.style.borderColor = userColor; // Use user color for item border
+            // Add '$' sign to item value display
             itemElement.innerHTML = `
-                <img src="${item.image}" alt="${item.name}" class="player-deposit-item-image" loading="lazy" 
+                <img src="${item.image}" alt="${item.name}" class="player-deposit-item-image" loading="lazy"
                      onerror="this.onerror=null; this.src='/img/default-item.png';">
                 <div class="player-deposit-item-info">
                     <div class="player-deposit-item-name" title="${item.name}">${item.name}</div>
-                    <div class="player-deposit-item-value" style="color: ${userColor}">${item.price.toFixed(2)}</div>
+                    <div class="player-deposit-item-value" style="color: ${userColor}">$${item.price.toFixed(2)}</div>
                 </div>
             `;
-            
+
             itemsGrid.appendChild(itemElement);
         });
+    } else {
+        // Optionally display a message if a deposit somehow has 0 items but a value > 0
+        // itemsGrid.innerHTML = `<span class="no-items-message">No items in this deposit.</span>`;
     }
-    
-    // Assemble the deposit container
+
+    // --- Assemble and Add to DOM ---
     depositContainer.appendChild(depositHeader);
     depositContainer.appendChild(itemsGrid);
-    
-    // Add to the container at the top
+
+    // Add the new deposit block to the top of the container
     if (participantsContainer.firstChild) {
         participantsContainer.insertBefore(depositContainer, participantsContainer.firstChild);
     } else {
         participantsContainer.appendChild(depositContainer);
     }
-    
-    // Hide empty pot message if visible
+
+    // Hide empty pot message if it was visible
     if (emptyPotMessage) {
         emptyPotMessage.style.display = 'none';
     }
-    
-    // Remove animation class after animation completes to prevent replaying
+
+    // --- Cleanup ---
+    // Remove animation class after animation duration (e.g., 1 second)
+    // Adjust timeout to match your CSS animation duration
     setTimeout(() => {
         depositContainer.classList.remove('player-deposit-new');
     }, 1000);
-    
-    // Limit the number of deposit containers to avoid overwhelming the display
+
+    // Limit the number of visible deposit containers
     const depositContainers = participantsContainer.querySelectorAll('.player-deposit-container');
     if (depositContainers.length > MAX_DISPLAY_DEPOSITS) {
+        // Remove the oldest entries (which are now the last elements in the container)
         for (let i = MAX_DISPLAY_DEPOSITS; i < depositContainers.length; i++) {
-            depositContainers[i].remove();
+            // Add a small fade-out before removing (optional)
+             if (depositContainers[i]) {
+                depositContainers[i].style.transition = 'opacity 0.3s ease-out';
+                depositContainers[i].style.opacity = '0';
+                setTimeout(() => {
+                    depositContainers[i]?.remove(); // Add null check before removing
+                }, 300);
+             }
         }
     }
 }
 
-// Handle new deposit
+
+// Handle new deposit - MODIFIED
 function handleNewDeposit(data) {
-    if (!data || !data.roundId || !data.userId || data.itemsValue === undefined || data.totalValue === undefined) { 
-        console.error("Invalid participant update:", data); 
-        return; 
+    // --- Validate Core Data ---
+    if (!data || !data.roundId || !data.userId || typeof data.itemsValue !== 'number' || isNaN(data.itemsValue) || data.totalValue === undefined) {
+        console.error("Invalid participant update data received:", data);
+        return;
     }
-    
-    if (!currentRound) { 
-        console.warn("Deposit for non-existent round."); 
-        currentRound = { 
-            roundId: data.roundId, 
-            status: 'active', 
-            timeLeft: 120, 
-            totalValue: 0, 
-            participants: [], 
-            items: [] 
-        }; 
-    }
-    else if (currentRound.roundId !== data.roundId) { 
-        console.warn(`Deposit for wrong round (${data.roundId}). Current is ${currentRound.roundId}`); 
-        return; 
+     // Ensure depositedItems exists, even if empty, for display logic consistency
+     if (!data.depositedItems) {
+        console.warn("Participant update missing 'depositedItems' array. Defaulting to empty.");
+        data.depositedItems = [];
     }
 
+    // --- Initialize or Validate Current Round ---
+    if (!currentRound) {
+        console.warn("Handling deposit for a non-existent local round. Initializing round.");
+        currentRound = {
+            roundId: data.roundId,
+            status: 'active',
+            timeLeft: 120,
+            totalValue: 0,
+            participants: [],
+            items: []
+        };
+    }
+    else if (currentRound.roundId !== data.roundId) {
+        console.warn(`Deposit received for wrong round (${data.roundId}). Current is ${currentRound.roundId}. Ignoring.`);
+        return;
+    }
+
+    // --- Update Round State (Participant Totals, Items, Pot Value) ---
     if (!currentRound.participants) currentRound.participants = [];
     let participantFound = false;
-    
-    // Update existing participant or add new one
+
     currentRound.participants = currentRound.participants.map(p => {
         if (p.user && p.user.id === data.userId) {
             participantFound = true;
-            return { 
-                ...p, 
-                itemsValue: (p.itemsValue || 0) + data.itemsValue, 
-                tickets: data.tickets 
+            // Update existing participant's TOTAL value and tickets
+            return {
+                ...p,
+                itemsValue: (p.itemsValue || 0) + data.itemsValue, // Accumulate total value
+                tickets: data.tickets // Update ticket count from server data
             };
         }
         return p;
     });
 
     if (!participantFound) {
-        // Add new participant
+        // Add new participant to the round's list
         currentRound.participants.push({
-            user: { 
-                id: data.userId, 
-                username: data.username || 'Unknown', 
-                avatar: data.avatar || '/img/default-avatar.png' 
+            user: {
+                id: data.userId,
+                username: data.username || 'Unknown',
+                avatar: data.avatar || '/img/default-avatar.png'
             },
-            itemsValue: data.itemsValue,
+            itemsValue: data.itemsValue, // Initial total value for this user
             tickets: data.tickets
         });
     }
 
+    // Update the overall round total value
     currentRound.totalValue = data.totalValue;
 
-    // Add deposited items to the round's item list
-    if (data.depositedItems && Array.isArray(data.depositedItems)) {
+    // Add the specific deposited items to the round's master item list (for potential winner display)
+    if (Array.isArray(data.depositedItems)) {
         if (!currentRound.items) currentRound.items = [];
         data.depositedItems.forEach(item => {
-            currentRound.items.push({ ...item, owner: data.userId });
+             // Validate item before adding to master list
+            if (item && typeof item.price === 'number' && !isNaN(item.price)) {
+                currentRound.items.push({ ...item, owner: data.userId });
+            } else {
+                console.warn("Skipping invalid item while adding to round master list:", item);
+            }
         });
     }
 
-    updateRoundUI(); // Update pot value, participants display
-    displayLatestDeposit(data); // Display the new deposit animation
+    // --- Update UI ---
+    updateRoundUI(); // Update Pot Value, Timer, Participant Count
 
-    // Start timer only if exactly 2 participants and timer isn't already active
+    // Display the new deposit visually with animation
+    // Pass the 'data' object which contains the details for THIS specific deposit
+    displayLatestDeposit(data);
+
+    // --- Start Timer Logic ---
     if (currentRound.status === 'active' && currentRound.participants.length >= 2 && !timerActive) {
         console.log("Threshold reached (>= 2 participants). Starting timer.");
         timerActive = true;
@@ -741,107 +854,119 @@ function handleNewDeposit(data) {
     }
 }
 
-// Update participants UI - modified to accommodate the new deposit display
+// Update participants UI - MODIFIED to only update count and empty message
 function updateParticipantsUI() {
-    if (!participantsContainer || !participantCount || !emptyPotMessage) { 
-        console.error("Participants UI elements missing."); 
-        return; 
-    }
-    
-    const participants = currentRound?.participants || []; 
-    const totalPotValue = currentRound?.totalValue || 0;
-    
-    participantCount.textContent = `${participants.length}/200`; 
-    
-    // Don't clear participantsContainer here anymore, as we now maintain the deposit history
-    // Only clear if there are no participants
-    if (participants.length === 0) {
-        participantsContainer.innerHTML = '';
-        emptyPotMessage.style.display = 'block';
-        // Ensure the message element is actually appended if it wasn't already
-        if (!participantsContainer.contains(emptyPotMessage)) {
-            participantsContainer.appendChild(emptyPotMessage);
-        }
+    if (!participantsContainer || !participantCount || !emptyPotMessage) {
+        console.error("Participants UI elements missing.");
         return;
-    } else { 
-        emptyPotMessage.style.display = 'none'; 
     }
-    
-    // Check if we need to refresh the participant display
-    // This prevents duplicating content when called from the updateRoundUI function
-    const refreshDisplay = !participantsContainer.querySelector('.player-deposit-container');
-    
-    if (refreshDisplay) {
-        // Sort participants by value descending for initial display
-        const sortedParticipants = [...participants].sort((a, b) => (b.itemsValue || 0) - (a.itemsValue || 0));
-        
-        // Clear container for fresh start
-        participantsContainer.innerHTML = '';
-        
-        // Create deposit containers for each participant
-        sortedParticipants.forEach(participant => {
-            const userItems = currentRound?.items?.filter(item => 
-                item.owner && participant.user && 
-                item.owner.toString() === participant.user.id.toString()
-            ) || [];
-            
-            // Use a mock deposit data structure for displayLatestDeposit
-            const mockDeposit = {
-                userId: participant.user.id,
-                username: participant.user.username,
-                avatar: participant.user.avatar,
-                itemsValue: participant.itemsValue,
-                depositedItems: userItems
-            };
-            
-            displayLatestDeposit(mockDeposit);
-        });
+
+    const participants = currentRound?.participants || [];
+    const participantNum = participants.length;
+
+    // Update participant count display
+    participantCount.textContent = `${participantNum}/200`; // Assuming max 200 participants
+
+    // Manage the "Empty Pot" message visibility
+    // NOTE: We no longer clear the container here. `displayLatestDeposit` adds items,
+    // and `resetToJackpotView`/`initiateNewRoundVisualReset` clears it between rounds.
+    if (participantNum === 0) {
+        // Show empty message only if the container is actually empty
+        if (participantsContainer.children.length === 0 || (participantsContainer.children.length === 1 && participantsContainer.firstChild === emptyPotMessage)) {
+             emptyPotMessage.style.display = 'block';
+             // Ensure it's appended if not already there
+             if (!participantsContainer.contains(emptyPotMessage)) {
+                 participantsContainer.appendChild(emptyPotMessage);
+             }
+        } else {
+            // If there are deposit elements still fading out, don't show empty message yet
+             emptyPotMessage.style.display = 'none';
+        }
+
+    } else {
+        emptyPotMessage.style.display = 'none';
     }
 }
 
-// Function to test deposit with mock data
+
+// Function to test deposit with mock data - NEW
 function testDeposit() {
     console.log("--- TESTING DEPOSIT DISPLAY ---");
-    
+
     // Create a mock deposit for testing
+    const randomValue = parseFloat((Math.random() * 50 + 5).toFixed(2)); // Random value between 5 and 55
     const mockDeposit = {
-        roundId: currentRound?.roundId || 'test-round',
+        roundId: currentRound?.roundId || 'test-round-123',
         userId: `test_user_${Math.floor(Math.random() * 1000)}`, // Random user ID
         username: ["RustPlayer99", "SkinCollector", "AK47Master", "HeadHunter", "RustLord", "TheRaider", "ScrapDealer"][Math.floor(Math.random() * 7)],
-        avatar: "https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg",
-        itemsValue: (Math.random() * 50 + 5).toFixed(2) * 1, // Random value between 5 and 55
-        tickets: Math.floor((Math.random() * 50 + 5) * 100), // Proportional tickets
-        totalValue: currentRound?.totalValue ? currentRound.totalValue + parseFloat((Math.random() * 50 + 5).toFixed(2)) : parseFloat((Math.random() * 50 + 5).toFixed(2))
+        avatar: [ // Use a few different avatars for variety
+            'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg',
+            'https://avatars.steamstatic.com/bb8a0a497b4b1f46b96b6b0775e9368fc8c5c3b4_full.jpg',
+            'https://avatars.steamstatic.com/3c4c5a7c9968414c3a1ddd1e73cb8e6aeeec5f32_full.jpg',
+            '/img/default-avatar.png'
+        ][Math.floor(Math.random() * 4)],
+        itemsValue: randomValue, // Value of THIS specific deposit
+        tickets: Math.floor(randomValue * 100), // Proportional tickets for this deposit value
+        // The server should send the *new* total value for the round
+        totalValue: (currentRound?.totalValue || 0) + randomValue,
+        depositedItems: [] // Initialize empty array for items
     };
-    
+
     // Add mock deposited items
     const itemNames = [
-        "AK-47 | Alien Red", "Metal Chest Plate", "Semi-Automatic Rifle", "Garage Door", 
-        "Assault Rifle", "Metal Facemask", "Road Sign Kilt", "Coffee Can Helmet", 
+        "AK-47 | Alien Red", "Metal Chest Plate", "Semi-Automatic Rifle", "Garage Door",
+        "Assault Rifle", "Metal Facemask", "Road Sign Kilt", "Coffee Can Helmet",
         "Double Barrel Shotgun", "Revolver", "Sheet Metal Door", "Medical Syringe"
     ];
-    
+
     const numItems = Math.floor(Math.random() * 4) + 1; // 1-4 items
-    mockDeposit.depositedItems = [];
-    
     let remainingValue = mockDeposit.itemsValue;
-    
+    let accumulatedValue = 0;
+
     for (let i = 0; i < numItems; i++) {
         const isLastItem = i === numItems - 1;
-        const itemValue = isLastItem ? remainingValue : (Math.random() * remainingValue * 0.7).toFixed(2) * 1;
+        let itemValue;
+
+        if (isLastItem) {
+            // Assign remaining value to the last item to ensure total matches itemsValue
+            itemValue = Math.max(0.01, remainingValue); // Ensure at least 0.01
+        } else {
+            // Assign a random portion of the remaining value, ensuring it's not too large
+            itemValue = parseFloat((Math.random() * remainingValue * 0.7 + 0.01).toFixed(2));
+            // Ensure we don't exceed remaining value
+            itemValue = Math.min(itemValue, remainingValue);
+             // Ensure next item has at least 0.01 value possible if not last
+            if (remainingValue - itemValue < 0.01 && i < numItems - 2) {
+                 itemValue = Math.max(0.01, remainingValue - 0.01);
+            }
+        }
+
         remainingValue -= itemValue;
-        
+        accumulatedValue += itemValue;
+
+        // Add slight adjustment on last item if needed due to floating point issues
+         if (isLastItem && Math.abs(accumulatedValue - mockDeposit.itemsValue) > 0.001) {
+             itemValue += (mockDeposit.itemsValue - accumulatedValue);
+             itemValue = Math.max(0.01, itemValue); // Ensure it's still positive
+         }
+
+
         mockDeposit.depositedItems.push({
             assetId: `test_asset_${Math.floor(Math.random() * 10000)}`,
             name: itemNames[Math.floor(Math.random() * itemNames.length)],
             image: `/img/default-item.png`, // Default image for testing
-            price: itemValue
+            price: parseFloat(itemValue.toFixed(2)) // Ensure price is a number
         });
     }
-    
-    // Handle the deposit
+
+     // Recalculate itemsValue from items just to be safe for testing display
+    mockDeposit.itemsValue = mockDeposit.depositedItems.reduce((sum, item) => sum + item.price, 0);
+    console.log("Mock Deposit Data:", mockDeposit);
+
+    // Handle the deposit using the same function as the socket event
     handleNewDeposit(mockDeposit);
 }
+
 
 // Start client timer
 function startClientTimer(initialTime = 120) {
@@ -870,7 +995,7 @@ function updateTimerCircle(timeLeft, totalTime) {
     }
 }
 
-// Create participant element (legacy function, kept for reference or potential fallback)
+// Create participant element (DEPRECATED for main display, kept for reference)
 function createParticipantElement(participant, items, totalPotValue) {
     if (!participant || !participant.user || typeof participant.itemsValue !== 'number') { console.error("Invalid participant data:", participant); const el = document.createElement('div'); el.textContent = "Err"; return el; }
     const participantElement = document.createElement('div'); participantElement.className = 'participant'; participantElement.dataset.userId = participant.user.id;
@@ -890,7 +1015,7 @@ function createParticipantElement(participant, items, totalPotValue) {
             <div class="participant-details">
                 <span class="participant-name" title="${username}">${username}</span>
                 <div class="participant-stats">
-                    <span class="participant-value" title="Deposited Value" style="color: ${userColor}">${participant.itemsValue.toFixed(2)}</span>
+                    <span class="participant-value" title="Deposited Value" style="color: ${userColor}">$${participant.itemsValue.toFixed(2)}</span>
                     <span class="participant-percentage" title="Win Chance">${percentage.toFixed(2)}%</span>
                 </div>
             </div>
@@ -903,10 +1028,10 @@ function createParticipantElement(participant, items, totalPotValue) {
             if (!item || typeof item.price !== 'number' || !item.name || !item.image) return;
             const itemElement = document.createElement('div');
             itemElement.className = 'item';
-            itemElement.title = `${item.name} (${item.price.toFixed(2)})`;
+            itemElement.title = `${item.name} ($${item.price.toFixed(2)})`;
             // Add user color to item border
             itemElement.style.borderColor = userColor;
-            itemElement.innerHTML = `<img src="${item.image}" alt="${item.name}" loading="lazy" onerror="this.onerror=null; this.src='/img/default-item.png';"><span class="item-value" style="color: ${userColor}">${item.price.toFixed(2)}</span>`;
+            itemElement.innerHTML = `<img src="${item.image}" alt="${item.name}" loading="lazy" onerror="this.onerror=null; this.src='/img/default-item.png';"><span class="item-value" style="color: ${userColor}">$${item.price.toFixed(2)}</span>`;
             itemsElement.appendChild(itemElement);
         });
     }
@@ -914,9 +1039,11 @@ function createParticipantElement(participant, items, totalPotValue) {
 }
 
 
-// =================== ENHANCED ROULETTE ANIMATION (MODIFIED) ===================
+// =================== ENHANCED ROULETTE ANIMATION (No Changes Needed Here) ===================
+// Functions: createRouletteItems, handleWinnerAnnouncement, switchToRouletteView,
+// startRouletteAnimation, handleRouletteSpinAnimation, finalizeSpin, handleSpinEnd,
+// launchConfetti, clearConfetti, findWinnerFromData, testRouletteAnimation
 
-// Enhanced roulette item creation with consistent colors per user and more items for smoother animation
 function createRouletteItems() {
     if (!rouletteTrack || !inlineRoulette) {
         console.error("Track or inline roulette element missing.");
@@ -1036,7 +1163,6 @@ function handleWinnerAnnouncement(data) {
     }, 500); // 500ms delay
 }
 
-// Initialize enhanced styles when switching to roulette view
 function switchToRouletteView() {
     if (!jackpotHeader || !inlineRoulette) {
         console.error("Missing roulette UI elements for view switch.");
@@ -1075,7 +1201,6 @@ function switchToRouletteView() {
     if (returnToJackpot) returnToJackpot.style.display = 'none';
 }
 
-// -- Start Roulette Animation - MODIFIED --
 function startRouletteAnimation(winnerData) {
     // Cancel any ongoing animation frame
     if (animationFrameId) {
@@ -1211,7 +1336,6 @@ function startRouletteAnimation(winnerData) {
     }, 100); // 100ms delay for item rendering check
 }
 
-// -- Handle the animation loop - MODIFIED --
 function handleRouletteSpinAnimation(winningElement, winner) {
     if (!winningElement || !rouletteTrack || !inlineRoulette) {
         console.error("Missing crucial elements for roulette animation.");
@@ -1350,7 +1474,6 @@ function handleRouletteSpinAnimation(winningElement, winner) {
 }
 
 
-// -- Finalize Spin Actions (Highlight, Sound Fade, Trigger Winner Display) - MODIFIED --
 function finalizeSpin(winningElement, winner) {
      if (!isSpinning && winningElement) {
          console.log("FinalizeSpin called, but isSpinning is already false. Possibly called after reset?");
@@ -1435,7 +1558,6 @@ function finalizeSpin(winningElement, winner) {
 }
 
 
-// -- Handle Spin End (Display Winner Info, Confetti, Reset State) - MODIFIED --
 function handleSpinEnd(winningElement, winner) {
     // Note: Highlighting and sound fadeout are now started in finalizeSpin()
 
@@ -1467,7 +1589,8 @@ function handleSpinEnd(winningElement, winner) {
         winnerName.textContent = winner.user.username || 'Winner';
         winnerName.style.color = userColor;
 
-        const depositValue = `${(winner.value || 0).toFixed(2)}`;
+        // Add '$' sign to value display
+        const depositValue = `$${(winner.value || 0).toFixed(2)}`;
         const chanceValue = `${(winner.percentage || 0).toFixed(2)}%`;
 
         winnerDeposit.textContent = ''; // Clear first
@@ -1537,7 +1660,6 @@ function handleSpinEnd(winningElement, winner) {
     // --- End Winner Info Display ---
 }
 
-// launchConfetti - (Keep original implementation)
 function launchConfetti(mainColor = '#00ffaa') {
     if (!confettiContainer) return;
 
@@ -1570,4 +1692,458 @@ function launchConfetti(mainColor = '#00ffaa') {
         confetti.style.animationDelay = `${Math.random() * 1.5}s`;
 
         // Randomize the duration for varying fall speeds
-        confetti.style.animationDuration = `${2 + Math.random() * 3}
+        confetti.style.animationDuration = `${2 + Math.random() * 3}s`;
+
+        // Randomize the color from our palette
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.backgroundColor = color;
+
+        // Randomize size
+        const size = Math.random() * 10 + 5; // 5-15px
+        confetti.style.width = `${size}px`;
+        confetti.style.height = `${size}px`;
+
+        // Randomize shape and rotation
+        const rotation = Math.random() * 360;
+        const fallX = (Math.random() - 0.5) * 100; // Horizontal movement
+        confetti.style.setProperty('--fall-x', `${fallX}px`);
+        confetti.style.setProperty('--rotation-start', `${rotation}deg`);
+        confetti.style.setProperty('--rotation-end', `${rotation + (Math.random() - 0.5) * 720}deg`); // Add random spin
+
+        const shape = Math.random();
+        if (shape < 0.33) {
+            confetti.style.borderRadius = '50%'; // Circle
+        } else if (shape < 0.66) {
+            confetti.style.borderRadius = '0'; // Square (will rotate)
+        } else {
+            // Keep some squares/rectangles, maybe add clip-path later if needed
+            confetti.style.borderRadius = '0';
+        }
+
+        confettiContainer.appendChild(confetti);
+    }
+}
+
+function clearConfetti() {
+    if (confettiContainer) {
+        confettiContainer.innerHTML = '';
+    }
+     // Also clear any dynamic winner pulse style
+     const winnerPulseStyle = document.getElementById('winner-pulse-style');
+     if (winnerPulseStyle) {
+         winnerPulseStyle.remove();
+     }
+     // Remove highlight class from any items
+     document.querySelectorAll('.roulette-item.winner-highlight').forEach(el => {
+         el.classList.remove('winner-highlight');
+         el.style.transform = ''; // Reset any transform applied by highlight
+         // Add null check for el.dataset before accessing userId
+         if (el.dataset?.userId) {
+             el.style.borderColor = getUserColor(el.dataset.userId); // Reset border to base user color
+         }
+     });
+}
+
+// Reset view - MODIFIED to clear participant container
+function resetToJackpotView() {
+    console.log("Resetting to jackpot view");
+
+    // Cancel any ongoing animation frame FIRST
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+        console.log("Animation frame cancelled by resetToJackpotView.");
+    }
+    // Also clear any pending timeouts or intervals related to animation phases
+    if (window.soundFadeInInterval) clearInterval(window.soundFadeInInterval);
+    if (window.soundFadeOutInterval) clearInterval(window.soundFadeOutInterval);
+    if (window.winnerFadeInInterval) clearInterval(window.winnerFadeInInterval);
+    if (window.typeDepositInterval) clearInterval(window.typeDepositInterval);
+    if (window.typeChanceInterval) clearInterval(window.typeChanceInterval);
+
+
+    isSpinning = false; // Ensure state is false
+
+    if (!jackpotHeader || !inlineRoulette || !winnerInfo || !rouletteTrack) {
+        console.error("Missing elements required for resetToJackpotView.");
+        return;
+    }
+
+    // Stop sound immediately if playing
+    if (spinSound && !spinSound.paused) {
+        spinSound.pause();
+        spinSound.currentTime = 0;
+        spinSound.volume = 1.0; // Reset volume
+        spinSound.playbackRate = 1.0; // Reset rate
+    }
+
+    // Fade out roulette first
+    inlineRoulette.style.transition = 'opacity 0.5s ease';
+    inlineRoulette.style.opacity = '0';
+    clearConfetti(); // Clear confetti and highlights immediately
+
+    // After roulette fades out, reset everything
+    setTimeout(() => {
+        // Return header to normal state
+        jackpotHeader.classList.remove('roulette-mode');
+
+        // Reset roulette track visuals and clear content
+        rouletteTrack.style.transition = 'none'; // IMPORTANT: Remove transition before resetting transform
+        rouletteTrack.style.transform = 'translateX(0)';
+        rouletteTrack.innerHTML = ''; // Clear items
+
+        // Hide roulette and winner info containers
+        inlineRoulette.style.display = 'none';
+        winnerInfo.style.display = 'none';
+
+        // Show jackpot UI elements with fade-in
+        const value = jackpotHeader.querySelector('.jackpot-value');
+        const timer = jackpotHeader.querySelector('.jackpot-timer');
+        const stats = jackpotHeader.querySelector('.jackpot-stats');
+
+        [value, timer, stats].forEach((el, index) => {
+            if (el) {
+                el.style.display = 'flex'; // Or 'block' depending on original style
+                el.style.opacity = '0'; // Start transparent
+                // Stagger fade-in slightly
+                setTimeout(() => {
+                    el.style.transition = 'opacity 0.5s ease';
+                    el.style.opacity = '1';
+                }, 50 + index * 50); // 50ms stagger
+            }
+        });
+
+
+        // Reset state variables
+        // isSpinning = false; // Already set at the beginning
+        timerActive = false;
+        spinStartTime = 0;
+
+        if (roundTimer) {
+            clearInterval(roundTimer);
+            roundTimer = null;
+        }
+
+        // Reset UI for next round values (timer, pot, participants)
+        initiateNewRoundVisualReset(); // *** This will clear the participant container ***
+
+        // Get the latest round data in case a new one started during animation
+        console.log("Requesting fresh round data after reset.");
+        // Only request if socket is connected to avoid errors on disconnect/reconnect cycles
+        if (socket.connected) {
+            socket.emit('requestRoundData');
+        } else {
+             console.warn("Socket not connected, skipping requestRoundData after reset.");
+        }
+    }, 500); // Wait for fade out transition to complete
+}
+
+// Initiate visual reset - MODIFIED to clear participant container
+function initiateNewRoundVisualReset() {
+    console.log("Visual reset for next round");
+    updateTimerUI(120); // Reset timer display to default
+
+    if(timerValue) {
+        timerValue.classList.remove('urgent-pulse', 'timer-pulse');
+        timerValue.textContent = '120'; // Or whatever default start time is
+    }
+
+    // *** Clear the participants container and show empty message ***
+    if (participantsContainer && emptyPotMessage) {
+        participantsContainer.innerHTML = ''; // Clear previous deposits
+        // Ensure empty message exists and is shown
+        if (!participantsContainer.contains(emptyPotMessage)) {
+            participantsContainer.appendChild(emptyPotMessage);
+        }
+        emptyPotMessage.style.display = 'block';
+    }
+
+    if (potValue) potValue.textContent = "$0.00"; // Reset pot value display
+    if (participantCount) participantCount.textContent = "0/200"; // Reset participant count display
+}
+
+function findWinnerFromData(winnerData) {
+    // Check if winner data is directly provided or needs lookup in currentRound
+    const winnerId = winnerData?.winner?.id;
+
+    if (!winnerId) {
+        console.error("Missing winner ID in findWinnerFromData input:", winnerData);
+        return null;
+    }
+
+    if (!currentRound || !currentRound.participants) {
+        console.error("Missing currentRound or participants data for findWinnerFromData.");
+        // Fallback: return basic winner info if available in input
+        if (winnerData.winner) {
+            return {
+                user: { ...winnerData.winner }, // Clone user data
+                percentage: 0, // Cannot calculate without full round data
+                value: 0
+            };
+        }
+        return null;
+    }
+
+    const winnerParticipant = currentRound.participants.find(p => p.user && p.user.id === winnerId);
+
+    if (!winnerParticipant) {
+        console.warn(`Winner ID ${winnerId} not found in local participants list.`);
+        // Fallback: return basic winner info if available in input
+          if (winnerData.winner) {
+            return {
+                user: { ...winnerData.winner },
+                percentage: 0,
+                value: 0 // Cannot determine participant's specific value without finding them
+            };
+        }
+        return null;
+    }
+
+    const totalValue = currentRound.totalValue > 0 ? currentRound.totalValue : 1; // Avoid division by zero
+    const percentage = (winnerParticipant.itemsValue / totalValue) * 100;
+
+    return {
+        user: { ...winnerParticipant.user }, // Return a clone of the user object
+        percentage: percentage || 0,
+        value: winnerParticipant.itemsValue || 0 // This is the WINNER'S TOTAL value in the pot
+    };
+}
+
+
+function testRouletteAnimation() {
+    console.log("--- TESTING ENHANCED ROULETTE ANIMATION ---");
+
+    if (isSpinning) {
+        console.log("Already spinning, test cancelled.");
+        return;
+    }
+
+    // Use current round if available and has participants, otherwise mock data
+    let testData = currentRound;
+    if (!testData || !testData.participants || testData.participants.length === 0) {
+        console.log('Using sample test data for animation...');
+        // Make sure mock data structure matches expected participant structure
+        testData = {
+            roundId: `test-${Date.now()}`,
+            status: 'active', // Ensure status allows spinning
+            totalValue: 194.66,
+            participants: [
+                 // Ensure 'user' object exists within participant
+                { user: { id: 'test_user_1', username: 'DavE', avatar: 'https://avatars.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg' }, itemsValue: 185.69, tickets: 18569 },
+                { user: { id: 'test_user_2', username: 'Lisqo', avatar: 'https://avatars.steamstatic.com/bb8a0a497b4b1f46b96b6b0775e9368fc8c5c3b4_full.jpg' }, itemsValue: 7.39, tickets: 739 },
+                { user: { id: 'test_user_3', username: 'simon50110', avatar: 'https://avatars.steamstatic.com/3c4c5a7c9968414c3a1ddd1e73cb8e6aeeec5f32_full.jpg' }, itemsValue: 1.04, tickets: 104 },
+                { user: { id: 'test_user_4', username: 'Tester4', avatar: '/img/default-avatar.png' }, itemsValue: 0.54, tickets: 54 }
+            ],
+            items: [ // Add some mock items for display
+                 // Ensure items have 'owner' property matching a participant's user id
+                { owner: 'test_user_1', name: 'AK-47 | Redline', price: 15.50, image: '/img/default-item.png' },
+                { owner: 'test_user_1', name: 'AWP | Asiimov', price: 70.19, image: '/img/default-item.png' },
+                { owner: 'test_user_1', name: 'M4A4 | Howl', price: 100.00, image: '/img/default-item.png' }, // Added item
+                { owner: 'test_user_2', name: 'Glock-18 | Water Elem...', price: 1.39, image: '/img/default-item.png' },
+                { owner: 'test_user_2', name: 'P250 | Sand Dune', price: 6.00, image: '/img/default-item.png' }, // Added item
+                { owner: 'test_user_3', name: 'USP-S | Cortex', price: 1.04, image: '/img/default-item.png' },
+                { owner: 'test_user_4', name: 'Tec-9 | Fuel Injector', price: 0.54, image: '/img/default-item.png' } // Corrected owner
+            ]
+        };
+        // Temporarily set currentRound for the test if using mock data
+        // Note: This might cause issues if real data arrives concurrently
+        currentRound = testData;
+        initiateNewRoundVisualReset(); // Clear display first
+        updateRoundUI(); // Update pot/count
+         // Manually populate display if using mock data *after* setting currentRound
+        if (currentRound.participants && currentRound.participants.length > 0) {
+             const sortedParticipants = [...currentRound.participants].sort((a, b) => (b.itemsValue || 0) - (a.itemsValue || 0));
+             sortedParticipants.forEach(p => {
+                const userItems = currentRound.items?.filter(item => item.owner && p.user && item.owner.toString() === p.user.id.toString()) || [];
+                const mockDepositData = { userId: p.user.id, username: p.user.username, avatar: p.user.avatar, itemsValue: p.itemsValue, depositedItems: userItems };
+                displayLatestDeposit(mockDepositData);
+                 // Remove animation class immediately for test setup
+                 const element = participantsContainer.querySelector(`.player-deposit-container[data-user-id="${p.user.id}"]`);
+                 if(element) element.classList.remove('player-deposit-new');
+             });
+         }
+    }
+
+    if (!testData.participants || testData.participants.length === 0) {
+        showNotification('Test Error', 'No participants available for test spin.');
+        return;
+    }
+
+    // Select random winner from the available participants
+    const idx = Math.floor(Math.random() * testData.participants.length);
+    // Ensure winningParticipant and winningParticipant.user exist
+    const winningParticipant = testData.participants[idx];
+     if (!winningParticipant || !winningParticipant.user) {
+         console.error("Selected winning participant is invalid in test data:", winningParticipant);
+         return;
+     }
+
+    const mockWinnerData = {
+        roundId: testData.roundId,
+        winner: winningParticipant.user, // Pass the user object
+        winningTicket: Math.floor(Math.random() * (winningParticipant.tickets || 1)) + 1 // Example ticket number
+    };
+
+    console.log('Test Winner Selected:', mockWinnerData.winner.username);
+    // Use the same function the socket event uses
+    handleWinnerAnnouncement(mockWinnerData);
+}
+
+
+// =================== PROVABLY FAIR (No Changes Needed Here) ===================
+// Functions: verifyRound, loadPastRounds, populateVerificationFields, createPagination
+
+async function verifyRound() {
+    const idInput = document.getElementById('round-id'), sSeedInput = document.getElementById('server-seed'), cSeedInput = document.getElementById('client-seed'), resultEl = document.getElementById('verification-result');
+    if (!idInput || !sSeedInput || !cSeedInput || !resultEl) { console.error("Verify form elements missing."); return; }
+    const roundId = idInput.value.trim(), serverSeed = sSeedInput.value.trim(), clientSeed = cSeedInput.value.trim();
+    if (!roundId || !serverSeed || !clientSeed) { resultEl.style.display = 'block'; resultEl.className = 'verification-result error'; resultEl.innerHTML = '<p>Please fill in all fields.</p>'; return; }
+    // Basic server seed format validation (SHA256 hex string)
+    if (serverSeed.length !== 64 || !/^[a-f0-9]{64}$/i.test(serverSeed)) { resultEl.style.display = 'block'; resultEl.className = 'verification-result error'; resultEl.innerHTML = '<p>Invalid Server Seed format (should be 64 hex characters).</p>'; return; }
+    try {
+        resultEl.style.display = 'block'; resultEl.className = 'verification-result loading'; resultEl.innerHTML = '<p>Verifying...</p>';
+        const response = await fetch('/api/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roundId, serverSeed, clientSeed }) });
+        const result = await response.json(); if (!response.ok) throw new Error(result.error || `Verify fail (${response.status})`);
+        resultEl.className = `verification-result ${result.verified ? 'success' : 'error'}`;
+        let html = `<h4>Result (Round #${result.roundId || roundId})</h4>`;
+
+        if (result.verified) {
+             html += `<p style="color: var(--success-color); font-weight: bold;">✅ Verified Fair.</p>`;
+             if (result.serverSeedHash) html += `<p><strong>Server Seed Hash:</strong> <span class="seed-value">${result.serverSeedHash}</span></p>`;
+             if (result.serverSeed) html += `<p><strong>Server Seed:</strong> <span class="seed-value">${result.serverSeed}</span></p>`;
+             if (result.clientSeed) html += `<p><strong>Client Seed:</strong> <span class="seed-value">${result.clientSeed}</span></p>`;
+             if (result.combinedString) html += `<p><strong>Combined:</strong> <span class="seed-value wrap-anywhere">${result.combinedString}</span></p>`;
+             if (result.finalHash) html += `<p><strong>Result Hash:</strong> <span class="seed-value">${result.finalHash}</span></p>`;
+             if (result.winningTicket !== undefined) html += `<p><strong>Winning Ticket:</strong> ${result.winningTicket}</p>`;
+             if (result.winnerUsername) html += `<p><strong>Winner:</strong> ${result.winnerUsername}</p>`;
+        } else {
+            html += `<p style="color: var(--error-color); font-weight: bold;">❌ Verification Failed.</p>`;
+            html += `<p><strong>Reason:</strong> ${result.reason || 'Mismatch.'}</p>`;
+             if (result.serverSeedHash) {
+                 html += `<p><strong>Server Seed Hash:</strong> <span class="seed-value">${result.serverSeedHash}</span></p>`;
+             }
+             if (result.serverSeed) {
+                 html += `<p><strong>Provided Server Seed:</strong> <span class="seed-value">${result.serverSeed}</span></p>`;
+             }
+             if (result.clientSeed) {
+                 html += `<p><strong>Provided Client Seed:</strong> <span class="seed-value">${result.clientSeed}</span></p>`;
+             }
+             if (result.winningTicket !== undefined) {
+                 html += `<p><strong>Calculated Ticket:</strong> ${result.winningTicket}</p>`;
+             }
+             if (result.actualWinningTicket !== undefined) {
+                 html += `<p><strong>Actual Ticket:</strong> ${result.actualWinningTicket}</p>`;
+             }
+             if (result.winnerUsername) {
+                 html += `<p><strong>Actual Winner:</strong> ${result.winnerUsername}</p>`;
+             }
+        }
+        resultEl.innerHTML = html;
+    } catch (error) { resultEl.style.display = 'block'; resultEl.className = 'verification-result error'; resultEl.innerHTML = `<p>Error: ${error.message}</p>`; console.error('Error verifying:', error); }
+}
+
+
+async function loadPastRounds(page = 1) {
+    if (!roundsTableBody || !roundsPagination) { console.warn("Rounds history elements missing."); return; }
+    try {
+        roundsTableBody.innerHTML = '<tr><td colspan="5" class="loading-message">Loading...</td></tr>'; roundsPagination.innerHTML = '';
+        const response = await fetch(`/api/rounds?page=${page}&limit=10`); if (!response.ok) throw new Error(`Load fail (${response.status})`);
+        const data = await response.json(); if (!data || !Array.isArray(data.rounds) || typeof data.currentPage !== 'number' || typeof data.totalPages !== 'number') throw new Error('Invalid rounds data.');
+        roundsTableBody.innerHTML = '';
+        if (data.rounds.length === 0 && data.currentPage === 1) roundsTableBody.innerHTML = '<tr><td colspan="5" class="no-rounds-message">No rounds found.</td></tr>';
+        else if (data.rounds.length === 0 && data.currentPage > 1) roundsTableBody.innerHTML = '<tr><td colspan="5" class="no-rounds-message">No rounds on this page.</td></tr>';
+        else data.rounds.forEach(round => {
+            const row = document.createElement('tr'); let date = 'N/A'; if (round.endTime) try { const d = new Date(round.endTime); if (!isNaN(d.getTime())) date = d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }); } catch (e) { console.error("Date format error:", e); }
+             // Ensure seeds are strings for the onclick attribute
+             // Escape single quotes within the seeds if they could possibly occur (unlikely for seeds)
+             const serverSeedStr = (round.serverSeed || '').replace(/'/g, "\\'");
+             const clientSeedStr = (round.clientSeed || '').replace(/'/g, "\\'");
+             const roundIdStr = round.roundId || 'N/A'; // Use string for ID
+
+             row.innerHTML = `
+                <td>#${roundIdStr}</td>
+                <td>${date}</td>
+                <td>$${round.totalValue?round.totalValue.toFixed(2):'0.00'}</td>
+                <td>${round.winner?(round.winner.username||'N/A'):'N/A'}</td>
+                <td>
+                    <button class="btn btn-details" onclick="showRoundDetails('${roundIdStr}')" ${roundIdStr === 'N/A' ? 'disabled' : ''}>Details</button>
+                    <button class="btn btn-verify" onclick="populateVerificationFields('${roundIdStr}', '${serverSeedStr}', '${clientSeedStr}')" ${!round.serverSeed ? 'disabled title="Seed not revealed yet"' : ''}>Verify</button>
+                </td>`;
+            row.dataset.roundId = round.roundId; roundsTableBody.appendChild(row);
+        });
+        createPagination(data.currentPage, data.totalPages);
+    } catch (error) { roundsTableBody.innerHTML = `<tr><td colspan="5" class="error-message">Error loading rounds: ${error.message}</td></tr>`; console.error('Error loading rounds:', error); }
+}
+
+function populateVerificationFields(roundId, serverSeed, clientSeed) {
+    const idInput = document.getElementById('round-id'), sSeedInput = document.getElementById('server-seed'), cSeedInput = document.getElementById('client-seed');
+    if (idInput) idInput.value = roundId || '';
+    if (sSeedInput) sSeedInput.value = serverSeed || ''; // Populate server seed if available
+    if (cSeedInput) cSeedInput.value = clientSeed || ''; // Populate client seed if available
+
+    const verificationSection = document.getElementById('provably-fair-verification');
+    if (verificationSection) {
+          verificationSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // Provide feedback if server seed isn't populated yet
+    if (!serverSeed && roundId && roundId !== 'N/A') { // Added check for 'N/A'
+        showNotification('Info', `Server Seed for Round #${roundId} is revealed after the round ends.`);
+    }
+}
+
+function createPagination(currentPage, totalPages) {
+    if (!roundsPagination) return; roundsPagination.innerHTML = ''; if (totalPages <= 1) return;
+    const maxPagesToShow = 5; // Example: Prev 1 ... 4 5 6 ... 10 Next
+
+    const createButton = (text, page, isActive = false, isDisabled = false, isEllipsis = false) => {
+        if (isEllipsis) { const span = document.createElement('span'); span.className = 'page-ellipsis'; span.textContent = '...'; return span; }
+        const button = document.createElement('button'); button.className = `page-button ${isActive ? 'active' : ''}`; button.textContent = text; button.disabled = isDisabled;
+        if (!isDisabled && typeof page === 'number') { button.addEventListener('click', (e) => { e.preventDefault(); loadPastRounds(page); }); }
+        return button;
+    };
+
+    // Prev Button
+    roundsPagination.appendChild(createButton('« Prev', currentPage - 1, false, currentPage <= 1));
+
+    if (totalPages <= maxPagesToShow) {
+        // Show all pages
+        for (let i = 1; i <= totalPages; i++) { roundsPagination.appendChild(createButton(i, i, i === currentPage)); }
+    } else {
+        // Show ellipsis logic
+        const pages = [];
+        pages.push(1); // Always show first page
+
+        // Calculate visible range around current page
+        let rangeStart = Math.max(2, currentPage - Math.floor((maxPagesToShow - 3) / 2));
+        let rangeEnd = Math.min(totalPages - 1, currentPage + Math.ceil((maxPagesToShow - 3) / 2));
+
+         // Adjust range if it bumps against the edges
+         if (rangeStart === 2 && rangeEnd < totalPages - 1) {
+            rangeEnd = Math.min(totalPages - 1, rangeStart + (maxPagesToShow - 3));
+         }
+         if (rangeEnd === totalPages - 1 && rangeStart > 2) {
+             rangeStart = Math.max(2, rangeEnd - (maxPagesToShow - 3));
+         }
+
+
+        if (rangeStart > 2) pages.push('...'); // Ellipsis after page 1
+
+        for (let i = rangeStart; i <= rangeEnd; i++) {
+            pages.push(i);
+        }
+
+        if (rangeEnd < totalPages - 1) pages.push('...'); // Ellipsis before last page
+
+        pages.push(totalPages); // Always show last page
+
+        // Render buttons
+        pages.forEach(page => {
+            if (page === '...') roundsPagination.appendChild(createButton('...', null, false, true, true));
+            else roundsPagination.appendChild(createButton(page, page, page === currentPage));
+        });
+    }
+
+    // Next Button
+    roundsPagination.appendChild(createButton('Next »', currentPage + 1, false, currentPage >= totalPages));
+}
