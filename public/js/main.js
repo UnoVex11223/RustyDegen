@@ -329,7 +329,7 @@ function setupSocketConnection() {
             console.log("Connected during rolling phase.");
             if (!isSpinning) handleWinnerAnnouncement(currentRound);
         } else if (currentRound.status === 'active' && currentRound.participants?.length >= 2 && !timerActive) {
-            timerActive = true; startClientTimer(currentRound.timeLeft || 120);
+            timerActive = true; startClientTimer(currentRound.timeLeft || 99);
         } else if (currentRound.status === 'ended' || currentRound.status === 'completed') {
             console.log("Connected after round ended."); resetToJackpotView();
         }
@@ -496,7 +496,7 @@ function updateTimerUI(timeLeft) {
     if (!timerValue || !timerForeground) return;
     const timeToShow = Math.max(0, Math.round(timeLeft));
     if (timerActive || timeToShow > 0) timerValue.textContent = timeToShow; else if (isSpinning) timerValue.textContent = "Rolling"; else timerValue.textContent = "Ended";
-    updateTimerCircle(timeToShow, 120);
+    updateTimerCircle(timeToShow, 99);
     if (timerActive && timeToShow <= 10 && timeToShow > 0) { timerValue.classList.add('urgent-pulse'); timerValue.classList.remove('timer-pulse'); }
     else { timerValue.classList.remove('urgent-pulse'); if (timerActive && timeToShow > 10) timerValue.classList.add('timer-pulse'); else timerValue.classList.remove('timer-pulse'); }
 }
@@ -636,7 +636,7 @@ function handleNewDeposit(data) {
     if (currentRound.status === 'active' && currentRound.participants.length >= 2 && !timerActive) {
         console.log("Threshold reached (>= 2 participants). Starting timer.");
         timerActive = true;
-        startClientTimer(currentRound.timeLeft || 120);
+        startClientTimer(currentRound.timeLeft || 99);
     }
 }
 
