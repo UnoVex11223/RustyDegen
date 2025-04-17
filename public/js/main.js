@@ -305,18 +305,21 @@ function setupSocketConnection() {
         console.log('Round data received:', data);
         currentRound = data;
         updateRoundUI();
+        if (data.winner) {
+            // If round has a winner but we're not showing it, show it now
+            if (!isSpinning && inlineRoulette && inlineRoulette.style.display !== 'block') {
+                handleWinnerAnnouncement({ winner: data.winner, winningTicket: data.winningTicket, roundId: data.roundId });
+            }
+        }
     });
 
-    socket.on('timerUpdate', (data) => {
-        console.log('Timer update received:', data);
-        if (timerValue) timerValue.textContent = data.seconds;
-        updateTimerCircle(data.seconds, data.totalSeconds || 120);
-    });
-
-    socket.on('userUpdate', (data) => {
-        console.log('User update received:', data);
-        currentUser = data;
-        updateUserUI();
+    socket.on('roundTimer', (data) => {
+        console.log('Round timer update:', data);
+        if (currentRound && currentRound.roundId === data.roundId) {
+            currentRound.timeRemaining = data.timeRemaining;
+            if (timerValue) timerValue.textContent = Math.max(0, Math.floor(data.timeRemaining));
+            updateTimerCircle(data.timeRemaining, currentRound.roundDuration || 120);
+        }
     });
 
     socket.on('error', (error) => {
@@ -327,19 +330,20 @@ function setupSocketConnection() {
 
 // Check login status
 function checkLoginStatus() {
-    fetch('/api/user')
+    fetch('/api/user/me')
         .then(response => {
             if (response.ok) return response.json();
             throw new Error('Not logged in');
         })
         .then(data => {
+            console.log('User data:', data);
             currentUser = data;
             updateUserUI();
         })
         .catch(error => {
             console.log('Not logged in:', error);
             // User is not logged in, show login button
-            if (loginButton) loginButton.style.display = 'flex';
+            if (loginButton) loginButton.style.display = 'block';
             if (userProfile) userProfile.style.display = 'none';
         });
 }
@@ -348,34 +352,36 @@ function checkLoginStatus() {
 function updateUserUI() {
     if (!currentUser) return;
     
+    // Hide login button and show user profile
     if (loginButton) loginButton.style.display = 'none';
-    if (userProfile) {
-        userProfile.style.display = 'flex';
-        if (userAvatar) userAvatar.src = currentUser.avatar || '/img/default-avatar.png';
-        if (userName) userName.textContent = currentUser.username || 'Player';
-    }
+    if (userProfile) userProfile.style.display = 'flex';
+    
+    // Update user avatar and name
+    if (userAvatar) userAvatar.src = currentUser.avatar || '/img/default-avatar.png';
+    if (userName) userName.textContent = currentUser.username || 'User';
 }
 
 // Load user inventory
 function loadUserInventory() {
     if (!currentUser) return;
     
+    // Show loading indicator
     if (inventoryLoading) inventoryLoading.style.display = 'block';
     if (inventoryItems) inventoryItems.innerHTML = '';
     
-    // Clear selected items
+    // Reset selected items
     selectedItemsList = [];
     if (selectedItems) selectedItems.innerHTML = '';
     if (totalValue) totalValue.textContent = '$0.00';
     if (depositButton) depositButton.disabled = true;
     
-    // Fetch inventory from API
     fetch('/api/inventory')
         .then(response => {
             if (response.ok) return response.json();
-            throw new Error('Failed to load inventory');
+            return response.json().then(err => { throw new Error(err.message || 'Failed to load inventory'); });
         })
         .then(data => {
+            console.log('Inventory loaded:', data);
             userInventory = data.items || [];
             displayInventory();
         })
@@ -388,113 +394,162 @@ function loadUserInventory() {
         });
 }
 
-// Display inventory items
+// Display inventory
 function displayInventory() {
     if (!inventoryItems || !userInventory) return;
     
+    // Clear container
+    inventoryItems.innerHTML = '';
+    
+    // Check if inventory is empty
     if (userInventory.length === 0) {
-        inventoryItems.innerHTML = '<p class="empty-inventory">Your inventory is empty.</p>';
+        const emptyMessage = document.createElement('div');
+        emptyMessage.className = 'empty-inventory-message';
+        emptyMessage.textContent = 'Your inventory is empty.';
+        inventoryItems.appendChild(emptyMessage);
         return;
     }
     
+    // Sort items by value (optional)
+    userInventory.sort((a, b) => parseFloat(b.value) - parseFloat(a.value));
+    
+    // Add items to container
     userInventory.forEach(item => {
         const itemElement = document.createElement('div');
         itemElement.className = 'inventory-item';
         itemElement.dataset.itemId = item.id;
         
+        // Create and add image
         const itemImage = document.createElement('img');
         itemImage.className = 'inventory-item-image';
         itemImage.src = item.imageUrl || '/img/default-item.png';
         itemImage.alt = item.name || 'Item';
         
-        const itemInfo = document.createElement('div');
-        itemInfo.className = 'inventory-item-info';
+        // Create and add item info container
+        const infoContainer = document.createElement('div');
+        infoContainer.className = 'inventory-item-info';
         
-        const itemName = document.createElement('div');
-        itemName.className = 'inventory-item-name';
-        itemName.textContent = item.name || 'Unknown Item';
+        // Add item name
+        const nameElement = document.createElement('div');
+        nameElement.className = 'inventory-item-name';
+        nameElement.textContent = item.name || 'Unknown Item';
         
-        const itemValue = document.createElement('div');
-        itemValue.className = 'inventory-item-value';
-        itemValue.textContent = `$${parseFloat(item.value).toFixed(2)}`;
+        // Add item value
+        const valueElement = document.createElement('div');
+        valueElement.className = 'inventory-item-value';
+        valueElement.textContent = `$${parseFloat(item.value).toFixed(2)}`;
         
-        itemInfo.appendChild(itemName);
-        itemInfo.appendChild(itemValue);
+        // Assemble the item element
+        infoContainer.appendChild(nameElement);
+        infoContainer.appendChild(valueElement);
         
         itemElement.appendChild(itemImage);
-        itemElement.appendChild(itemInfo);
+        itemElement.appendChild(infoContainer);
         
-        // Add click event to select/deselect item
+        // Add click event listener
         itemElement.addEventListener('click', () => toggleItemSelection(item, itemElement));
         
+        // Add to container
         inventoryItems.appendChild(itemElement);
     });
 }
 
 // Toggle item selection
-function toggleItemSelection(item, element) {
+function toggleItemSelection(item, itemElement) {
     const itemIndex = selectedItemsList.findIndex(i => i.id === item.id);
     
     if (itemIndex === -1) {
-        // Item not selected, add it
+        // Item is not selected, add it
         selectedItemsList.push(item);
-        element.classList.add('selected');
+        itemElement.classList.add('selected');
     } else {
-        // Item already selected, remove it
+        // Item is already selected, remove it
         selectedItemsList.splice(itemIndex, 1);
-        element.classList.remove('selected');
+        itemElement.classList.remove('selected');
     }
     
-    updateSelectedItemsDisplay();
+    // Update selected items display
+    displaySelectedItems();
 }
 
-// Update selected items display
-function updateSelectedItemsDisplay() {
-    if (!selectedItems || !totalValue || !depositButton) return;
+// Display selected items
+function displaySelectedItems() {
+    if (!selectedItems) return;
     
+    // Clear container
     selectedItems.innerHTML = '';
     
-    if (selectedItemsList.length === 0) {
-        depositButton.disabled = true;
-        totalValue.textContent = '$0.00';
-        return;
-    }
+    // Calculate total value
+    const totalValueAmount = selectedItemsList.reduce((sum, item) => sum + parseFloat(item.value), 0);
+    if (totalValue) totalValue.textContent = `$${totalValueAmount.toFixed(2)}`;
     
-    let total = 0;
+    // Enable/disable deposit button
+    if (depositButton) depositButton.disabled = selectedItemsList.length === 0;
     
+    // Add items to container
     selectedItemsList.forEach(item => {
         const itemElement = document.createElement('div');
-        itemElement.className = 'inventory-item';
+        itemElement.className = 'selected-item';
         
+        // Create and add image
         const itemImage = document.createElement('img');
-        itemImage.className = 'inventory-item-image';
+        itemImage.className = 'selected-item-image';
         itemImage.src = item.imageUrl || '/img/default-item.png';
         itemImage.alt = item.name || 'Item';
         
-        const itemInfo = document.createElement('div');
-        itemInfo.className = 'inventory-item-info';
+        // Create and add item info container
+        const infoContainer = document.createElement('div');
+        infoContainer.className = 'selected-item-info';
         
-        const itemName = document.createElement('div');
-        itemName.className = 'inventory-item-name';
-        itemName.textContent = item.name || 'Unknown Item';
+        // Add item name
+        const nameElement = document.createElement('div');
+        nameElement.className = 'selected-item-name';
+        nameElement.textContent = item.name || 'Unknown Item';
         
-        const itemValue = document.createElement('div');
-        itemValue.className = 'inventory-item-value';
-        itemValue.textContent = `$${parseFloat(item.value).toFixed(2)}`;
+        // Add item value
+        const valueElement = document.createElement('div');
+        valueElement.className = 'selected-item-value';
+        valueElement.textContent = `$${parseFloat(item.value).toFixed(2)}`;
         
-        itemInfo.appendChild(itemName);
-        itemInfo.appendChild(itemValue);
+        // Create and add remove button
+        const removeButton = document.createElement('button');
+        removeButton.className = 'remove-item-btn';
+        removeButton.innerHTML = '&times;';
+        removeButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            removeSelectedItem(item);
+        });
+        
+        // Assemble the item element
+        infoContainer.appendChild(nameElement);
+        infoContainer.appendChild(valueElement);
         
         itemElement.appendChild(itemImage);
-        itemElement.appendChild(itemInfo);
+        itemElement.appendChild(infoContainer);
+        itemElement.appendChild(removeButton);
         
+        // Add to container
         selectedItems.appendChild(itemElement);
-        
-        total += parseFloat(item.value);
     });
+}
+
+// Remove selected item
+function removeSelectedItem(item) {
+    const itemIndex = selectedItemsList.findIndex(i => i.id === item.id);
     
-    totalValue.textContent = `$${total.toFixed(2)}`;
-    depositButton.disabled = false;
+    if (itemIndex !== -1) {
+        // Remove item from selected items list
+        selectedItemsList.splice(itemIndex, 1);
+        
+        // Update selected items display
+        displaySelectedItems();
+        
+        // Update inventory item display
+        const inventoryItemElement = document.querySelector(`.inventory-item[data-item-id="${item.id}"]`);
+        if (inventoryItemElement) {
+            inventoryItemElement.classList.remove('selected');
+        }
+    }
 }
 
 // Submit deposit
@@ -662,8 +717,7 @@ function displayParticipants() {
     
     // Add items to container
     allItems.forEach(item => {
-        // Use the original addItemToPot function for the existing implementation
-        // This will be replaced by the modified version in the Rustypot-style implementation
+        // Use the modified addItemToPot function for the Rustypot-style implementation
         addItemToPot(item);
     });
 }
@@ -853,7 +907,21 @@ function handleNewDeposit(data) {
         return;
     }
     
-    // Update pot value and participant count as before
+    // Update current round data
+    if (currentRound) {
+        // Update total value
+        currentRound.totalValue = data.currentPotValue || currentRound.totalValue;
+        
+        // Update participant in the list or add if not exists
+        const participantIndex = currentRound.participants.findIndex(p => p.id === data.participant.id);
+        if (participantIndex !== -1) {
+            currentRound.participants[participantIndex] = data.participant;
+        } else {
+            currentRound.participants.push(data.participant);
+        }
+    }
+    
+    // Update pot value and participant count
     if (potValue) {
         potValue.textContent = `$${parseFloat(data.currentPotValue || 0).toFixed(2)}`;
     }
@@ -867,7 +935,15 @@ function handleNewDeposit(data) {
     // Add items to the pot with Rustypot-style layout
     if (data.depositedItems && data.depositedItems.length > 0) {
         data.depositedItems.forEach(item => {
-            addItemToPot(item);
+            const enhancedItem = {
+                ...item,
+                user: {
+                    id: data.participant.id,
+                    username: data.participant.username,
+                    avatar: data.participant.avatar
+                }
+            };
+            addItemToPot(enhancedItem);
         });
     }
 }
@@ -965,172 +1041,136 @@ function startRouletteAnimation(winnerData) {
         }
     });
     
-    // Shuffle the elements for randomness
+    // Shuffle the elements for more randomness
     shuffleArray(participantElements);
     
     // Find the winner element index
-    const winnerIndex = participantElements.findIndex(el => el.dataset.userId === winnerData.winner.id);
+    const winnerId = winnerData.winner.id;
+    let winnerIndex = -1;
     
-    // If winner not found in the elements, use a random element
-    const effectiveWinnerIndex = winnerIndex !== -1 ? winnerIndex : Math.floor(Math.random() * participantElements.length);
-    
-    // Calculate how many elements to add to ensure the winner is positioned correctly
-    const targetPosition = Math.floor(participantElements.length * 0.7); // Position winner at 70% of the visible elements
-    const elementsToAdd = targetPosition - effectiveWinnerIndex;
-    
-    // If we need to add elements, clone from the beginning
-    if (elementsToAdd > 0) {
-        const additionalElements = participantElements.slice(0, elementsToAdd);
-        participantElements.push(...additionalElements);
+    for (let i = 0; i < participantElements.length; i++) {
+        if (participantElements[i].dataset.userId === winnerId) {
+            winnerIndex = i;
+            break;
+        }
     }
     
-    // Repeat the elements to fill the roulette track
+    if (winnerIndex === -1) {
+        console.error('Winner not found in participant elements');
+        isSpinning = false;
+        return;
+    }
+    
+    // Calculate landing position
+    // We want the winner to land at the center of the viewport
+    // Add some randomness to the landing position
+    const landingPositionVariation = Math.random() * LANDING_POSITION_VARIATION - LANDING_POSITION_VARIATION / 2;
+    const landingPosition = winnerIndex + landingPositionVariation;
+    
+    // Repeat the elements to create a longer track
     const repeatedElements = [];
     for (let i = 0; i < ROULETTE_REPETITIONS; i++) {
-        const clonedElements = participantElements.map(el => el.cloneNode(true));
-        repeatedElements.push(...clonedElements);
+        participantElements.forEach(element => {
+            repeatedElements.push(element.cloneNode(true));
+        });
     }
     
-    // Add all elements to the track
-    if (rouletteTrack) {
-        repeatedElements.forEach(el => rouletteTrack.appendChild(el));
-    }
+    // Add the elements to the track
+    repeatedElements.forEach(element => {
+        if (rouletteTrack) rouletteTrack.appendChild(element);
+    });
     
-    // Show roulette
-    if (jackpotHeader) jackpotHeader.classList.add('roulette-mode');
+    // Show the roulette
     if (inlineRoulette) inlineRoulette.style.display = 'block';
     
-    // Play sound if available
+    // Hide winner info
+    if (winnerInfo) winnerInfo.style.display = 'none';
+    
+    // Play spin sound
     if (spinSound) {
         spinSound.currentTime = 0;
-        spinSound.play().catch(e => console.warn('Could not play spin sound:', e));
+        spinSound.play().catch(e => console.log('Error playing sound:', e));
     }
     
-    // Start animation
+    // Start the animation
     spinStartTime = performance.now();
-    animateRoulette(winnerData);
+    animateRoulette(landingPosition, participantElements.length, winnerData);
 }
 
 // Animate roulette
-function animateRoulette(winnerData) {
-    // Calculate the width of the roulette track
-    const trackWidth = rouletteTrack ? rouletteTrack.scrollWidth : 0;
+function animateRoulette(landingPosition, itemCount, winnerData) {
+    const currentTime = performance.now();
+    const elapsedTime = (currentTime - spinStartTime) / 1000; // Convert to seconds
     
-    // Calculate the width of the viewport
-    const viewportWidth = rouletteTrack ? rouletteTrack.parentElement.offsetWidth : 0;
-    
-    // Calculate the maximum scroll position
-    const maxScroll = trackWidth - viewportWidth;
-    
-    // Calculate the target position (center of the viewport)
-    const targetPosition = viewportWidth / 2;
-    
-    // Find the winner element
-    const winnerElements = rouletteTrack ? Array.from(rouletteTrack.querySelectorAll(`[data-user-id="${winnerData.winner.id}"]`)) : [];
-    
-    // If no winner elements found, use a fallback
-    if (winnerElements.length === 0) {
-        console.warn('No winner elements found in roulette track');
-        // Continue with animation but will stop at a random position
+    if (elapsedTime >= SPIN_DURATION_SECONDS) {
+        // Animation complete
+        finishRouletteAnimation(winnerData);
+        return;
     }
     
-    // Choose a winner element near the end of the track
-    const winnerElement = winnerElements.length > 0 ? 
-        winnerElements[Math.floor(winnerElements.length * 0.7)] : null;
+    // Calculate progress (0 to 1)
+    const progress = elapsedTime / SPIN_DURATION_SECONDS;
     
-    // Calculate the final scroll position to center the winner
-    let finalScrollPosition;
+    // Apply easing function
+    const easedProgress = easeOutAnimation(progress);
     
-    if (winnerElement) {
-        // Get the position of the winner element relative to the track
-        const winnerPosition = winnerElement.offsetLeft + (winnerElement.offsetWidth / 2);
-        
-        // Calculate the scroll position to center the winner
-        finalScrollPosition = winnerPosition - targetPosition;
-        
-        // Add some randomness to the final position
-        const randomOffset = (Math.random() * 2 - 1) * winnerElement.offsetWidth * LANDING_POSITION_VARIATION;
-        finalScrollPosition += randomOffset;
-    } else {
-        // Fallback: use a position near the end of the track
-        finalScrollPosition = maxScroll * 0.9 + (Math.random() * maxScroll * 0.05);
+    // Add bounce effect
+    const bounceEffect = calculateBounce(progress);
+    
+    // Calculate total distance to travel
+    // We want to spin multiple times and then land on the winning position
+    const totalSpins = 10; // Number of complete spins
+    const totalDistance = totalSpins * itemCount + landingPosition;
+    
+    // Calculate current position
+    const currentPosition = easedProgress * totalDistance + bounceEffect * itemCount;
+    
+    // Calculate track position
+    const trackPosition = -currentPosition * (rouletteTrack.firstChild?.offsetWidth || 50);
+    
+    // Apply transform
+    if (rouletteTrack) {
+        rouletteTrack.style.transform = `translateX(${trackPosition}px)`;
     }
     
-    // Ensure the final position is within bounds
-    finalScrollPosition = Math.max(0, Math.min(finalScrollPosition, maxScroll));
-    
-    // Animation function
-    const animate = (timestamp) => {
-        if (!spinStartTime) spinStartTime = timestamp;
-        const elapsed = timestamp - spinStartTime;
-        const duration = SPIN_DURATION_SECONDS * 1000; // Convert to milliseconds
-        
-        if (elapsed < duration) {
-            // Calculate progress (0 to 1)
-            const rawProgress = elapsed / duration;
-            
-            // Apply easing function
-            const easedProgress = easeOutAnimation(rawProgress);
-            
-            // Apply bounce effect if enabled
-            const bounceEffect = calculateBounce(rawProgress);
-            
-            // Calculate current scroll position
-            const scrollPosition = finalScrollPosition * (easedProgress + bounceEffect);
-            
-            // Apply the transform
-            if (rouletteTrack) {
-                rouletteTrack.style.transform = `translateX(-${scrollPosition}px)`;
-            }
-            
-            // Continue animation
-            animationFrameId = requestAnimationFrame(animate);
-        } else {
-            // Animation complete
-            if (rouletteTrack) {
-                rouletteTrack.style.transform = `translateX(-${finalScrollPosition}px)`;
-            }
-            
-            // Show winner info after a short delay
-            setTimeout(() => {
-                showWinnerInfo(winnerData);
-            }, 500);
-        }
-    };
-    
-    // Start animation
-    animationFrameId = requestAnimationFrame(animate);
+    // Continue animation
+    animationFrameId = requestAnimationFrame(() => animateRoulette(landingPosition, itemCount, winnerData));
 }
 
-// Show winner info
-function showWinnerInfo(winnerData) {
-    if (!winnerData || !winnerData.winner) return;
+// Finish roulette animation
+function finishRouletteAnimation(winnerData) {
+    // Cancel any ongoing animation
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+    }
     
-    // Update winner info elements
+    // Update winner info
     if (winnerAvatar) winnerAvatar.src = winnerData.winner.avatar || '/img/default-avatar.png';
     if (winnerName) winnerName.textContent = winnerData.winner.username || 'Winner';
     if (winnerDeposit) winnerDeposit.textContent = `$${parseFloat(winnerData.winner.depositValue || 0).toFixed(2)}`;
-    if (winnerChance) winnerChance.textContent = `${(winnerData.winner.chance || 0).toFixed(2)}%`;
+    if (winnerChance) winnerChance.textContent = `${(parseFloat(winnerData.winner.chance || 0)).toFixed(2)}%`;
     
     // Show winner info
-    if (winnerInfo) winnerInfo.style.display = 'flex';
+    if (winnerInfo) winnerInfo.style.display = 'block';
+    
+    // Show return button
+    if (returnToJackpot) returnToJackpot.style.display = 'block';
+    
+    // Add event listener to return button
+    if (returnToJackpot) {
+        returnToJackpot.onclick = () => {
+            resetToJackpotView();
+            socket.emit('requestRoundData'); // Request new round data
+        };
+    }
     
     // Create confetti
     createConfetti();
     
-    // Show return button after a delay
+    // Reset spinning state after a delay
     setTimeout(() => {
-        if (returnToJackpot) returnToJackpot.style.display = 'block';
-        
-        // Add click event to return button
-        if (returnToJackpot) {
-            returnToJackpot.addEventListener('click', resetToJackpotView, { once: true });
-        }
-    }, 2000);
-    
-    // Auto-reset after a delay
-    setTimeout(() => {
-        resetToJackpotView();
+        isSpinning = false;
     }, WINNER_DISPLAY_DURATION);
 }
 
@@ -1146,69 +1186,45 @@ function createConfetti() {
         const confetti = document.createElement('div');
         confetti.className = 'confetti';
         
-        // Random position
-        const left = Math.random() * 100;
-        confetti.style.left = `${left}%`;
+        // Random properties
+        const size = Math.random() * 10 + 5; // 5-15px
+        const color = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+        const left = Math.random() * 100; // 0-100%
+        const duration = Math.random() * 3 + 2; // 2-5s
+        const delay = Math.random() * 2; // 0-2s
         
-        // Random color
-        const colorIndex = Math.floor(Math.random() * colorPalette.length);
-        confetti.style.backgroundColor = colorPalette[colorIndex];
-        
-        // Random size
-        const size = Math.random() * 10 + 5;
+        // Apply styles
         confetti.style.width = `${size}px`;
         confetti.style.height = `${size}px`;
-        
-        // Random rotation
-        const rotation = Math.random() * 360;
-        confetti.style.transform = `rotate(${rotation}deg)`;
-        
-        // Random shape
-        const shapes = ['', '50%'];
-        const shapeIndex = Math.floor(Math.random() * shapes.length);
-        confetti.style.borderRadius = shapes[shapeIndex];
-        
-        // Random animation duration
-        const duration = Math.random() * 3 + 2;
+        confetti.style.backgroundColor = color;
+        confetti.style.left = `${left}%`;
         confetti.style.animationDuration = `${duration}s`;
-        
-        // Random delay
-        const delay = Math.random() * 2;
         confetti.style.animationDelay = `${delay}s`;
         
+        // Add to container
         confettiContainer.appendChild(confetti);
     }
 }
 
 // Reset to jackpot view
 function resetToJackpotView() {
-    // Cancel any ongoing animation
-    if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-        animationFrameId = null;
-    }
-    
-    // Reset spinning state
-    isSpinning = false;
-    spinStartTime = 0;
-    
-    // Hide roulette elements
-    if (jackpotHeader) jackpotHeader.classList.remove('roulette-mode');
+    // Hide roulette
     if (inlineRoulette) inlineRoulette.style.display = 'none';
-    if (winnerInfo) winnerInfo.style.display = 'none';
-    if (returnToJackpot) returnToJackpot.style.display = 'none';
     
-    // Reset roulette track
-    if (rouletteTrack) {
-        rouletteTrack.style.transform = 'translateX(0)';
-        rouletteTrack.innerHTML = '';
-    }
+    // Hide winner info
+    if (winnerInfo) winnerInfo.style.display = 'none';
+    
+    // Hide return button
+    if (returnToJackpot) returnToJackpot.style.display = 'none';
     
     // Clear confetti
     if (confettiContainer) confettiContainer.innerHTML = '';
     
-    // Request new round data
-    socket.emit('requestRoundData');
+    // Reset spinning state
+    isSpinning = false;
+    
+    // Reset pot display
+    resetPotDisplay();
 }
 
 // Initiate new round visual reset
@@ -1216,132 +1232,269 @@ function initiateNewRoundVisualReset() {
     resetToJackpotView();
 }
 
-// Load past rounds for provably fair page
+// Test roulette animation
+function testRouletteAnimation() {
+    if (isSpinning) return;
+    
+    // Create fake winner data
+    const fakeWinner = {
+        id: 'test-user-1',
+        username: 'Test Winner',
+        avatar: '/img/default-avatar.png',
+        depositValue: 100,
+        chance: 50
+    };
+    
+    // Create fake participants
+    const fakeParticipants = [
+        {
+            id: 'test-user-1',
+            username: 'Test User 1',
+            avatar: '/img/default-avatar.png',
+            depositValue: 100,
+            items: [
+                { id: 'item-1', name: 'Test Item 1', value: 50, imageUrl: '/img/default-item.png' },
+                { id: 'item-2', name: 'Test Item 2', value: 50, imageUrl: '/img/default-item.png' }
+            ]
+        },
+        {
+            id: 'test-user-2',
+            username: 'Test User 2',
+            avatar: '/img/default-avatar.png',
+            depositValue: 50,
+            items: [
+                { id: 'item-3', name: 'Test Item 3', value: 25, imageUrl: '/img/default-item.png' },
+                { id: 'item-4', name: 'Test Item 4', value: 25, imageUrl: '/img/default-item.png' }
+            ]
+        },
+        {
+            id: 'test-user-3',
+            username: 'Test User 3',
+            avatar: '/img/default-avatar.png',
+            depositValue: 50,
+            items: [
+                { id: 'item-5', name: 'Test Item 5', value: 50, imageUrl: '/img/default-item.png' }
+            ]
+        }
+    ];
+    
+    // Set current round data
+    currentRound = {
+        roundId: 'test-round',
+        totalValue: 200,
+        participants: fakeParticipants,
+        timeRemaining: 0,
+        roundDuration: 120
+    };
+    
+    // Update UI
+    updateRoundUI();
+    
+    // Start roulette animation
+    handleWinnerAnnouncement({
+        winner: fakeWinner,
+        winningTicket: 0.5,
+        roundId: 'test-round'
+    });
+}
+
+// Test deposit
+function testDeposit() {
+    // Create fake deposit data
+    const fakeDeposit = {
+        participant: {
+            id: 'test-user-' + Math.floor(Math.random() * 1000),
+            username: 'Test User ' + Math.floor(Math.random() * 1000),
+            avatar: '/img/default-avatar.png',
+            depositValue: Math.random() * 100 + 10
+        },
+        depositedItems: [
+            {
+                id: 'item-' + Math.floor(Math.random() * 1000),
+                name: 'Test Item ' + Math.floor(Math.random() * 1000),
+                value: Math.random() * 50 + 5,
+                imageUrl: '/img/default-item.png'
+            },
+            {
+                id: 'item-' + Math.floor(Math.random() * 1000),
+                name: 'Test Item ' + Math.floor(Math.random() * 1000),
+                value: Math.random() * 50 + 5,
+                imageUrl: '/img/default-item.png'
+            }
+        ],
+        currentPotValue: (parseFloat(currentRound?.totalValue || 0) + Math.random() * 100 + 10),
+        itemCount: (parseInt(participantCount?.textContent?.split('/')[0] || 0) + 2),
+        roundId: currentRound?.roundId || 'test-round'
+    };
+    
+    // If no current round, create one
+    if (!currentRound) {
+        currentRound = {
+            roundId: 'test-round',
+            totalValue: fakeDeposit.currentPotValue,
+            participants: [fakeDeposit.participant],
+            timeRemaining: 120,
+            roundDuration: 120
+        };
+    } else {
+        // Update current round
+        currentRound.totalValue = fakeDeposit.currentPotValue;
+        
+        // Add participant if not exists
+        const participantIndex = currentRound.participants.findIndex(p => p.id === fakeDeposit.participant.id);
+        if (participantIndex === -1) {
+            currentRound.participants.push(fakeDeposit.participant);
+        }
+    }
+    
+    // Handle deposit
+    handleNewDeposit(fakeDeposit);
+}
+
+// Load past rounds
 function loadPastRounds(page = 1) {
     if (!roundsTableBody) return;
     
-    fetch(`/api/rounds?page=${page}`)
+    // Clear table
+    roundsTableBody.innerHTML = '';
+    
+    // Add loading indicator
+    const loadingRow = document.createElement('tr');
+    const loadingCell = document.createElement('td');
+    loadingCell.colSpan = 5;
+    loadingCell.textContent = 'Loading...';
+    loadingCell.style.textAlign = 'center';
+    loadingRow.appendChild(loadingCell);
+    roundsTableBody.appendChild(loadingRow);
+    
+    fetch(`/api/rounds?page=${page}&limit=10`)
         .then(response => {
             if (response.ok) return response.json();
-            throw new Error('Failed to load past rounds');
+            throw new Error(`Failed to fetch rounds (${response.status})`);
         })
         .then(data => {
-            displayPastRounds(data.rounds, data.pagination);
+            console.log('Past rounds loaded:', data);
+            
+            // Clear loading indicator
+            roundsTableBody.innerHTML = '';
+            
+            // Check if there are rounds
+            if (!data.rounds || data.rounds.length === 0) {
+                const noDataRow = document.createElement('tr');
+                const noDataCell = document.createElement('td');
+                noDataCell.colSpan = 5;
+                noDataCell.textContent = 'No rounds found.';
+                noDataCell.style.textAlign = 'center';
+                noDataRow.appendChild(noDataCell);
+                roundsTableBody.appendChild(noDataRow);
+                return;
+            }
+            
+            // Add rounds to table
+            data.rounds.forEach(round => {
+                const row = document.createElement('tr');
+                
+                // Round ID
+                const idCell = document.createElement('td');
+                idCell.textContent = round.roundId || 'N/A';
+                row.appendChild(idCell);
+                
+                // Winner
+                const winnerCell = document.createElement('td');
+                if (round.winner) {
+                    const winnerAvatar = document.createElement('img');
+                    winnerAvatar.className = 'winner-avatar-small';
+                    winnerAvatar.src = round.winner.avatar || '/img/default-avatar.png';
+                    winnerAvatar.alt = round.winner.username || 'Winner';
+                    
+                    const winnerName = document.createElement('span');
+                    winnerName.textContent = round.winner.username || 'Unknown';
+                    
+                    winnerCell.appendChild(winnerAvatar);
+                    winnerCell.appendChild(winnerName);
+                } else {
+                    winnerCell.textContent = 'N/A';
+                }
+                row.appendChild(winnerCell);
+                
+                // Value
+                const valueCell = document.createElement('td');
+                valueCell.textContent = `$${parseFloat(round.totalValue || 0).toFixed(2)}`;
+                row.appendChild(valueCell);
+                
+                // Winning Ticket
+                const ticketCell = document.createElement('td');
+                ticketCell.textContent = round.winningTicket ? round.winningTicket.toFixed(8) : 'N/A';
+                row.appendChild(ticketCell);
+                
+                // Actions
+                const actionsCell = document.createElement('td');
+                
+                const detailsButton = document.createElement('button');
+                detailsButton.className = 'btn btn-details';
+                detailsButton.textContent = 'Details';
+                detailsButton.addEventListener('click', () => showRoundDetails(round.roundId));
+                
+                const verifyButton = document.createElement('button');
+                verifyButton.className = 'btn btn-verify';
+                verifyButton.textContent = 'Verify';
+                verifyButton.addEventListener('click', () => verifyRound(round.roundId));
+                
+                actionsCell.appendChild(detailsButton);
+                actionsCell.appendChild(verifyButton);
+                
+                row.appendChild(actionsCell);
+                
+                roundsTableBody.appendChild(row);
+            });
+            
+            // Update pagination
+            updatePagination(data.currentPage, data.totalPages);
         })
         .catch(error => {
             console.error('Error loading past rounds:', error);
-            showNotification('Error', 'Failed to load past rounds: ' + error.message);
+            
+            // Clear loading indicator
+            roundsTableBody.innerHTML = '';
+            
+            // Show error message
+            const errorRow = document.createElement('tr');
+            const errorCell = document.createElement('td');
+            errorCell.colSpan = 5;
+            errorCell.textContent = `Error loading rounds: ${error.message}`;
+            errorCell.style.textAlign = 'center';
+            errorRow.appendChild(errorCell);
+            roundsTableBody.appendChild(errorRow);
         });
 }
 
-// Display past rounds
-function displayPastRounds(rounds, pagination) {
-    if (!roundsTableBody) return;
-    
-    roundsTableBody.innerHTML = '';
-    
-    if (!rounds || rounds.length === 0) {
-        const emptyRow = document.createElement('tr');
-        const emptyCell = document.createElement('td');
-        emptyCell.colSpan = 6;
-        emptyCell.textContent = 'No rounds found.';
-        emptyCell.style.textAlign = 'center';
-        emptyRow.appendChild(emptyCell);
-        roundsTableBody.appendChild(emptyRow);
-        return;
-    }
-    
-    rounds.forEach(round => {
-        const row = document.createElement('tr');
-        
-        // Round ID
-        const idCell = document.createElement('td');
-        idCell.textContent = round.roundId || 'N/A';
-        row.appendChild(idCell);
-        
-        // Date
-        const dateCell = document.createElement('td');
-        dateCell.textContent = round.createdAt ? new Date(round.createdAt).toLocaleString() : 'N/A';
-        row.appendChild(dateCell);
-        
-        // Value
-        const valueCell = document.createElement('td');
-        valueCell.textContent = `$${parseFloat(round.totalValue || 0).toFixed(2)}`;
-        row.appendChild(valueCell);
-        
-        // Winner
-        const winnerCell = document.createElement('td');
-        if (round.winner) {
-            const winnerName = document.createElement('span');
-            winnerName.textContent = round.winner.username || 'Unknown';
-            winnerCell.appendChild(winnerName);
-            
-            if (round.winner.chance) {
-                const winnerChance = document.createElement('span');
-                winnerChance.textContent = ` (${round.winner.chance.toFixed(2)}%)`;
-                winnerChance.style.color = 'var(--text-secondary)';
-                winnerCell.appendChild(winnerChance);
-            }
-        } else {
-            winnerCell.textContent = 'N/A';
-        }
-        row.appendChild(winnerCell);
-        
-        // Ticket
-        const ticketCell = document.createElement('td');
-        ticketCell.textContent = round.winningTicket ? round.winningTicket.toFixed(8) : 'N/A';
-        row.appendChild(ticketCell);
-        
-        // Actions
-        const actionsCell = document.createElement('td');
-        
-        const detailsButton = document.createElement('button');
-        detailsButton.className = 'btn btn-details';
-        detailsButton.textContent = 'Details';
-        detailsButton.addEventListener('click', () => showRoundDetails(round.roundId));
-        actionsCell.appendChild(detailsButton);
-        
-        const verifyButton = document.createElement('button');
-        verifyButton.className = 'btn btn-verify';
-        verifyButton.textContent = 'Verify';
-        verifyButton.addEventListener('click', () => verifyRound(round.roundId));
-        actionsCell.appendChild(verifyButton);
-        
-        row.appendChild(actionsCell);
-        
-        roundsTableBody.appendChild(row);
-    });
-    
-    // Update pagination
-    updatePagination(pagination);
-}
-
 // Update pagination
-function updatePagination(pagination) {
-    if (!roundsPagination || !pagination) return;
+function updatePagination(currentPage, totalPages) {
+    if (!roundsPagination) return;
     
+    // Clear pagination
     roundsPagination.innerHTML = '';
     
     // Previous button
     const prevButton = document.createElement('button');
-    prevButton.className = 'btn btn-secondary';
+    prevButton.className = 'btn btn-pagination';
     prevButton.textContent = 'Previous';
-    prevButton.disabled = pagination.currentPage <= 1;
-    prevButton.addEventListener('click', () => loadPastRounds(pagination.currentPage - 1));
+    prevButton.disabled = currentPage <= 1;
+    prevButton.addEventListener('click', () => loadPastRounds(currentPage - 1));
     roundsPagination.appendChild(prevButton);
     
     // Page indicator
     const pageIndicator = document.createElement('span');
-    pageIndicator.textContent = `Page ${pagination.currentPage} of ${pagination.totalPages}`;
-    pageIndicator.style.margin = '0 10px';
+    pageIndicator.className = 'pagination-indicator';
+    pageIndicator.textContent = `Page ${currentPage} of ${totalPages}`;
     roundsPagination.appendChild(pageIndicator);
     
     // Next button
     const nextButton = document.createElement('button');
-    nextButton.className = 'btn btn-secondary';
+    nextButton.className = 'btn btn-pagination';
     nextButton.textContent = 'Next';
-    nextButton.disabled = pagination.currentPage >= pagination.totalPages;
-    nextButton.addEventListener('click', () => loadPastRounds(pagination.currentPage + 1));
+    nextButton.disabled = currentPage >= totalPages;
+    nextButton.addEventListener('click', () => loadPastRounds(currentPage + 1));
     roundsPagination.appendChild(nextButton);
 }
 
@@ -1349,158 +1502,10 @@ function updatePagination(pagination) {
 function verifyRound(roundId) {
     console.log(`Verifying round ${roundId}`);
     if (!roundId) {
-        showNotification('Info', 'Please select a round to verify.');
+        showNotification('Info', 'Invalid Round ID for verification.');
         return;
     }
     
-    fetch(`/api/rounds/${roundId}/verify`)
-        .then(response => {
-            if (response.ok) return response.json();
-            throw new Error(`Failed to verify round (${response.status})`);
-        })
-        .then(data => {
-            showVerificationResult(data);
-        })
-        .catch(error => {
-            showNotification('Error', `Could not verify round: ${error.message}`);
-            console.error('Error verifying round:', error);
-        });
-}
-
-// Show verification result
-function showVerificationResult(data) {
-    if (!data) {
-        showNotification('Error', 'Invalid verification data received.');
-        return;
-    }
-    
-    const message = `
-        Round ID: ${data.roundId || 'N/A'}
-        Server Seed: ${data.serverSeed || 'N/A'}
-        Client Seed: ${data.clientSeed || 'N/A'}
-        Winning Ticket: ${data.winningTicket || 'N/A'}
-        Winner: ${data.winner?.username || 'N/A'}
-        Verification Result: ${data.verified ? 'VERIFIED ✓' : 'FAILED ✗'}
-    `;
-    
-    showNotification(data.verified ? 'Verification Successful' : 'Verification Failed', message);
-}
-
-// Test roulette animation
-function testRouletteAnimation() {
-    if (isSpinning || !currentRound) return;
-    
-    // Create mock winner data
-    const mockWinner = {
-        roundId: currentRound.roundId || 'test-round',
-        winner: {
-            id: 'test-user',
-            username: 'Test Winner',
-            avatar: '/img/default-avatar.png',
-            depositValue: 50,
-            chance: 25
-        },
-        winningTicket: 0.12345678
-    };
-    
-    // If we have real participants, use one of them as the winner
-    if (currentRound.participants && currentRound.participants.length > 0) {
-        const randomIndex = Math.floor(Math.random() * currentRound.participants.length);
-        const randomParticipant = currentRound.participants[randomIndex];
-        
-        mockWinner.winner = {
-            id: randomParticipant.id,
-            username: randomParticipant.username,
-            avatar: randomParticipant.avatar,
-            depositValue: randomParticipant.depositValue || 50,
-            chance: (randomParticipant.depositValue / currentRound.totalValue) * 100 || 25
-        };
-    }
-    
-    // Start roulette animation with mock winner
-    handleWinnerAnnouncement(mockWinner);
-}
-
-// ORIGINAL: Test deposit function
-// This function is kept for reference but will be modified for the Rustypot-style implementation
-function testDeposit_ORIGINAL() {
-    console.log('Testing deposit');
-    
-    // Create sample items
-    const sampleItems = [
-        { name: 'AK-47 | Redline', value: 12.50, imageUrl: '/img/items/ak47_redline.png' },
-        { name: 'AWP | Asiimov', value: 45.00, imageUrl: '/img/items/awp_asiimov.png' },
-        { name: 'Karambit | Fade', value: 320.75, imageUrl: '/img/items/karambit_fade.png' },
-        { name: 'M4A4 | Howl', value: 1250.00, imageUrl: '/img/items/m4a4_howl.png' },
-        { name: 'Glock-18 | Fade', value: 85.30, imageUrl: '/img/items/glock_fade.png' }
-    ];
-    
-    // Randomly select 1-3 items
-    const numItems = Math.floor(Math.random() * 3) + 1;
-    const selectedItems = [];
-    
-    for (let i = 0; i < numItems; i++) {
-        const randomIndex = Math.floor(Math.random() * sampleItems.length);
-        selectedItems.push(sampleItems[randomIndex]);
-    }
-    
-    // Calculate total value
-    const totalValue = selectedItems.reduce((sum, item) => sum + parseFloat(item.value), 0);
-    
-    // Create mock deposit data
-    const mockDeposit = {
-        participant: {
-            id: 'test-user-' + Date.now(),
-            username: 'TestUser',
-            avatar: '/img/default-avatar.png',
-            depositValue: totalValue
-        },
-        depositedItems: selectedItems,
-        currentPotValue: totalValue,
-        itemCount: selectedItems.length
-    };
-    
-    // Handle the mock deposit
-    handleNewDeposit(mockDeposit);
-}
-
-// MODIFIED: Test deposit function with Rustypot-style layout
-function testDeposit() {
-    console.log('Testing deposit with Rustypot-style layout');
-    
-    // Create sample items
-    const sampleItems = [
-        { name: 'AK-47 | Redline', value: 12.50, imageUrl: '/img/items/ak47_redline.png' },
-        { name: 'AWP | Asiimov', value: 45.00, imageUrl: '/img/items/awp_asiimov.png' },
-        { name: 'Karambit | Fade', value: 320.75, imageUrl: '/img/items/karambit_fade.png' },
-        { name: 'M4A4 | Howl', value: 1250.00, imageUrl: '/img/items/m4a4_howl.png' },
-        { name: 'Glock-18 | Fade', value: 85.30, imageUrl: '/img/items/glock_fade.png' }
-    ];
-    
-    // Randomly select 1-3 items
-    const numItems = Math.floor(Math.random() * 3) + 1;
-    const selectedItems = [];
-    
-    for (let i = 0; i < numItems; i++) {
-        const randomIndex = Math.floor(Math.random() * sampleItems.length);
-        selectedItems.push(sampleItems[randomIndex]);
-    }
-    
-    // Calculate total value
-    const totalValue = selectedItems.reduce((sum, item) => sum + parseFloat(item.value), 0);
-    
-    // Create mock deposit data
-    const mockDeposit = {
-        participant: {
-            id: 'test-user-' + Date.now(),
-            username: 'TestUser',
-            avatar: '/img/default-avatar.png'
-        },
-        depositedItems: selectedItems,
-        currentPotValue: totalValue,
-        itemCount: selectedItems.length
-    };
-    
-    // Handle the mock deposit
-    handleNewDeposit(mockDeposit);
+    // Redirect to verification page
+    window.location.href = `/verify.html?roundId=${roundId}`;
 }
