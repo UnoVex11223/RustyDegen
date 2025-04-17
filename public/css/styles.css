@@ -1,4 +1,4 @@
-/* style.css (Complete and Modified - Incorporating all changes) */
+/* style.css (Complete and Modified - Incorporating All Changes as of 2025-04-17) */
 /* Enhanced color scheme */
 :root {
     --primary-color: #00e676;
@@ -322,7 +322,7 @@ a:hover {
 .jackpot-header {
     display: flex;
     justify-content: space-around;
-    align-items: center; /* Vertically centers the items */
+    align-items: center; /* This vertically centers the items */
     padding: 20px;
     background: linear-gradient(135deg, var(--background-medium), var(--background-light));
     border-bottom: 1px solid var(--border-color);
@@ -342,18 +342,19 @@ a:hover {
     /* Height might adjust based on roulette container, or keep min-height */
 }
 
-/* Define the flashing animation */
-@keyframes jackpotFlash {
+/* Define the new text glow animation */
+@keyframes valueGlow {
     0%, 100% {
-        opacity: 1;
-        transform: scale(1); /* Optional: subtle scale */
+        /* Normal state - subtle shadow */
+        text-shadow: 0 0 8px rgba(0, 230, 118, 0.4);
     }
     50% {
-        opacity: 0.7; /* Dim slightly */
-        transform: scale(1.02); /* Optional: subtle grow */
+        /* Glow state - brighter/larger shadow */
+        text-shadow: 0 0 20px var(--primary-color), 0 0 10px var(--primary-light);
     }
 }
 
+/* Shifted Jackpot Value Container */
 .jackpot-value {
     display: flex;
     flex-direction: column;
@@ -361,30 +362,23 @@ a:hover {
     text-align: center;
     flex: 1;
     min-width: 120px;
-    /* Apply the flashing animation */
-    animation: jackpotFlash 1.5s infinite ease-in-out;
-    padding: 10px; /* Optional: Add padding if scaling makes it touch edges */
+    padding: 10px; /* Optional padding */
+    /* --- Shift slightly left --- */
+    position: relative;
+    left: -15px; /* Adjust value as needed */
+    /* --- Removed old animation --- */
 }
 
-
-.jackpot-timer, .jackpot-stats {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center; /* Ensure text aligns center */
-    flex: 1; /* Allow flex items to grow/shrink */
-    min-width: 120px; /* Prevent elements becoming too small */
-}
-
-/* Increased font size for Jackpot Value */
+/* Increased Size & Applied New Glow Animation for Jackpot Value */
 .jackpot-value h2 {
-    font-size: 3.5rem; /* INCREASED FONT SIZE */
+    font-size: 4.2rem; /* Increased again */
     font-weight: 700;
     color: var(--primary-color);
     margin: 0;
-    text-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
     font-family: 'JetBrains Mono', monospace;
     line-height: 1.1;
+    /* Apply the new glow animation to the text itself */
+    animation: valueGlow 1.8s infinite ease-in-out; /* Adjust duration/timing as needed */
 }
 
 .value-label, .timer-label, .stat-label {
@@ -395,6 +389,17 @@ a:hover {
     display: block;
     margin-top: 5px;
 }
+
+/* Other Jackpot Header Items */
+.jackpot-timer, .jackpot-stats {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    flex: 1;
+    min-width: 120px;
+}
+
 
 .timer-circle {
     position: relative;
@@ -661,19 +666,6 @@ a:hover {
     box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
 }
 
-/* Jackpot tab pulse animation (Existing) */
-@keyframes jackpotPulse {
-    0% { text-shadow: 0 0 5px rgba(0, 230, 118, 0.3); }
-    50% { text-shadow: 0 0 15px rgba(0, 230, 118, 0.8); }
-    100% { text-shadow: 0 0 5px rgba(0, 230, 118, 0.3); }
-}
-
-/* This class can be added via JS if needed */
-.jackpot-pulse {
-    animation: jackpotPulse 2s infinite ease-in-out;
-}
-
-
 /* Inline Roulette - MODIFIED */
 .inline-roulette {
     display: none; /* Hidden by default, shown by JS */
@@ -842,6 +834,15 @@ a:hover {
     border-right: 6px solid transparent;
     filter: drop-shadow(0 0 3px rgba(0, 230, 118, 0.5));
 }
+.roulette-ticker::before { /* Top arrow */
+    top: -6px;
+    border-bottom: 8px solid rgba(0, 230, 118, 0.8);
+}
+.roulette-ticker::after { /* Bottom arrow */
+    bottom: -6px;
+    border-top: 8px solid rgba(0, 230, 118, 0.8);
+}
+
 .roulette-ticker::before { /* Top arrow */
     top: -6px;
     border-bottom: 8px solid rgba(0, 230, 118, 0.8);
@@ -1139,7 +1140,7 @@ a:hover {
 
 .participant-items {
     display: flex;
-    flex-wrap: wrap; /* Kept horizontal wrap here */
+    flex-wrap: wrap; /* Keep participant items wrapping horizontally */
     gap: 10px;
     padding: 15px;
 }
@@ -1366,7 +1367,7 @@ a:hover {
     text-transform: uppercase;
 }
 
-/* Selected items container set to stack vertically */
+/* Selected Items Container - Stacks Vertically */
 .selected-items-container {
     display: flex;
     /* flex-wrap: wrap; */ /* Removed wrap */
@@ -1868,9 +1869,8 @@ a:hover {
     .user-controls {
          /* Keep user controls pushed right */
     }
-    .jackpot-value h2 {
-        font-size: 3rem; /* Adjust jackpot size for tablet */
-    }
+     .jackpot-value h2 { font-size: 3.8rem; } /* Adjust jackpot size */
+     .jackpot-value { left: -10px; } /* Adjust shift */
 }
 
 @media (max-width: 768px) { /* Mobile breakpoint */
@@ -1903,9 +1903,8 @@ a:hover {
         min-height: auto; /* Let content define height */
     }
 
-    /* Adjust jackpot section layout for mobile */
-    .jackpot-value h2 { font-size: 2.5rem; } /* Smaller jackpot size */
-    .jackpot-value { animation-duration: 1.8s; } /* Slightly slower flash on mobile? Optional */
+    .jackpot-value { left: -5px; } /* Less shift on mobile */
+    .jackpot-value h2 { font-size: 2.8rem; } /* Adjusted size for mobile */
     .timer-circle { width: 70px; height: 70px; }
     .timer-text { font-size: 1.4rem; }
     .stat-value { font-size: 1.3rem; }
@@ -1929,6 +1928,7 @@ a:hover {
     }
 
     .winner-info {
+        /* Styles apply, maybe reduce padding slightly */
         padding: 8px;
     }
     .winner-avatar { width: 30px; height: 30px; margin-right: 8px;}
@@ -1941,10 +1941,10 @@ a:hover {
     }
     .inventory-item img { height: 70px; }
 
-    /* Adjust selected items container on mobile */
+    /* Adjust selected items container on mobile if needed */
     .selected-items-container {
-         max-height: 200px; /* Adjust height */
-         /* Vertical stack already applied */
+         /* Vertical stack already applied, maybe adjust max-height */
+         max-height: 200px;
     }
      .selected-item {
          width: 100%; /* Make selected items take full width in vertical stack */
@@ -1973,9 +1973,8 @@ a:hover {
     .btn-deposit, .btn-secondary { font-size: 1rem; padding: 10px 20px; }
 
     .jackpot-header { gap: 5px; padding: 10px; }
-    /* Adjust jackpot section layout for small mobile */
-    .jackpot-value h2 { font-size: 2rem; } /* Even smaller jackpot size */
-    .jackpot-value { animation-duration: 2s; } /* Even slower flash? Optional */
+    .jackpot-value { left: 0; position: static; } /* Remove shift entirely on smallest screens */
+    .jackpot-value h2 { font-size: 2.2rem; } /* Adjusted size for small mobile */
     .timer-circle { width: 60px; height: 60px; }
     .timer-text { font-size: 1.2rem; }
     .stat-value { font-size: 1.1rem; }
@@ -1999,7 +1998,7 @@ a:hover {
     .inventory-items { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
     .inventory-item img { height: 60px; }
 
-     /* Adjust selected items container on small mobile */
+     /* Adjust selected items container on small mobile if needed */
      .selected-items-container {
          max-height: 180px; /* Further adjust height */
      }
