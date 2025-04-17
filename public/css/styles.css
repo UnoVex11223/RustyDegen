@@ -1,4 +1,4 @@
-/* style.css (Complete and Modified - Incorporating All Changes as of 2025-04-17 15:26) */
+/* style.css (Complete and Modified - Incorporating All Changes as of 2025-04-17 15:36) */
 /* Enhanced color scheme */
 :root {
     --primary-color: #00e676;
@@ -209,13 +209,11 @@ a:hover {
     color: var(--primary-color);
 }
 
-/* Main Nav - Shifted Left & Enlarged */
+/* Main Nav - Shifted Left Overall */
 .main-nav {
-    /* Removed flex: 1; */
     margin-left: 20px; /* Space after logo */
     margin-right: auto; /* Pushes nav left, and user-controls right */
     display: flex;
-    /* justify-content: center; Removed */
     min-width: 0; /* Prevent overflow issues */
 }
 
@@ -226,23 +224,23 @@ a:hover {
 }
 
 .main-nav li {
-    margin-right: 15px; /* Slightly reduced spacing */
+    margin-right: 15px; /* Spacing between nav items */
 }
 .main-nav li:last-child {
     margin-right: 0;
 }
 
-/* Nav Links - Enlarged & Recolored */
+/* Default Nav Links - Enlarged Base */
 .main-nav a {
     font-weight: 600;
-    font-size: 1.3rem; /* Increased size */
-    padding: 10px 15px; /* Adjusted padding */
+    font-size: 1.3rem; /* Base size for nav links */
+    padding: 10px 15px; /* Base padding */
     border-radius: 4px;
     transition: all 0.3s ease;
     position: relative;
     color: var(--text-secondary); /* Default color */
-    display: block; /* Ensure padding works correctly */
-    white-space: nowrap; /* Prevent link text wrapping */
+    display: block;
+    white-space: nowrap;
 }
 
 .main-nav a:after {
@@ -262,11 +260,19 @@ a:hover {
     width: 80%;
 }
 
+/* Active Nav Link ("Jackpot Tab") - Specific Styling */
 .main-nav a.active {
-    color: var(--primary-color); /* Active color */
+    color: var(--primary-color); /* Neon Green */
+    font-size: 1.6rem;      /* Make Bigger */
+    font-weight: 700;       /* Make bolder */
+    padding: 14px 20px;     /* Adjust padding for size */
+    position: relative;     /* Needed for left shift */
+    left: -12px;            /* Shift Left */
 }
+
+/* Hover Nav Links (Including Active) */
 .main-nav a:hover {
-    color: var(--primary-color); /* Hover color - changed */
+    color: var(--primary-color); /* Neon Green on hover */
 }
 
 
@@ -331,7 +337,7 @@ a:hover {
     border-bottom: 1px solid var(--border-color);
     border-radius: 12px 12px 0 0;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    min-height: 170px; /* Slightly increased min-height */
+    min-height: 150px; /* Reverted min-height */
     position: relative;
     overflow: hidden;
     z-index: 5;
@@ -361,15 +367,15 @@ a:hover {
     align-items: center;
     text-align: center;
     flex: 1; /* Allow growing/shrinking */
-    min-width: 150px; /* Adjusted min-width */
+    min-width: 120px; /* Reverted min-width */
     padding: 10px;
     position: relative;
     left: -15px; /* Shift left */
 }
 
-/* Increased Size & Applied New Glow Animation for Jackpot Value */
+/* Jackpot Value Size & Glow Animation */
 .jackpot-value h2 {
-    font-size: 4.2rem; /* Increased size */
+    font-size: 4.2rem; /* Keep this large as requested */
     font-weight: 700;
     color: var(--primary-color);
     margin: 0;
@@ -379,12 +385,12 @@ a:hover {
 }
 
 .value-label, .timer-label, .stat-label {
-    font-size: 0.9rem; /* Slightly larger label */
+    font-size: 0.85rem; /* Reverted size */
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 1px;
     display: block;
-    margin-top: 8px; /* Increased top margin */
+    margin-top: 5px; /* Reverted margin */
 }
 
 /* --- Jackpot Timer & Stats Sizing/Alignment --- */
@@ -394,14 +400,14 @@ a:hover {
     align-items: center; /* Center content */
     text-align: center;
     flex: 1; /* Allow growing/shrinking */
-    min-width: 150px; /* Adjusted min-width */
+    min-width: 120px; /* Reverted min-width */
 }
 
-/* Enlarged Timer Circle */
+/* Timer Circle - Reverted Size */
 .timer-circle {
     position: relative;
-    width: 130px; /* Increased size */
-    height: 130px; /* Increased size */
+    width: 90px; /* Reverted size */
+    height: 90px; /* Reverted size */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -416,7 +422,7 @@ a:hover {
 
 .timer-background, .timer-foreground {
     fill: none;
-    stroke-width: 8px; /* Increased stroke */
+    stroke-width: 6px; /* Reverted stroke */
 }
 
 .timer-background {
@@ -431,26 +437,26 @@ a:hover {
     filter: drop-shadow(0 0 4px var(--primary-color));
 }
 
-/* Enlarged Timer Text */
+/* Timer Text - Reverted Size */
 .timer-text {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 3.8rem; /* Increased size */
+    font-size: 1.8rem; /* Reverted size */
     font-weight: 700;
     color: var(--primary-color);
     font-family: 'JetBrains Mono', monospace;
 }
 
-/* Enlarged Stats Value */
+/* Stats Value - Reverted Size */
 .stat-value {
-    font-size: 3.8rem; /* Increased size */
+    font-size: 1.6rem; /* Reverted size */
     font-weight: 700;
     color: var(--text-primary);
     display: block;
     line-height: 1.1;
-    margin-top: 10px; /* Added margin to vertically center roughly with timer text */
+    margin-top: 0; /* Removed added margin */
 }
 
 /* ----- END JACKPOT HEADER STYLES ----- */
@@ -1863,19 +1869,25 @@ a:hover {
 @media (max-width: 992px) { /* Tablet breakpoint */
     /* Adjust Nav for Tablet */
     .main-nav {
-        margin-left: 20px; /* Keep space from logo */
-        margin-right: auto; /* Keep pushing left */
+        margin-left: 20px;
+        margin-right: auto;
     }
      .main-nav a {
          font-size: 1.2rem; /* Slightly smaller nav links */
          padding: 8px 12px;
      }
+     .main-nav a.active {
+         font-size: 1.4rem; /* Adjust active link size */
+         padding: 10px 15px;
+         left: -8px; /* Adjust shift */
+     }
 
     /* Adjust Jackpot Sizes for Tablet */
      .jackpot-value h2 { font-size: 3.5rem; }
-     .timer-circle { width: 110px; height: 110px; }
-     .timer-text { font-size: 3.1rem; }
-     .stat-value { font-size: 3.1rem; }
+     .timer-circle { width: 110px; height: 110px; } /* Reverted */
+     .timer-text { font-size: 3.1rem; } /* Reverted */
+     .timer-background, .timer-foreground { stroke-width: 7px; } /* Reverted (approx) */
+     .stat-value { font-size: 3.1rem; } /* Reverted */
      .jackpot-value { left: -10px; } /* Adjust shift */
 }
 
@@ -1897,6 +1909,12 @@ a:hover {
          font-size: 1.1rem; /* Further reduce nav link size */
          padding: 8px 10px;
      }
+     .main-nav a.active {
+         font-size: 1.3rem; /* Adjust active link size */
+         padding: 10px 12px;
+         left: 0; /* Remove shift for centered mobile nav */
+         position: static; /* Reset position */
+     }
     .main-nav ul {
         justify-content: center;
     }
@@ -1917,12 +1935,12 @@ a:hover {
     }
 
     .jackpot-value { left: -5px; } /* Less shift on mobile */
-    .jackpot-value h2 { font-size: 2.8rem; } /* Adjusted size */
-    .timer-circle { width: 90px; height: 90px; } /* Adjusted size */
-    .timer-text { font-size: 2.4rem; } /* Adjusted size */
-    .timer-background, .timer-foreground { stroke-width: 6px; } /* Adjusted stroke */
-    .stat-value { font-size: 2.4rem; } /* Adjusted size */
-    .value-label, .timer-label, .stat-label { font-size: 0.8rem; } /* Adjusted size */
+    .jackpot-value h2 { font-size: 2.8rem; } /* Reverted */
+    .timer-circle { width: 90px; height: 90px; } /* Reverted */
+    .timer-text { font-size: 2.4rem; } /* Reverted */
+    .timer-background, .timer-foreground { stroke-width: 6px; } /* Reverted */
+    .stat-value { font-size: 2.4rem; } /* Reverted */
+    .value-label, .timer-label, .stat-label { font-size: 0.8rem; } /* Reverted */
 
     /* Roulette Adjustments */
     .roulette-container {
@@ -1980,7 +1998,8 @@ a:hover {
 @media (max-width: 480px) { /* Small mobile breakpoint */
     /* Header Adjustments */
     .logo h1 { font-size: 1.5rem; }
-    .main-nav a { font-size: 1rem; padding: 6px 8px; } /* Adjusted size */
+    .main-nav a { font-size: 1rem; padding: 6px 8px; } /* Adjusted base size */
+    .main-nav a.active { font-size: 1.2rem; padding: 8px 10px; position: static; left: 0; } /* Adjusted active size, remove shift */
     .user-avatar { width: 28px; height: 28px; }
     .user-name { max-width: 100px; }
     .btn-login { padding: 6px 12px; font-size: 0.9rem; }
@@ -1990,12 +2009,12 @@ a:hover {
     /* Jackpot Header Adjustments */
     .jackpot-header { gap: 5px; padding: 10px; }
     .jackpot-value { left: 0; position: static; } /* Remove shift */
-    .jackpot-value h2 { font-size: 2.2rem; } /* Adjusted size */
-    .timer-circle { width: 70px; height: 70px; } /* Adjusted size */
-    .timer-text { font-size: 1.8rem; } /* Adjusted size */
-    .stat-value { font-size: 1.8rem; } /* Adjusted size */
-    .timer-background, .timer-foreground { stroke-width: 5px; } /* Adjusted stroke */
-    .value-label, .timer-label, .stat-label { font-size: 0.7rem; } /* Adjusted size */
+    .jackpot-value h2 { font-size: 2.2rem; } /* Keep size */
+    .timer-circle { width: 70px; height: 70px; } /* Reverted size */
+    .timer-text { font-size: 1.8rem; } /* Reverted size */
+    .stat-value { font-size: 1.8rem; } /* Reverted size */
+    .timer-background, .timer-foreground { stroke-width: 5px; } /* Reverted stroke */
+    .value-label, .timer-label, .stat-label { font-size: 0.7rem; } /* Reverted size */
 
     /* Roulette Adjustments */
     .roulette-container { height: 70px; }
