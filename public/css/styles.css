@@ -1,4 +1,4 @@
-/* style.css (Complete and Modified - Incorporating All Changes as of 2025-04-17) */
+/* style.css (Complete and Modified - Incorporating All Changes as of 2025-04-17 15:26) */
 /* Enhanced color scheme */
 :root {
     --primary-color: #00e676;
@@ -209,10 +209,13 @@ a:hover {
     color: var(--primary-color);
 }
 
+/* Main Nav - Shifted Left & Enlarged */
 .main-nav {
-    flex: 1; /* Allow nav to take up space */
+    /* Removed flex: 1; */
+    margin-left: 20px; /* Space after logo */
+    margin-right: auto; /* Pushes nav left, and user-controls right */
     display: flex;
-    justify-content: center; /* Center nav links */
+    /* justify-content: center; Removed */
     min-width: 0; /* Prevent overflow issues */
 }
 
@@ -229,10 +232,11 @@ a:hover {
     margin-right: 0;
 }
 
+/* Nav Links - Enlarged & Recolored */
 .main-nav a {
     font-weight: 600;
-    font-size: 1rem;
-    padding: 8px 12px;
+    font-size: 1.3rem; /* Increased size */
+    padding: 10px 15px; /* Adjusted padding */
     border-radius: 4px;
     transition: all 0.3s ease;
     position: relative;
@@ -248,7 +252,7 @@ a:hover {
     left: 50%;
     width: 0;
     height: 2px;
-    background-color: var(--primary-color);
+    background-color: var(--primary-color); /* Underline uses primary color */
     transition: all 0.3s ease;
     transform: translateX(-50%);
 }
@@ -259,10 +263,10 @@ a:hover {
 }
 
 .main-nav a.active {
-    color: var(--primary-color);
+    color: var(--primary-color); /* Active color */
 }
 .main-nav a:hover {
-    color: var(--text-primary); /* Hover color */
+    color: var(--primary-color); /* Hover color - changed */
 }
 
 
@@ -277,7 +281,6 @@ a:hover {
     display: flex; /* Changed from none by JS */
     align-items: center;
     gap: 10px;
-    /* margin-left: 15px; */ /* Removed margin, let gap handle spacing */
 }
 
 .user-avatar {
@@ -321,35 +324,32 @@ a:hover {
 /* ----- JACKPOT HEADER STYLES ----- */
 .jackpot-header {
     display: flex;
-    justify-content: space-around;
-    align-items: center; /* This vertically centers the items */
+    justify-content: space-around; /* Distributes space */
+    align-items: center; /* Vertical Alignment */
     padding: 20px;
     background: linear-gradient(135deg, var(--background-medium), var(--background-light));
     border-bottom: 1px solid var(--border-color);
     border-radius: 12px 12px 0 0;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    min-height: 150px;
+    min-height: 170px; /* Slightly increased min-height */
     position: relative;
     overflow: hidden;
     z-index: 5;
     transition: height 0.3s ease, background 0.3s ease;
-    gap: 20px;
-    flex-wrap: wrap;
+    gap: 20px; /* Gap between items */
+    flex-wrap: wrap; /* Allow wrapping */
 }
 
 .jackpot-header.roulette-mode {
     background: linear-gradient(135deg, var(--background-dark), var(--background-medium));
-    /* Height might adjust based on roulette container, or keep min-height */
 }
 
-/* Define the new text glow animation */
+/* Define the text glow animation */
 @keyframes valueGlow {
     0%, 100% {
-        /* Normal state - subtle shadow */
         text-shadow: 0 0 8px rgba(0, 230, 118, 0.4);
     }
     50% {
-        /* Glow state - brighter/larger shadow */
         text-shadow: 0 0 20px var(--primary-color), 0 0 10px var(--primary-light);
     }
 }
@@ -360,55 +360,52 @@ a:hover {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    flex: 1;
-    min-width: 120px;
-    padding: 10px; /* Optional padding */
-    /* --- Shift slightly left --- */
+    flex: 1; /* Allow growing/shrinking */
+    min-width: 150px; /* Adjusted min-width */
+    padding: 10px;
     position: relative;
-    left: -15px; /* Adjust value as needed */
-    /* --- Removed old animation --- */
+    left: -15px; /* Shift left */
 }
 
 /* Increased Size & Applied New Glow Animation for Jackpot Value */
 .jackpot-value h2 {
-    font-size: 4.2rem; /* Increased again */
+    font-size: 4.2rem; /* Increased size */
     font-weight: 700;
     color: var(--primary-color);
     margin: 0;
     font-family: 'JetBrains Mono', monospace;
     line-height: 1.1;
-    /* Apply the new glow animation to the text itself */
-    animation: valueGlow 1.8s infinite ease-in-out; /* Adjust duration/timing as needed */
+    animation: valueGlow 1.8s infinite ease-in-out;
 }
 
 .value-label, .timer-label, .stat-label {
-    font-size: 0.85rem;
+    font-size: 0.9rem; /* Slightly larger label */
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 1px;
     display: block;
-    margin-top: 5px;
+    margin-top: 8px; /* Increased top margin */
 }
 
-/* Other Jackpot Header Items */
+/* --- Jackpot Timer & Stats Sizing/Alignment --- */
 .jackpot-timer, .jackpot-stats {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: center; /* Center content */
     text-align: center;
-    flex: 1;
-    min-width: 120px;
+    flex: 1; /* Allow growing/shrinking */
+    min-width: 150px; /* Adjusted min-width */
 }
 
-
+/* Enlarged Timer Circle */
 .timer-circle {
     position: relative;
-    width: 90px;
-    height: 90px;
+    width: 130px; /* Increased size */
+    height: 130px; /* Increased size */
     display: flex;
     justify-content: center;
     align-items: center;
-    margin: 0 auto; /* Center the circle within its flex item */
+    margin: 0 auto;
 }
 
 .timer-progress {
@@ -419,7 +416,7 @@ a:hover {
 
 .timer-background, .timer-foreground {
     fill: none;
-    stroke-width: 6;
+    stroke-width: 8px; /* Increased stroke */
 }
 
 .timer-background {
@@ -429,32 +426,35 @@ a:hover {
 .timer-foreground {
     stroke: var(--primary-color);
     stroke-linecap: round;
-    /* stroke-dasharray calculated dynamically based on radius */
     stroke-dashoffset: 0;
-    transition: stroke-dashoffset 1s linear; /* Animate the offset change */
+    transition: stroke-dashoffset 1s linear;
     filter: drop-shadow(0 0 4px var(--primary-color));
 }
 
+/* Enlarged Timer Text */
 .timer-text {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 1.8rem;
+    font-size: 3.8rem; /* Increased size */
     font-weight: 700;
     color: var(--primary-color);
     font-family: 'JetBrains Mono', monospace;
 }
 
+/* Enlarged Stats Value */
 .stat-value {
-    font-size: 1.6rem;
+    font-size: 3.8rem; /* Increased size */
     font-weight: 700;
     color: var(--text-primary);
     display: block;
     line-height: 1.1;
+    margin-top: 10px; /* Added margin to vertically center roughly with timer text */
 }
 
 /* ----- END JACKPOT HEADER STYLES ----- */
+
 
 /* Player deposit container styles */
 .player-deposit-container {
@@ -1370,19 +1370,17 @@ a:hover {
 /* Selected Items Container - Stacks Vertically */
 .selected-items-container {
     display: flex;
-    /* flex-wrap: wrap; */ /* Removed wrap */
-    flex-direction: column; /* Added for vertical stacking */
+    flex-direction: column; /* Vertical stacking */
     align-items: flex-start; /* Align items to the left */
     gap: 10px;
-    min-height: 100px; /* Ensure area has some height, may need adjustment */
-    max-height: 250px; /* Optional: Add max-height and overflow if needed */
-    overflow-y: auto;  /* Optional: Add scroll if list becomes long */
+    min-height: 100px;
+    max-height: 250px; /* Constrain height */
+    overflow-y: auto;  /* Add scroll */
     background-color: var(--background-light);
     padding: 15px;
     border-radius: 8px;
     border: 1px solid var(--border-color);
     margin-bottom: 15px;
-     /* Optional: Custom scrollbar */
     scrollbar-width: thin;
     scrollbar-color: var(--primary-color) var(--background-dark);
 }
@@ -1393,7 +1391,7 @@ a:hover {
 
 .selected-item {
     position: relative;
-    width: 80px; /* Width still applies, items will stack */
+    width: 80px; /* Width still applies */
     border-radius: 4px;
     overflow: hidden;
     background-color: var(--background-medium);
@@ -1860,22 +1858,31 @@ a:hover {
 }
 
 
-/* Responsive styles */
+/* ----- Responsive Styles ----- */
+
 @media (max-width: 992px) { /* Tablet breakpoint */
+    /* Adjust Nav for Tablet */
     .main-nav {
-        justify-content: flex-start; /* Align nav left on tablet */
-        margin-left: 20px; /* Space after logo */
+        margin-left: 20px; /* Keep space from logo */
+        margin-right: auto; /* Keep pushing left */
     }
-    .user-controls {
-         /* Keep user controls pushed right */
-    }
-     .jackpot-value h2 { font-size: 3.8rem; } /* Adjust jackpot size */
+     .main-nav a {
+         font-size: 1.2rem; /* Slightly smaller nav links */
+         padding: 8px 12px;
+     }
+
+    /* Adjust Jackpot Sizes for Tablet */
+     .jackpot-value h2 { font-size: 3.5rem; }
+     .timer-circle { width: 110px; height: 110px; }
+     .timer-text { font-size: 3.1rem; }
+     .stat-value { font-size: 3.1rem; }
      .jackpot-value { left: -10px; } /* Adjust shift */
 }
 
 @media (max-width: 768px) { /* Mobile breakpoint */
+    /* Header Layout Changes */
     .main-header .container {
-        justify-content: space-between; /* Space between logo and user controls */
+        justify-content: space-between;
     }
     .main-nav {
         order: 3; /* Nav below logo/user */
@@ -1883,10 +1890,15 @@ a:hover {
         justify-content: center; /* Center nav items */
         margin-top: 10px;
         margin-left: 0; /* Reset margin */
-        flex: none; /* Don't allow nav to flex */
+        margin-right: 0; /* Reset margin */
+        flex: none;
     }
+     .main-nav a {
+         font-size: 1.1rem; /* Further reduce nav link size */
+         padding: 8px 10px;
+     }
     .main-nav ul {
-        justify-content: center; /* Center the ul itself */
+        justify-content: center;
     }
     .user-controls {
         order: 2; /* User controls after logo */
@@ -1897,6 +1909,7 @@ a:hover {
         margin-right: 0; /* Reset margin */
     }
 
+    /* Jackpot Header Adjustments for Mobile */
     .jackpot-header {
         padding: 15px;
         gap: 10px;
@@ -1904,112 +1917,120 @@ a:hover {
     }
 
     .jackpot-value { left: -5px; } /* Less shift on mobile */
-    .jackpot-value h2 { font-size: 2.8rem; } /* Adjusted size for mobile */
-    .timer-circle { width: 70px; height: 70px; }
-    .timer-text { font-size: 1.4rem; }
-    .stat-value { font-size: 1.3rem; }
-    .value-label, .timer-label, .stat-label { font-size: 0.75rem; }
+    .jackpot-value h2 { font-size: 2.8rem; } /* Adjusted size */
+    .timer-circle { width: 90px; height: 90px; } /* Adjusted size */
+    .timer-text { font-size: 2.4rem; } /* Adjusted size */
+    .timer-background, .timer-foreground { stroke-width: 6px; } /* Adjusted stroke */
+    .stat-value { font-size: 2.4rem; } /* Adjusted size */
+    .value-label, .timer-label, .stat-label { font-size: 0.8rem; } /* Adjusted size */
 
+    /* Roulette Adjustments */
     .roulette-container {
-        margin-top: 20px; /* Adjust spacing */
-        height: 80px; /* Slightly smaller track height */
+        margin-top: 20px;
+        height: 80px;
     }
     .roulette-item {
         width: 70px;
-        height: 70px; /* Adjust size */
+        height: 70px;
         margin: 5px;
     }
     .profile-pic-container { height: 40px; }
     .roulette-name { font-size: 9px; max-width: 60px; }
     .roulette-percentage { font-size: 8px; }
      .roulette-track {
-        padding-left: calc(50% - 35px); /* Adjust offset for 70px item */
+        padding-left: calc(50% - 35px);
         padding-right: calc(50% - 35px);
     }
 
-    .winner-info {
-        /* Styles apply, maybe reduce padding slightly */
-        padding: 8px;
-    }
+    /* Winner Info Adjustments */
+    .winner-info { padding: 8px; }
     .winner-avatar { width: 30px; height: 30px; margin-right: 8px;}
     .winner-header h3 { font-size: 1rem; }
     .winner-details p { font-size: 0.8rem; }
 
+    /* Inventory Adjustments */
     .inventory-items {
         grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-        max-height: 250px; /* Reduce height */
+        max-height: 250px;
     }
     .inventory-item img { height: 70px; }
 
-    /* Adjust selected items container on mobile if needed */
+    /* Selected Items Adjustments */
     .selected-items-container {
-         /* Vertical stack already applied, maybe adjust max-height */
          max-height: 200px;
     }
      .selected-item {
-         width: 100%; /* Make selected items take full width in vertical stack */
-         max-width: 150px; /* Optional: limit max width */
-         align-self: center; /* Optional: center items */
+         width: 100%;
+         max-width: 150px;
+         align-self: center;
      }
 
-
-    .modal-content { max-width: 95%; } /* Wider modals on mobile */
+    /* Modal Adjustments */
+    .modal-content { max-width: 95%; }
     .modal-header h2 { font-size: 1.2rem; }
-    .modal-footer { justify-content: center; flex-wrap: wrap; } /* Center buttons on mobile */
+    .modal-footer { justify-content: center; flex-wrap: wrap; }
 
+    /* Rounds Table Adjustments */
     .rounds-table { font-size: 0.85rem; }
     .rounds-table th, .rounds-table td { padding: 10px 8px;}
-    .btn-details, .btn-verify { display: block; width: 100%; margin: 5px 0 0 0; } /* Stack buttons */
+    .btn-details, .btn-verify { display: block; width: 100%; margin: 5px 0 0 0; }
     .rounds-table td:last-child { text-align: center; }
 }
 
 @media (max-width: 480px) { /* Small mobile breakpoint */
+    /* Header Adjustments */
     .logo h1 { font-size: 1.5rem; }
-    .main-nav a { font-size: 0.9rem; padding: 6px 8px; }
+    .main-nav a { font-size: 1rem; padding: 6px 8px; } /* Adjusted size */
     .user-avatar { width: 28px; height: 28px; }
     .user-name { max-width: 100px; }
     .btn-login { padding: 6px 12px; font-size: 0.9rem; }
 
     .btn-deposit, .btn-secondary { font-size: 1rem; padding: 10px 20px; }
 
+    /* Jackpot Header Adjustments */
     .jackpot-header { gap: 5px; padding: 10px; }
-    .jackpot-value { left: 0; position: static; } /* Remove shift entirely on smallest screens */
-    .jackpot-value h2 { font-size: 2.2rem; } /* Adjusted size for small mobile */
-    .timer-circle { width: 60px; height: 60px; }
-    .timer-text { font-size: 1.2rem; }
-    .stat-value { font-size: 1.1rem; }
-    .timer-background, .timer-foreground { stroke-width: 4; }
+    .jackpot-value { left: 0; position: static; } /* Remove shift */
+    .jackpot-value h2 { font-size: 2.2rem; } /* Adjusted size */
+    .timer-circle { width: 70px; height: 70px; } /* Adjusted size */
+    .timer-text { font-size: 1.8rem; } /* Adjusted size */
+    .stat-value { font-size: 1.8rem; } /* Adjusted size */
+    .timer-background, .timer-foreground { stroke-width: 5px; } /* Adjusted stroke */
+    .value-label, .timer-label, .stat-label { font-size: 0.7rem; } /* Adjusted size */
 
+    /* Roulette Adjustments */
     .roulette-container { height: 70px; }
     .roulette-item { width: 60px; height: 60px; margin: 5px;}
      .profile-pic-container { height: 35px; }
     .roulette-track {
-        padding-left: calc(50% - 30px); /* Adjust offset for 60px item */
+        padding-left: calc(50% - 30px);
         padding-right: calc(50% - 30px);
     }
 
-    .participant { flex-direction: column; align-items: stretch;} /* Stack participant info */
+    /* Participant Adjustments */
+    .participant { flex-direction: column; align-items: stretch;}
     .participant-header { border-bottom: none; }
     .participant-items { padding-top: 0; }
-    .item { width: 70px; } /* Participant items */
+    .item { width: 70px; }
     .item img { height: 50px; }
     .item-value { font-size: 0.7rem; padding: 2px 4px; }
 
+    /* Inventory Adjustments */
     .inventory-items { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
     .inventory-item img { height: 60px; }
 
-     /* Adjust selected items container on small mobile if needed */
+     /* Selected Items Adjustments */
      .selected-items-container {
-         max-height: 180px; /* Further adjust height */
+         max-height: 180px;
      }
      .selected-item {
-         /* Styles from 768px breakpoint apply */
-         max-width: 120px; /* Smaller max width */
+         max-width: 120px;
      }
 
+    /* Rounds Table Adjustments */
     .rounds-table th, .rounds-table td { padding: 8px 6px; font-size: 0.8rem;}
     .btn-details, .btn-verify { font-size: 0.7rem; padding: 4px 6px;}
 
+    /* Modal Adjustments */
     .modal-body { padding: 15px; }
     .modal-footer { padding: 10px 15px; }
 }
