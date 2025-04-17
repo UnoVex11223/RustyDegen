@@ -19,7 +19,7 @@ require('dotenv').config();
 // --- Configuration Constants ---
 const RUST_APP_ID = 252490;
 const RUST_CONTEXT_ID = 2;
-const ROUND_DURATION = parseInt(process.env.ROUND_DURATION_SECONDS) || 120;
+const ROUND_DURATION = parseInt(process.env.ROUND_DURATION_SECONDS) || 99;
 const TICKET_VALUE_RATIO = parseFloat(process.env.TICKET_VALUE) || 0.01;
 const DEPOSIT_TOKEN_EXPIRY_MS = 5 * 60 * 1000;
 const PRICE_CACHE_TTL_SECONDS = parseInt(process.env.PRICE_CACHE_TTL_SECONDS) || 15 * 60; // 15 minutes default cache validity
