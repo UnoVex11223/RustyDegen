@@ -1119,16 +1119,12 @@ a:hover {
     color: var(--text-secondary);
 }
 
-/* --- MODIFICATION START --- */
-/* Changed flex-wrap: wrap to flex-direction: column */
 .participant-items {
     display: flex;
-    flex-direction: column; /* Stack items vertically */
+    flex-wrap: wrap; /* Keep this horizontal wrapping for participant items */
     gap: 10px;
     padding: 15px;
-    /* align-items: center; /* Optional: Uncomment to center items horizontally */
 }
-/* --- MODIFICATION END --- */
 
 
 /* Form Elements */
@@ -1352,22 +1348,36 @@ a:hover {
     text-transform: uppercase;
 }
 
-
+/* --- MODIFICATION START --- */
+/* Changed flex-wrap: wrap to flex-direction: column */
+/* This makes the selected items stack vertically */
 .selected-items-container {
     display: flex;
-    flex-wrap: wrap;
+    /* flex-wrap: wrap; */ /* Removed wrap */
+    flex-direction: column; /* Added for vertical stacking */
+    align-items: flex-start; /* Align items to the left */
     gap: 10px;
-    min-height: 100px; /* Ensure area has some height */
+    min-height: 100px; /* Ensure area has some height, may need adjustment */
+    max-height: 250px; /* Optional: Add max-height and overflow if needed */
+    overflow-y: auto;  /* Optional: Add scroll if list becomes long */
     background-color: var(--background-light);
     padding: 15px;
     border-radius: 8px;
     border: 1px solid var(--border-color);
     margin-bottom: 15px;
+     /* Optional: Custom scrollbar */
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) var(--background-dark);
 }
+.selected-items-container::-webkit-scrollbar { width: 8px; }
+.selected-items-container::-webkit-scrollbar-track { background: var(--background-dark); border-radius: 4px;}
+.selected-items-container::-webkit-scrollbar-thumb { background-color: var(--primary-color); border-radius: 4px; border: 2px solid var(--background-dark); }
+/* --- MODIFICATION END --- */
+
 
 .selected-item {
     position: relative;
-    width: 80px;
+    width: 80px; /* Width still applies, items will stack */
     border-radius: 4px;
     overflow: hidden;
     background-color: var(--background-medium);
@@ -1912,6 +1922,18 @@ a:hover {
     }
     .inventory-item img { height: 70px; }
 
+    /* Adjust selected items container on mobile if needed */
+    .selected-items-container {
+         /* Vertical stack already applied, maybe adjust max-height */
+         max-height: 200px;
+    }
+     .selected-item {
+         width: 100%; /* Make selected items take full width in vertical stack */
+         max-width: 150px; /* Optional: limit max width */
+         align-self: center; /* Optional: center items */
+     }
+
+
     .modal-content { max-width: 95%; } /* Wider modals on mobile */
     .modal-header h2 { font-size: 1.2rem; }
     .modal-footer { justify-content: center; flex-wrap: wrap; } /* Center buttons on mobile */
@@ -1955,6 +1977,15 @@ a:hover {
 
     .inventory-items { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
     .inventory-item img { height: 60px; }
+
+     /* Adjust selected items container on small mobile if needed */
+     .selected-items-container {
+         max-height: 180px; /* Further adjust height */
+     }
+     .selected-item {
+         /* Styles from 768px breakpoint apply */
+         max-width: 120px; /* Smaller max width */
+     }
 
     .rounds-table th, .rounds-table td { padding: 8px 6px; font-size: 0.8rem;}
     .btn-details, .btn-verify { font-size: 0.7rem; padding: 4px 6px;}
