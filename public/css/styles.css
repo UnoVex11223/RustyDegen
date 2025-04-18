@@ -66,6 +66,7 @@ a:hover {
     text-shadow: 0 0 10px var(--jackpot-tab-color), 0 0 15px var(--jackpot-tab-color);
     letter-spacing: 1px;
     font-weight: 700 !important;
+     transform: translateX(-15px);
 }
 
 .jackpot-tab:after {
