@@ -1596,31 +1596,6 @@ function handleRouletteSpinAnimation(winningElement, winner) {
 
         track.style.transform = `translateX(${currentPosition}px)`;
 
-        const deltaTime = (timestamp - lastTimestamp) / 1000;
-        if (deltaTime > 0.001 && sound && !sound.paused) {
-            const deltaPosition = currentPosition - lastPosition;
-            const currentSpeed = Math.abs(deltaPosition / deltaTime);
-
-            const minRate = 0.5; const maxRate = 2.0;
-            const speedThresholdLow = 300; const speedThresholdHigh = 5000;
-            let targetRate;
-
-            if (animationFinished) {
-                targetRate = 1.0;
-            } else if (currentSpeed < speedThresholdLow) {
-                targetRate = minRate + (maxRate - minRate) * (currentSpeed / speedThresholdLow) * 0.4;
-            } else if (currentSpeed > speedThresholdHigh) {
-                targetRate = maxRate;
-            } else {
-                const speedRange = speedThresholdHigh - speedThresholdLow;
-                const progressInRange = (currentSpeed - speedThresholdLow) / speedRange;
-                targetRate = minRate + (maxRate - minRate) * (0.4 + progressInRange * 0.6);
-            }
-
-            const rateChangeFactor = 0.08;
-            sound.playbackRate = sound.playbackRate + (targetRate - sound.playbackRate) * rateChangeFactor;
-            sound.playbackRate = Math.max(minRate, Math.min(maxRate, sound.playbackRate));
-        }
         lastPosition = currentPosition;
         lastTimestamp = timestamp;
 
