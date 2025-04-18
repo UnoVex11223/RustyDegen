@@ -1,4 +1,4 @@
-// main.js (Optimized with requested changes: 99s timer, vertical deposits, 20 skins per deposit, Deposit Button Disabling)
+// main.js (Optimized with requested changes: 99s timer, vertical deposits, 20 skins per deposit, Deposit Button Disabling, Timer Display Fixes)
 
 const socket = io();
 
@@ -214,7 +214,7 @@ function darkenColor(hex, percent) {
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
-// *** NEW FUNCTION: Update Deposit Button State ***
+// *** FUNCTION: Update Deposit Button State ***
 /**
  * Checks conditions and enables/disables the main deposit button.
  * Also sets a helpful tooltip (title attribute).
@@ -952,27 +952,42 @@ function updateRoundUI() {
 }
 
 
-// Update timer UI elements (Text and Circle)
+// Update timer UI elements (Text and Circle) - MODIFIED
 function updateTimerUI(timeLeft) {
     if (!timerValue || !timerForeground) return;
 
     const timeToShow = Math.max(0, Math.round(timeLeft));
 
-    // Update text based on state
-    if (timerActive || (currentRound && currentRound.status === 'active' && timeToShow > 0)) {
-         timerValue.textContent = timeToShow;
+    // --- MODIFICATION START ---
+    let displayValue = timeToShow.toString(); // Default to the calculated time
+
+    // If the round is active, timer isn't running client-side, and no participants yet, show initial duration
+    if (currentRound && currentRound.status === 'active' && !timerActive && currentRound.participants?.length === 0) {
+         displayValue = ROUND_DURATION.toString(); // Show "99"
+        // Or use a placeholder: displayValue = "--";
+        // Or use text: displayValue = "Waiting"; // Adjust CSS if text is used
+    }
+    // Update text based on state if timer IS running or round ended/rolling
+    else if (timerActive || (currentRound && currentRound.status === 'active' && timeToShow > 0)) {
+         displayValue = timeToShow.toString();
     } else if (isSpinning || (currentRound && currentRound.status === 'rolling')) {
-         timerValue.textContent = "Rolling"; // Show Rolling if spinning or status is rolling
+         displayValue = "Rolling"; // Show Rolling if spinning or status is rolling
     } else if (currentRound && (currentRound.status === 'completed' || currentRound.status === 'error')) {
-        timerValue.textContent = "Ended"; // Show Ended
-    } else {
-        timerValue.textContent = timeToShow; // Fallback or initial state
+        displayValue = "Ended"; // Show Ended
+    }
+    // If timer is not active and time is 0 (e.g., client just hit 0), display 0
+    else if (!timerActive && timeToShow <= 0 && currentRound && currentRound.status === 'active') {
+         displayValue = "0";
     }
 
+    // --- MODIFICATION END ---
 
+    timerValue.textContent = displayValue; // Use the determined displayValue
+
+    // Update the circle based on the actual calculated time (even if display text is different)
     updateTimerCircle(timeToShow, ROUND_DURATION);
 
-    // Update pulse animation based on time left and timer activity
+    // Update pulse animation based on actual time left and timer activity
     if (timerActive && timeToShow <= 10 && timeToShow > 0) {
         timerValue.classList.add('urgent-pulse');
         timerValue.classList.remove('timer-pulse');
@@ -1383,9 +1398,10 @@ function startClientTimer(initialTime = ROUND_DURATION) {
             roundTimer = null;
             timerActive = false; // Timer finished
             console.log("Client timer reached zero.");
-            if(timerValue) timerValue.textContent = "Ending"; // Indicate ending phase
-            // Backend handles actual round end, button state updated via status change
-             updateDepositButtonState(); // Final update
+            // CHANGE THIS LINE: Show "0" instead of "Ending"
+            if(timerValue) timerValue.textContent = "0";
+            // Server events 'roundRolling' or 'roundWinner' will update text to "Rolling" or start animation
+            updateDepositButtonState(); // Final update
         }
     }, 1000); // Update every second
 }
