@@ -77,8 +77,7 @@
             <div class="modal-body">
                 <p>Please enter your Steam Trade URL to complete deposits and receive winnings:</p>
                 <div class="form-group">
-                    <label for="tradeUrlInput">Steam Trade URL</label>
-                    <input type="url" id="tradeUrlInput" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...">
+                    <label for="tradeUrlInput">Steam Trade URL</label> <input type="url" id="tradeUrlInput" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...">
                 </div>
                 <p class="help-text">
                     You can find your trade URL in your
@@ -87,36 +86,6 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-primary" id="saveTradeUrl">Save Trade URL</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal" id="profileModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Your Profile</h2>
-                <button class="close-btn" id="closeProfileModal" aria-label="Close profile modal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="profile-stats">
-                    <h3>Statistics</h3>
-                    <p>Total Deposited: <strong id="profileTotalDeposited">$--.--</strong></p>
-                    <p>Total Won: <strong id="profileTotalWon">$--.--</strong></p>
-                </div>
-                <hr class="modal-divider"> <div class="profile-tradeurl">
-                    <h3>Trade URL</h3>
-                    <p>Set your Steam Trade URL to deposit items and receive winnings.</p>
-                    <div class="form-group">
-                        <label for="profileTradeUrlInput">Steam Trade URL</label>
-                        <input type="url" id="profileTradeUrlInput" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...">
-                    </div>
-                     <p class="help-text">
-                        Find it in your <a href="https://steamcommunity.com/my/tradeoffers/privacy" target="_blank" rel="noopener noreferrer">Steam Trade Privacy Settings</a>.
-                    </p>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-primary" id="profileSaveTradeUrlButton">Save Trade URL</button>
             </div>
         </div>
     </div>
@@ -136,8 +105,8 @@
 
             <nav class="main-nav header-center">
                 <ul>
-                    <li><a href="#" class="active jackpot-pulse jackpot-tab" id="home-link">JACKPOT</a></li>
-                </ul>
+                    <li><a href="#" class="active jackpot-pulse jackpot-tab">JACKPOT</a></li>
+                    </ul>
             </nav>
 
             <div class="header-right">
@@ -151,17 +120,11 @@
                     <button class="btn btn-login" id="loginButton">
                         <i class="fa-brands fa-steam"></i> Sign in
                     </button>
-                    <div class="user-profile-container"> <div class="user-profile" id="userProfile" style="display: none;" tabindex="0"> <img src="/img/default-avatar.png" alt="User Avatar" class="user-avatar" id="userAvatar">
-                            <span class="user-name" id="userName">PlayerName</span>
-                            <i class="fas fa-caret-down profile-caret"></i> </div>
-                        <div class="profile-dropdown" id="profileDropdown">
-                            <ul>
-                                <li><a href="#" id="profileDropdownLink"><i class="fas fa-user"></i> Profile</a></li>
-                                <li><a href="#" id="logoutButton"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
-                            </ul>
+                    <div class="user-profile" id="userProfile" style="display: none;">
+                        <img src="/img/default-avatar.png" alt="User Avatar" class="user-avatar" id="userAvatar">
+                        <span class="user-name" id="userName">PlayerName</span>
                         </div>
-                         </div>
-                     </div>
+                </div>
             </div>
         </div>
     </header>
@@ -195,8 +158,8 @@
                                 <div class="roulette-track" id="rouletteTrack">
                                     </div>
                                 <div class="roulette-ticker">
-                                     <div class="ticker-line"></div>
-                                </div>
+                                    <div class="ticker-line"></div>
+                                    </div>
                             </div>
                             <div class="winner-info" id="winnerInfo" style="display: none;">
                                 <div class="winner-header">
@@ -225,17 +188,16 @@
 
                     <div class="current-items-section" id="currentItems">
                         <h3 class="section-title">CURRENT ITEMS IN POT</h3>
-                        <div class="items-container" id="itemsContainer">
-                            <div class="empty-pot-message" id="emptyPotMessage" style="display: block;">
+                        <div class="items-container" id="itemsContainer"> <div class="empty-pot-message" id="emptyPotMessage" style="display: block;">
                                 <p>No items in the current pot. Be the first to deposit!</p>
                             </div>
-                        </div>
+                            </div>
                     </div>
                 </div>
             </section>
 
             <section id="about-page" style="display: none;">
-                 <div class="content-card">
+                <div class="content-card">
                     <h1>About Rusty Degen</h1>
                     <div style="margin-bottom: 30px;">
                         <h2>The Developer Behind Rusty Degen</h2>
@@ -371,8 +333,7 @@
                             <ol>
                                 <li><strong>Seed Generation:</strong> Before a round begins, the server generates a long, random, secret string called the "Server Seed".</li>
                                 <li><strong>Hashing:</strong> The server calculates the SHA256 hash of this Server Seed. This hash (e.g., <code>a1b2c3d4...</code>) is publicly displayed for the round *before* any deposits are accepted. Hashing is a one-way process; you cannot get the original Seed from the Hash, but you can later verify that a revealed Seed produces the same Hash.</li>
-                                <li><strong>Deposits & Tickets:</strong> Players deposit items. Each $0.01 of value deposited grants the player 1 ticket. Tickets are numbered sequentially (e.g., Player A deposits $1.00 gets tickets 1-100, Player B deposits $2.50 gets tickets 101-350).</li>
-                                <li><strong>Round End & Client Seed:</strong> When the round ends (timer reaches zero or max items), a "Client Seed" is determined. This is typically a combination of public data like the Round ID and the end timestamp, making it unique and unpredictable beforehand.</li>
+                                <li><strong>Deposits & Tickets:</strong> Players deposit items. Each $0.01 of value deposited grants the player 1 ticket. Tickets are numbered sequentially (e.g., Player A deposits $1.00 gets tickets 1-100, Player B deposits $2.50 gets tickets 101-350).</li> <li><strong>Round End & Client Seed:</strong> When the round ends (timer reaches zero or max items), a "Client Seed" is determined. This is typically a combination of public data like the Round ID and the end timestamp, making it unique and unpredictable beforehand.</li>
                                 <li><strong>Combined Hashing:</strong> The server combines the secret Server Seed and the public Client Seed (usually as <code>ServerSeed-ClientSeed</code>). It then calculates the SHA256 hash of this combined string.</li>
                                 <li><strong>Winning Ticket Calculation:</strong> The resulting hash is converted into a number. We use the modulo operator (%) with the total number of tickets in the round to determine the winning ticket number. (e.g., <code>WinningTicket = HashedNumber % TotalTickets + 1</code> to get 1-based ticket).</li>
                                 <li><strong>Winner Selection:</strong> The player whose ticket range includes the calculated Winning Ticket number wins the pot.</li>
@@ -404,28 +365,25 @@
                             <p><small>Note: You may need to obtain the exact Client Seed format used for the round from the round details.</small></p>
                         </div>
                     </div>
-                     <div class="fair-section">
-                          <div class="fair-title">Round History</div>
-                          <div class="fair-content">
-                               <div class="table-container">
-                                   <table class="history-table">
-                                       <thead>
-                                           <tr>
-                                               <th>Round ID</th>
-                                               <th>Date</th>
-                                               <th>Pot Value</th>
-                                               <th>Winner</th>
-                                               <th>Actions</th>
-                                           </tr>
-                                       </thead>
-                                       <tbody id="rounds-table-body">
-                                           <tr><td colspan="5" class="loading-message">Loading round history...</td></tr>
-                                           </tbody>
-                                   </table>
-                               </div>
-                               <div class="pagination-container" id="rounds-pagination">
-                                   </div>
-                          </div>
+                    <div class="fair-section">
+                         <div class="fair-title">Round History</div>
+                         <div class="fair-content">
+                             <div class="table-container"> <table class="history-table"> <thead>
+                                         <tr>
+                                             <th>Round ID</th>
+                                             <th>Date</th>
+                                             <th>Pot Value</th>
+                                             <th>Winner</th>
+                                             <th>Actions</th>
+                                         </tr>
+                                     </thead>
+                                     <tbody id="rounds-table-body">
+                                         <tr><td colspan="5" class="loading-message">Loading round history...</td></tr>
+                                     </tbody>
+                                 </table>
+                             </div>
+                             <div class="pagination-container" id="rounds-pagination"> </div>
+                         </div>
                      </div>
                 </div>
             </section>
@@ -436,7 +394,6 @@
             <p>&copy; 2025 Rusty Degen. All rights reserved. Gambling can be addictive. Play responsibly. 18+</p>
             </div>
     </footer>
-
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/main.js"></script>
 
