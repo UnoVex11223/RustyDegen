@@ -9,12 +9,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Titillium+Web:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-</head>
+    </head>
 <body>
 
-    <div id="notification-bar" class="notification-bar"></div>
-
-    <div class="modal age-verification" id="ageVerificationModal">
+    <div id="notification-bar" class="notification-bar"></div> <div class="modal age-verification" id="ageVerificationModal">
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Age Verification</h2>
@@ -66,7 +64,7 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-primary btn-deposit" id="depositButton" disabled>Deposit Items</button>
-            </div>
+                 </div>
         </div>
     </div>
 
@@ -92,24 +90,28 @@
         </div>
     </div>
     <header class="main-header">
-        <div class="container header-container"> <div class="header-left">
+        <div class="container header-container">
+            <div class="header-left">
                 <div class="logo">
                     <h1>RUSTY<span>DEGEN</span></h1>
                 </div>
-                <nav class="primary-nav"> <ul>
+                <nav class="primary-nav">
+                    <ul>
                         <li><a href="#" id="about-link">ABOUT</a></li>
                         <li><a href="#" id="roadmap-link">ROADMAP</a></li>
                     </ul>
                 </nav>
             </div>
 
-            <nav class="main-nav header-center"> <ul>
+            <nav class="main-nav header-center">
+                <ul>
                     <li><a href="#" class="active jackpot-pulse jackpot-tab">JACKPOT</a></li>
                     </ul>
             </nav>
 
             <div class="header-right">
-                <nav class="secondary-nav"> <ul>
+                <nav class="secondary-nav">
+                     <ul>
                         <li><a href="#" id="faq-link">FAQ</a></li>
                         <li><a href="#" id="fair-link">PROVABLY FAIR</a></li>
                     </ul>
@@ -148,7 +150,8 @@
                             <span class="timer-label">SECONDS LEFT</span>
                         </div>
                         <div class="jackpot-stats">
-                            <span class="stat-value" id="participantCount">0/--</span> <span class="stat-label">PARTICIPANTS</span> </div>
+                            <span class="stat-value" id="participantCount">0/--</span> <span class="stat-label">PARTICIPANTS</span>
+                        </div>
 
                         <div class="inline-roulette" id="inlineRoulette" style="display: none;">
                             <div class="roulette-container">
@@ -156,8 +159,7 @@
                                     </div>
                                 <div class="roulette-ticker">
                                     <div class="ticker-line"></div>
-                                    <div class="ticker-arrow"></div>
-                                </div>
+                                    </div>
                             </div>
                             <div class="winner-info" id="winnerInfo" style="display: none;">
                                 <div class="winner-header">
@@ -177,7 +179,8 @@
                     </div>
 
                     <div class="deposit-button-container" id="depositBtnContainer">
-                        <button class="btn btn-deposit" id="showDepositModal" title="Log in to deposit" disabled>DEPOSIT SKINS</button> <div class="test-buttons-container">
+                        <button class="btn btn-deposit" id="showDepositModal" title="Log in to deposit" disabled>DEPOSIT SKINS</button>
+                        <div class="test-buttons-container">
                             <button class="btn btn-secondary" id="testSpinButton">Test Roulette</button>
                             <button class="btn btn-secondary" id="testDepositButton">Test Deposit</button>
                         </div>
@@ -285,7 +288,8 @@
                     <div class="faq-item">
                         <div class="faq-question">How do I deposit skins?</div>
                         <div class="faq-answer">
-                            <p>First, log in with your Steam account using the "Sign in" button. Then click the "Deposit Skins" button. A modal window will show your available Rust inventory. Select the skins you wish to deposit (ensure they meet the minimum value requirements) and click the final "Deposit Items" button. You'll then receive instructions to send a Steam trade offer to our bot including a specific message/token. You must accept/send this trade offer within Steam to complete the deposit.</p> </div>
+                            <p>First, log in with your Steam account using the "Sign in" button. Then click the "Deposit Skins" button. A modal window will show your available Rust inventory. Select the skins you wish to deposit (ensure they meet the minimum value requirements) and click the final "Deposit Items" button. You'll then receive instructions to send a Steam trade offer to our bot including a specific message/token. You must accept/send this trade offer within Steam to complete the deposit.</p>
+                        </div>
                     </div>
                     <div class="faq-item">
                         <div class="faq-question">How is the winner selected?</div>
@@ -364,9 +368,7 @@
                     <div class="fair-section">
                          <div class="fair-title">Round History</div>
                          <div class="fair-content">
-                             <div class="table-container">
-                                 <table class="history-table">
-                                     <thead>
+                             <div class="table-container"> <table class="history-table"> <thead>
                                          <tr>
                                              <th>Round ID</th>
                                              <th>Date</th>
@@ -380,8 +382,7 @@
                                      </tbody>
                                  </table>
                              </div>
-                             <div class="pagination-container" id="rounds-pagination">
-                                 </div>
+                             <div class="pagination-container" id="rounds-pagination"> </div>
                          </div>
                      </div>
                 </div>
