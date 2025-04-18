@@ -90,44 +90,39 @@
         </div>
     </div>
     <header class="main-header">
-        <div class="container header-container">
-            <div class="header-left">
-                <div class="logo">
-                    <h1>RUSTY<span>DEGEN</span></h1>
-                </div>
-                <nav class="primary-nav">
-                    <ul>
-                        <li><a href="#" id="about-link">ABOUT</a></li>
-                        <li><a href="#" id="roadmap-link">ROADMAP</a></li>
-                    </ul>
-                </nav>
+    <div class="container header-container">
+        <div class="header-left">
             </div>
 
-            <nav class="main-nav header-center">
-                <ul>
-                    <li><a href="#" class="active jackpot-pulse jackpot-tab">JACKPOT</a></li>
-                    </ul>
+        <nav class="main-nav header-center">
             </nav>
 
-            <div class="header-right">
-                <nav class="secondary-nav">
-                     <ul>
-                        <li><a href="#" id="faq-link">FAQ</a></li>
-                        <li><a href="#" id="fair-link">PROVABLY FAIR</a></li>
-                    </ul>
-                </nav>
-                <div class="user-controls">
-                    <button class="btn btn-login" id="loginButton">
-                        <i class="fa-brands fa-steam"></i> Sign in
-                    </button>
-                    <div class="user-profile" id="userProfile" style="display: none;">
+        <div class="header-right">
+            <nav class="secondary-nav">
+                <ul>
+                    <li><a href="#" id="faq-link">FAQ</a></li>
+                    <li><a href="#" id="fair-link">PROVABLY FAIR</a></li>
+                </ul>
+            </nav>
+
+            <div class="user-controls">
+                <button class="btn btn-login" id="loginButton">
+                    <i class="fa-brands fa-steam"></i> Sign in
+                </button>
+
+                <div class="user-profile-container"> <div class="user-profile" id="userProfile" style="display: none;" role="button" aria-haspopup="true" aria-expanded="false" tabindex="0">
                         <img src="/img/default-avatar.png" alt="User Avatar" class="user-avatar" id="userAvatar">
                         <span class="user-name" id="userName">PlayerName</span>
-                        </div>
+                        <span class="dropdown-arrow" aria-hidden="true">▼</span> </div>
+
+                    <div class="dropdown-menu" id="userDropdownMenu" style="display: none;" role="menu">
+                         <button class="dropdown-item" id="logoutButton" role="menuitem">
+                            <i class="fas fa-sign-out-alt icon"></i> Sign Out
+                        </button>
+                    </div>
                 </div>
-            </div>
-        </div>
-    </header>
+                </div>
+            </div> </div> </header>
     <main class="main-content">
         <div class="container">
 
