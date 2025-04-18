@@ -12,8 +12,7 @@
     </head>
 <body>
 
-    <div id="notification-bar" class="notification-bar"></div>
-    <div class="modal age-verification" id="ageVerificationModal">
+    <div id="notification-bar" class="notification-bar"></div> <div class="modal age-verification" id="ageVerificationModal">
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Age Verification</h2>
@@ -90,7 +89,6 @@
             </div>
         </div>
     </div>
-    
     <header class="main-header">
         <div class="container header-container">
             <div class="header-left">
@@ -107,14 +105,13 @@
 
             <nav class="main-nav header-center">
                 <ul>
-                    <li><a href="#" class="active jackpot-tab">JACKPOT</a></li>
-                    <!-- Additional game modes can be added here later -->
-                </ul>
+                    <li><a href="#" class="active jackpot-pulse jackpot-tab">JACKPOT</a></li>
+                    </ul>
             </nav>
 
             <div class="header-right">
                 <nav class="secondary-nav">
-                    <ul>
+                     <ul>
                         <li><a href="#" id="faq-link">FAQ</a></li>
                         <li><a href="#" id="fair-link">PROVABLY FAIR</a></li>
                     </ul>
@@ -131,7 +128,6 @@
             </div>
         </div>
     </header>
-    
     <main class="main-content">
         <div class="container">
 
@@ -304,4 +300,102 @@
                     <div class="faq-item">
                         <div class="faq-question">How do I receive my winnings?</div>
                         <div class="faq-answer">
-                            <p>If you win the jackpot, all items in the pot (minus the site fee) will be automatically sent to you via a Steam trade offer from one of
+                            <p>If you win the jackpot, all items in the pot (minus the site fee) will be automatically sent to you via a Steam trade offer from one of our site bots. Ensure your Trade URL is correctly set in your profile (you'll be prompted if it's missing) and that your Steam inventory privacy is set to "Public" so we can send the offer.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">Is there a minimum deposit value?</div>
+                        <div class="faq-answer">
+                            <p>Yes, the minimum value for a single deposit transaction is typically $1.00 (this may be subject to change). Individual items below a certain threshold might also be excluded. The total value of items you select must meet the minimum deposit requirement.</p>
+                        </div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-question">What is your fee?</div>
+                        <div class="faq-answer">
+                            <p>Rusty Degen takes a small percentage fee (typically 5-10%, check current rate) from each jackpot pot. This fee is essential to cover server costs, bot maintenance, development, and ensure the long-term operation and improvement of the site.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="fair-page" style="display: none;">
+                 <div class="content-card">
+                    <h1>Provably Fair System</h1>
+                    <div class="fair-section">
+                        <div class="fair-title">How Our System Works</div>
+                        <div class="fair-content">
+                            <p>Rusty Degen uses a provably fair system to ensure complete transparency and fairness in winner selection. Our system uses cryptographic methods (specifically SHA256 hashing) to guarantee that the results cannot be manipulated by the site operators and can be independently verified by anyone after the round concludes.</p>
+                        </div>
+                    </div>
+                    <div class="fair-section">
+                        <div class="fair-title">The Process</div>
+                        <div class="fair-content">
+                            <ol>
+                                <li><strong>Seed Generation:</strong> Before a round begins, the server generates a long, random, secret string called the "Server Seed".</li>
+                                <li><strong>Hashing:</strong> The server calculates the SHA256 hash of this Server Seed. This hash (e.g., <code>a1b2c3d4...</code>) is publicly displayed for the round *before* any deposits are accepted. Hashing is a one-way process; you cannot get the original Seed from the Hash, but you can later verify that a revealed Seed produces the same Hash.</li>
+                                <li><strong>Deposits & Tickets:</strong> Players deposit items. Each $0.01 of value deposited grants the player 1 ticket. Tickets are numbered sequentially (e.g., Player A deposits $1.00 gets tickets 1-100, Player B deposits $2.50 gets tickets 101-350).</li> <li><strong>Round End & Client Seed:</strong> When the round ends (timer reaches zero or max items), a "Client Seed" is determined. This is typically a combination of public data like the Round ID and the end timestamp, making it unique and unpredictable beforehand.</li>
+                                <li><strong>Combined Hashing:</strong> The server combines the secret Server Seed and the public Client Seed (usually as <code>ServerSeed-ClientSeed</code>). It then calculates the SHA256 hash of this combined string.</li>
+                                <li><strong>Winning Ticket Calculation:</strong> The resulting hash is converted into a number. We use the modulo operator (%) with the total number of tickets in the round to determine the winning ticket number. (e.g., <code>WinningTicket = HashedNumber % TotalTickets + 1</code> to get 1-based ticket).</li>
+                                <li><strong>Winner Selection:</strong> The player whose ticket range includes the calculated Winning Ticket number wins the pot.</li>
+                                <li><strong>Seed Reveal:</strong> After the winner is determined and announced, the original secret Server Seed for that round is revealed publicly.</li>
+                            </ol>
+                        </div>
+                    </div>
+                    <div class="fair-section" id="provably-fair-verification">
+                        <div class="fair-title">Verification Tool</div>
+                        <div class="fair-content">
+                            <p>After a round is complete and the Server Seed is revealed, you can use this tool (or any external SHA256 tool) to verify the outcome:</p>
+                            <div class="verify-form">
+                                <div class="form-group">
+                                    <label for="round-id">Round ID:</label>
+                                    <input type="text" id="round-id" placeholder="Enter round ID from history">
+                                </div>
+                                <div class="form-group">
+                                    <label for="server-seed">Server Seed (Revealed):</label>
+                                    <input type="text" id="server-seed" placeholder="Enter the revealed Server Seed">
+                                </div>
+                                <div class="form-group">
+                                    <label for="client-seed">Client Seed (e.g., RoundID-Timestamp):</label>
+                                    <input type="text" id="client-seed" placeholder="Enter the Client Seed for the round">
+                                </div>
+                                <button class="btn btn-primary" id="verify-btn">Verify Round</button>
+                            </div>
+                            <div id="verification-result" class="verification-result" style="display: none;">
+                                </div>
+                            <p><small>Note: You may need to obtain the exact Client Seed format used for the round from the round details.</small></p>
+                        </div>
+                    </div>
+                    <div class="fair-section">
+                         <div class="fair-title">Round History</div>
+                         <div class="fair-content">
+                             <div class="table-container"> <table class="history-table"> <thead>
+                                         <tr>
+                                             <th>Round ID</th>
+                                             <th>Date</th>
+                                             <th>Pot Value</th>
+                                             <th>Winner</th>
+                                             <th>Actions</th>
+                                         </tr>
+                                     </thead>
+                                     <tbody id="rounds-table-body">
+                                         <tr><td colspan="5" class="loading-message">Loading round history...</td></tr>
+                                     </tbody>
+                                 </table>
+                             </div>
+                             <div class="pagination-container" id="rounds-pagination"> </div>
+                         </div>
+                     </div>
+                </div>
+            </section>
+
+        </div> </main>
+    <footer class="main-footer">
+        <div class="container">
+            <p>&copy; 2025 Rusty Degen. All rights reserved. Gambling can be addictive. Play responsibly. 18+</p>
+            </div>
+    </footer>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/main.js"></script>
+
+</body>
+</html>
