@@ -58,26 +58,215 @@ a:hover {
     color: var(--primary-color);
 }
 
-/* Jackpot Tab - New Styling */
+/* Header Layout */
+.main-header {
+    background-color: var(--background-medium);
+    padding: 15px 0;
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+/* Container for all header elements */
+.header-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 15px;
+}
+
+/* Left section (logo + about/roadmap) */
+.header-left {
+    display: flex;
+    align-items: center;
+    margin-right: 20px;
+}
+
+/* Logo Styles */
+.logo {
+    margin-right: 25px;
+}
+
+.logo h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: 1px;
+    text-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
+    color: var(--text-primary);
+}
+
+.logo span {
+    color: var(--primary-color);
+}
+
+/* Primary Navigation (Left Side - About/Roadmap) */
+.primary-nav ul {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.primary-nav li {
+    margin-right: 20px;
+}
+
+.primary-nav a {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-secondary);
+    transition: color 0.3s ease;
+}
+
+.primary-nav a:hover {
+    color: var(--primary-color);
+}
+
+/* Center section (Jackpot tab) */
+.header-center {
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Main Nav - Center */
+.main-nav ul {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.main-nav li {
+    margin: 0 10px;
+}
+
+.main-nav a {
+    font-weight: 600;
+    font-size: 1.1rem;
+    padding: 10px 15px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    position: relative;
+    color: var(--text-secondary);
+    display: block;
+}
+
+.main-nav a:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background-color: var(--primary-color);
+    transition: all 0.3s ease;
+    transform: translateX(-50%);
+}
+
+.main-nav a:hover:after,
+.main-nav a.active:after {
+    width: 80%;
+}
+
+.main-nav a.active {
+    color: var(--primary-color);
+}
+
+.main-nav a:hover {
+    color: var(--primary-color);
+}
+
+/* Jackpot Tab - Special Styling */
 .jackpot-tab {
-    font-size: 1.4rem !important; /* Bigger (2x compared to others) */
+    font-size: 1.4rem !important;
     padding: 8px 15px !important;
-    color: var(--jackpot-tab-color) !important; /* Bright neon green */
+    color: var(--jackpot-tab-color) !important;
     text-shadow: 0 0 10px var(--jackpot-tab-color), 0 0 15px var(--jackpot-tab-color);
     letter-spacing: 1px;
     font-weight: 700 !important;
-     transform: translateX(-15px);
 }
 
 .jackpot-tab:after {
     background-color: var(--jackpot-tab-color) !important;
     box-shadow: 0 0 8px var(--jackpot-tab-color);
-    height: 3px !important; /* Thicker underline */
+    height: 3px !important;
 }
 
 .jackpot-tab:hover {
     color: var(--jackpot-tab-color) !important;
     text-shadow: 0 0 15px var(--jackpot-tab-color), 0 0 20px var(--jackpot-tab-color);
+}
+
+/* Right section (FAQ/Fair + User Controls) */
+.header-right {
+    display: flex;
+    align-items: center;
+}
+
+/* Secondary Navigation (FAQ/Fair) */
+.secondary-nav ul {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    margin-right: 25px;
+}
+
+.secondary-nav li {
+    margin-right: 20px;
+}
+
+.secondary-nav li:last-child {
+    margin-right: 0;
+}
+
+.secondary-nav a {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-secondary);
+    transition: color 0.3s ease;
+}
+
+.secondary-nav a:hover {
+    color: var(--primary-color);
+}
+
+/* User Controls */
+.user-controls {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--primary-color);
+    flex-shrink: 0;
+}
+
+.user-name {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
 }
 
 /* Buttons */
@@ -180,22 +369,6 @@ a:hover {
     color: var(--background-dark);
 }
 
-.btn-details, .btn-verify {
-    padding: 5px 10px;
-    font-size: 0.8rem;
-    margin-right: 5px; /* Add some space between buttons */
-    margin-bottom: 5px; /* Allow wrapping */
-    vertical-align: middle;
-}
-
-.btn-verify {
-    background-color: var(--secondary-color);
-    color: var(--background-dark);
-}
-.btn-verify:hover:not(:disabled) { /* Added :not(:disabled) */
-    background-color: var(--secondary-dark);
-}
-
 /* Vertical Deposit Layout - Modified for requested changes */
 .items-container {
     display: flex;
@@ -217,6 +390,95 @@ a:hover {
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
+/* Rest of your CSS remains unchanged */
+/* ... */
+
+/* Responsive Styles for Header */
+@media (max-width: 992px) {
+    /* Tablet adjustments */
+    .primary-nav a, .secondary-nav a {
+        font-size: 0.95rem;
+    }
+    
+    .main-nav a {
+        font-size: 1.1rem;
+        padding: 8px 12px;
+    }
+    
+    .jackpot-tab {
+        font-size: 1.3rem !important;
+    }
+    
+    .logo h1 {
+        font-size: 1.6rem;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Mobile layout */
+    .header-container {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .header-left {
+        margin-right: 0;
+        margin-bottom: 10px;
+        justify-content: center;
+        width: 100%;
+    }
+    
+    .header-center {
+        order: 3;
+        margin: 10px 0;
+        width: 100%;
+    }
+    
+    .header-right {
+        order: 2;
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .primary-nav, .secondary-nav {
+        display: none; /* Hide on mobile to simplify */
+    }
+    
+    .main-nav a {
+        font-size: 1rem;
+        padding: 6px 10px;
+    }
+    
+    .jackpot-tab {
+        font-size: 1.2rem !important;
+    }
+    
+    .logo {
+        margin-right: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Small mobile */
+    .user-name {
+        max-width: 100px;
+    }
+    
+    .main-nav li {
+        margin: 0 5px;
+    }
+    
+    .main-nav a {
+        padding: 5px 8px;
+        font-size: 0.9rem;
+    }
+    
+    .jackpot-tab {
+        font-size: 1.1rem !important;
+    }
+}
+
+/* *** The rest of your existing CSS would continue below *** */
 .player-deposit-container:hover {
     transform: translateY(-3px);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
@@ -277,6 +539,7 @@ a:hover {
     flex: 0 0 auto; /* Don't grow or shrink */
 }
 
+/* ... Rest of your CSS remains as is ... */
 .player-deposit-item:hover {
     transform: translateY(-3px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 8px rgba(0, 230, 118, 0.2);
