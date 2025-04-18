@@ -14,6 +14,8 @@ const bodyParser = require('body-parser');
 const SteamTotp = require('steam-totp');
 const axios = require('axios');
 const NodeCache = require('node-cache');
+const rateLimit = require('express-rate-limit'); // <-- Added for rate limiting
+const { body, query, param, validationResult } = require('express-validator'); // <-- Added for input validation
 require('dotenv').config();
 
 // --- Configuration Constants ---
@@ -53,27 +55,63 @@ const MAX_PARTICIPANTS = 20;
 const MAX_ITEMS_PER_POT = 200;
 const TAX_MIN_PERCENT = 5;
 const TAX_MAX_PERCENT = 10;
-//const MIN_POT_FOR_TAX = 100; // Pot must be at least $100 for tax
+const MIN_POT_FOR_TAX = parseFloat(process.env.MIN_POT_FOR_TAX) || 100; // Pot must be at least $100 for tax (Added default)
 
 // Initialize Express app
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, { cors: { origin: process.env.SITE_URL || "*", methods: ["GET", "POST"] } });
 
+// --- Security Middleware ---
+
+// Trust proxy if behind one (like Heroku, Nginx) - important for rate limiting IPs correctly
+app.set('trust proxy', 1); // Adjust the number based on your proxy depth
+
+// Rate Limiting Setup
+const generalApiLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000, // 15 minutes
+	max: 100, // Limit each IP to 100 requests per windowMs
+	message: 'Too many requests from this IP, please try again after 15 minutes',
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+	legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
+const authLimiter = rateLimit({
+	windowMs: 10 * 60 * 1000, // 10 minutes
+	max: 10, // Limit each IP to 10 login attempts per windowMs
+	message: 'Too many login attempts from this IP, please try again after 10 minutes',
+    standardHeaders: true,
+	legacyHeaders: false,
+});
+
+const sensitiveActionLimiter = rateLimit({
+	windowMs: 5 * 60 * 1000, // 5 minutes
+	max: 20, // Limit each IP to 20 sensitive actions per windowMs
+	message: 'Too many requests for this action, please try again after 5 minutes',
+    standardHeaders: true,
+	legacyHeaders: false,
+});
+
+// Apply general limiter to API routes
+app.use('/api/', generalApiLimiter);
+
 // Configure middleware
 app.use(cors({ origin: process.env.SITE_URL || "*", credentials: true }));
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json()); // Consider limiting request body size: app.use(bodyParser.json({ limit: '10kb' }));
+app.use(bodyParser.urlencoded({ extended: true })); // Consider limiting request body size: app.use(bodyParser.urlencoded({ extended: true, limit: '10kb' }));
 app.use(express.static('public')); // Serve static files like main.js, CSS
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    // Consider using a persistent session store (like connect-mongo) for production
+    // TODO: Consider using a persistent session store (like connect-mongo) for production
+    // const MongoStore = require('connect-mongo');
+    // store: MongoStore.create({ mongoUrl: process.env.MONGODB_URI }),
     cookie: {
         maxAge: 3600000, // 1 hour session cookie
         secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
-        httpOnly: true // Helps prevent XSS
+        httpOnly: true, // Helps prevent XSS accessing the cookie
+        sameSite: 'lax' // Helps prevent CSRF
     }
 }));
 app.use(passport.initialize());
@@ -131,7 +169,12 @@ const userSchema = new mongoose.Schema({
     steamId: { type: String, required: true, unique: true, index: true },
     username: { type: String, required: true },
     avatar: { type: String },
-    tradeUrl: { type: String, default: '' },
+    tradeUrl: {
+        type: String,
+        default: '',
+        // Basic regex validation at schema level (more thorough validation in route)
+        match: [/^https?:\/\/steamcommunity\.com\/tradeoffer\/new\/\?partner=\d+&token=[a-zA-Z0-9_-]+$/, 'Invalid Steam Trade URL format']
+     },
     balance: { type: Number, default: 0 }, // Example field, might not be used in jackpot
     createdAt: { type: Date, default: Date.now },
     banned: { type: Boolean, default: false }
@@ -140,7 +183,7 @@ const itemSchema = new mongoose.Schema({
     assetId: { type: String, required: true, index: true },
     name: { type: String, required: true },
     image: { type: String, required: true },
-    price: { type: Number, required: true },
+    price: { type: Number, required: true, min: 0 }, // Ensure price is non-negative
     owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true }, // Added index
     roundId: { type: mongoose.Schema.Types.ObjectId, ref: 'Round', required: true, index: true },
     depositedAt: { type: Date, default: Date.now }
@@ -151,24 +194,24 @@ const roundSchema = new mongoose.Schema({
     startTime: { type: Date },
     endTime: { type: Date },
     completedTime: { type: Date },
-    totalValue: { type: Number, default: 0 },
+    totalValue: { type: Number, default: 0, min: 0 },
     items: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Item' }],
     participants: [{
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-        itemsValue: { type: Number, required: true, default: 0 }, // Total value deposited by user in this round
-        tickets: { type: Number, required: true, default: 0 }     // Tickets based on value
+        itemsValue: { type: Number, required: true, default: 0, min: 0 }, // Total value deposited by user in this round
+        tickets: { type: Number, required: true, default: 0, min: 0 }     // Tickets based on value
     }],
     winner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true }, // Added index
-    winningTicket: { type: Number },
-    serverSeed: { type: String, required: true },
-    serverSeedHash: { type: String, required: true },
-    clientSeed: { type: String },
-    provableHash: { type: String },
-    taxAmount: { type: Number, default: 0 }, // Store the calculated tax value
+    winningTicket: { type: Number, min: 0 },
+    serverSeed: { type: String, required: true, match: /^[a-f0-9]{64}$/ }, // Ensure hex format
+    serverSeedHash: { type: String, required: true, match: /^[a-f0-9]{64}$/ }, // Ensure hex format
+    clientSeed: { type: String, match: /^[a-f0-9]+$/ }, // Allow any hex length, could be refined
+    provableHash: { type: String, match: /^[a-f0-9]{64}$/ }, // Ensure hex format
+    taxAmount: { type: Number, default: 0, min: 0 }, // Store the calculated tax value
     taxedItems: [{ // Store basic info of items taken as tax
         assetId: String,
         name: String,
-        price: Number
+        price: { type: Number, min: 0 }
     }]
 });
 // Add index to participants.user for faster lookups
@@ -273,6 +316,12 @@ function generateDepositToken(userId) {
     return token;
 }
 async function verifyDepositToken(token, partnerSteamId) {
+    // Basic validation on the token format itself
+    if (!token || typeof token !== 'string' || !/^[a-f0-9]{32}$/i.test(token)) {
+         console.warn(`Invalid token format received: ${token}`);
+         return null;
+    }
+
     const tokenData = depositTokens[token];
     if (!tokenData || tokenData.expiry <= Date.now()) {
         if (tokenData) delete depositTokens[token]; // Clean up if expired
@@ -281,6 +330,11 @@ async function verifyDepositToken(token, partnerSteamId) {
     }
     try {
         // Find user by partner's SteamID and check if it matches the token owner
+        // Ensure partnerSteamId looks like a SteamID before querying
+        if (!partnerSteamId || typeof partnerSteamId !== 'string' || !/^\d{17}$/.test(partnerSteamId)) {
+             console.warn(`Invalid partner SteamID format received: ${partnerSteamId}`);
+             return null;
+        }
         const user = await User.findOne({ steamId: partnerSteamId }).lean(); // Use lean for performance
         if (!user || user._id.toString() !== tokenData.userId) {
             console.warn(`Token ${token} verification failed: User mismatch (Offer from ${partnerSteamId}, Token for ${tokenData.userId})`);
@@ -366,6 +420,11 @@ async function refreshPriceCache() {
  * @returns {number} Price in USD
  */
 function getItemPrice(marketHashName) {
+    // Basic validation on input
+    if (typeof marketHashName !== 'string' || marketHashName.length === 0) {
+        console.warn("getItemPrice called with invalid marketHashName:", marketHashName);
+        return 0;
+    }
     const cachedPrice = priceCache.get(marketHashName);
     if (cachedPrice !== undefined) { // Check cache first (0 is a valid cached price)
         return cachedPrice;
@@ -412,7 +471,7 @@ async function createNewRound() {
         });
 
         await newRound.save();
-        currentRound = newRound; // Update global current round state
+        currentRound = newRound.toObject(); // Update global current round state (use toObject for plain object)
 
         // Timer starts when the first participant joins (handled in handleNewDeposit)
         // We just emit the creation event here. Client handles timer display.
@@ -426,7 +485,8 @@ async function createNewRound() {
         });
 
         console.log(`--- Round ${newRound.roundId} created and active ---`);
-        return newRound;
+        // Return plain object representation
+        return newRound.toObject();
 
     } catch (err) {
         console.error('FATAL: Error creating new round:', err);
@@ -445,7 +505,7 @@ async function ensureInitialRound() {
                 const existingActive = await Round.findOne({ status: 'active' }).populate('participants.user', 'steamId username avatar').populate('items').lean();
                 if (existingActive) {
                     console.log(`Found existing active round ${existingActive.roundId} on startup.`);
-                    currentRound = existingActive;
+                    currentRound = existingActive; // Use lean object directly
                     // Decide if timer needs starting (e.g., based on participants and endTime)
                     if (currentRound.participants.length > 0 && currentRound.endTime && new Date(currentRound.endTime) > Date.now()) {
                         startRoundTimer(true); // Start timer based on remaining time
@@ -544,9 +604,11 @@ async function endRound() {
         io.emit('roundRolling', { roundId: roundIdToEnd }); // Notify clients
 
         // Fetch the full round data for processing, ensuring it's the one we intended to end
+        // Use lean() for performance as we modify/calculate based on this data
         const round = await Round.findById(roundMongoId)
             .populate('participants.user') // Populate user data
-            .populate('items');             // Populate item data
+            .populate('items')             // Populate item data
+            .lean();                       // <-- Use lean
 
         if (!round) throw new Error(`Round ${roundIdToEnd} data missing after status update.`);
         if (round.status !== 'rolling') { // Double check status after fetch
@@ -554,15 +616,14 @@ async function endRound() {
              isRolling = false;
              return;
         }
-        // Update in-memory currentRound to match fetched data
+        // Update in-memory currentRound to match fetched lean data
         currentRound = round;
 
         // --- Handle Empty Round ---
         if (round.participants.length === 0 || round.items.length === 0 || round.totalValue <= 0) {
             console.log(`Round ${round.roundId} ended with no valid participants or value.`);
-            round.status = 'completed';
-            round.completedTime = new Date();
-            await round.save();
+            // Update status directly in DB
+            await Round.updateOne({ _id: roundMongoId }, { $set: { status: 'completed', completedTime: new Date() }});
             io.emit('roundCompleted', { roundId: round.roundId, message: "No participants." });
             isRolling = false; // Reset flag
             setTimeout(createNewRound, 5000); // Start next round sooner
@@ -570,89 +631,92 @@ async function endRound() {
         }
 
         // --- Tax Calculation ---
-        let finalItems = [...round.items]; // Copy items to modify
+        let finalItems = [...round.items]; // Copy items to modify (these are lean objects)
         let finalTotalValue = round.totalValue;
         let taxAmount = 0;
         let taxedItemsInfo = [];
+        let itemsToTakeForTaxIds = []; // Store IDs of items to take
 
+        // Check eligibility using MIN_POT_FOR_TAX
         if (finalTotalValue >= MIN_POT_FOR_TAX) {
-            // console.log(`Round ${round.roundId} eligible for tax (Value: $${finalTotalValue.toFixed(2)} >= $${MIN_POT_FOR_TAX})`); // Less verbose
             const targetTaxValue = finalTotalValue * (TAX_MIN_PERCENT / 100);
             const maxTaxValue = finalTotalValue * (TAX_MAX_PERCENT / 100);
-            // console.log(`Tax Target: $${targetTaxValue.toFixed(2)} (Min ${TAX_MIN_PERCENT}%), Max: $${maxTaxValue.toFixed(2)} (Max ${TAX_MAX_PERCENT}%)`); // Less verbose
 
             const sortedItems = [...finalItems].sort((a, b) => a.price - b.price);
             let currentTaxValue = 0;
-            const itemsToTakeForTax = [];
 
             for (const item of sortedItems) {
                 if (currentTaxValue + item.price <= maxTaxValue) {
-                    itemsToTakeForTax.push(item);
+                    itemsToTakeForTaxIds.push(item._id.toString()); // Store ID
+                    taxedItemsInfo.push({ assetId: item.assetId, name: item.name, price: item.price }); // Store basic info
                     currentTaxValue += item.price;
                     if (currentTaxValue >= targetTaxValue) {
                         break;
                     }
                 } else {
-                    // console.log(`Tax: Adding item ${item.name} ($${item.price.toFixed(2)}) would exceed max ($${maxTaxValue.toFixed(2)}). Stopping tax selection.`); // Less verbose
                     break;
                 }
             }
 
-            if (itemsToTakeForTax.length > 0) {
-                const taxedAssetIds = new Set(itemsToTakeForTax.map(item => item.assetId));
-                finalItems = finalItems.filter(item => !taxedAssetIds.has(item.assetId));
+            if (itemsToTakeForTaxIds.length > 0) {
+                const taxedAssetIdsSet = new Set(itemsToTakeForTaxIds);
+                // Filter items *to be sent to winner*
+                const itemsToSendToWinner = finalItems.filter(item => !taxedAssetIdsSet.has(item._id.toString()));
                 taxAmount = currentTaxValue;
                 finalTotalValue -= taxAmount; // Reduce pot value
-                taxedItemsInfo = itemsToTakeForTax.map(i => ({ assetId: i.assetId, name: i.name, price: i.price })); // Store basic info
 
-                console.log(`Tax Applied for Round ${round.roundId}: $${taxAmount.toFixed(2)} (${itemsToTakeForTax.length} items). New Pot Value: $${finalTotalValue.toFixed(2)}`);
+                console.log(`Tax Applied for Round ${round.roundId}: $${taxAmount.toFixed(2)} (${itemsToTakeForTaxIds.length} items). New Pot Value: $${finalTotalValue.toFixed(2)}`);
 
-                // Update the round object (will be saved later)
-                round.taxAmount = taxAmount;
-                round.taxedItems = taxedItemsInfo;
-                round.items = finalItems.map(i => i._id); // Save only IDs of remaining items
-                round.totalValue = finalTotalValue;
-            } else {
-                // console.log(`Tax Skipped for Round ${round.roundId}: Could not select items within ${TAX_MIN_PERCENT}-${TAX_MAX_PERCENT}% range.`); // Less verbose
+                // Prepare update for the database
+                // Note: We'll update winner, seeds, etc., in one go later
             }
-        } else {
-            // console.log(`Tax Skipped for Round ${round.roundId}: Pot value $${finalTotalValue.toFixed(2)} is below minimum $${MIN_POT_FOR_TAX}`); // Less verbose
+            // else: Tax skipped, no need to modify items/value yet
         }
-
+        // else: Tax skipped due to low pot value
 
         // --- Winner Calculation (Provably Fair) ---
-        round.clientSeed = crypto.randomBytes(16).toString('hex'); // Generate client seed now
-        const combinedString = round.serverSeed + round.clientSeed;
-        round.provableHash = crypto.createHash('sha256').update(combinedString).digest('hex');
+        const clientSeed = crypto.randomBytes(16).toString('hex'); // Generate client seed now
+        const combinedString = round.serverSeed + clientSeed;
+        const provableHash = crypto.createHash('sha256').update(combinedString).digest('hex');
 
-        const decimalFromHash = parseInt(round.provableHash.substring(0, 8), 16);
+        const decimalFromHash = parseInt(provableHash.substring(0, 8), 16);
         const totalTickets = round.participants.reduce((sum, p) => sum + (p?.tickets || 0), 0);
 
         if (totalTickets <= 0) throw new Error(`Cannot determine winner: Total tickets is zero or invalid for round ${round.roundId}.`);
 
-        round.winningTicket = decimalFromHash % totalTickets;
+        const winningTicket = decimalFromHash % totalTickets;
 
         let cumulativeTickets = 0;
-        let winner = null;
+        let winner = null; // This will store the participant's user object
         for (const participant of round.participants) {
             if (!participant?.tickets || !participant.user) continue; // Skip invalid participants
             cumulativeTickets += participant.tickets;
-            if (round.winningTicket < cumulativeTickets) {
-                winner = participant.user; // The user object is populated
+            if (winningTicket < cumulativeTickets) {
+                winner = participant.user; // The user object is populated from the .lean() query
                 break;
             }
         }
 
-        if (!winner) throw new Error(`Winner selection failed for round ${round.roundId}. Winning Ticket: ${round.winningTicket}, Total Tickets: ${totalTickets}`);
+        if (!winner) throw new Error(`Winner selection failed for round ${round.roundId}. Winning Ticket: ${winningTicket}, Total Tickets: ${totalTickets}`);
 
-        round.winner = winner._id; // Store winner's ID
-        round.status = 'completed'; // Mark as completed
-        round.completedTime = new Date(); // Mark completion time now
+        // --- Prepare Final Database Update ---
+        const finalUpdateData = {
+            status: 'completed',
+            completedTime: new Date(),
+            clientSeed: clientSeed,
+            provableHash: provableHash,
+            winningTicket: winningTicket,
+            winner: winner._id, // Store winner's MongoDB ID
+            taxAmount: taxAmount,
+            taxedItems: taxedItemsInfo,
+            totalValue: finalTotalValue, // Store final (post-tax) value
+            // Only update items if tax was applied
+            ...(itemsToTakeForTaxIds.length > 0 && { items: finalItems.filter(item => !itemsToTakeForTaxIds.includes(item._id.toString())).map(i => i._id) })
+        };
 
-        // Save all changes (status, seeds, winner, tax info, final items/value, completedTime)
-        await round.save();
+        await Round.updateOne({ _id: roundMongoId }, { $set: finalUpdateData });
 
-        console.log(`Round ${round.roundId} completed. Winner: ${winner.username} (Ticket: ${round.winningTicket}/${totalTickets}, Value: $${finalTotalValue.toFixed(2)})`);
+        console.log(`Round ${round.roundId} completed. Winner: ${winner.username} (Ticket: ${winningTicket}/${totalTickets}, Value: $${finalTotalValue.toFixed(2)})`);
 
         // Emit winner information (including post-tax value)
         io.emit('roundWinner', {
@@ -663,18 +727,20 @@ async function endRound() {
                 username: winner.username,
                 avatar: winner.avatar
             },
-            winningTicket: round.winningTicket,
+            winningTicket: winningTicket,
             totalValue: finalTotalValue, // Send post-tax value
             totalTickets: totalTickets,
             serverSeed: round.serverSeed, // Reveal server seed
-            clientSeed: round.clientSeed,
-            provableHash: round.provableHash,
+            clientSeed: clientSeed,
+            provableHash: provableHash,
             serverSeedHash: round.serverSeedHash // Keep sending hash too
         });
 
         // --- Initiate Payout ---
-        // Pass the winner user object and the filtered finalItems array
-        await sendWinningTradeOffer(round, winner, finalItems);
+        // Fetch the items to actually send (excluding taxed items)
+        const itemsToSend = finalItems.filter(item => !itemsToTakeForTaxIds.includes(item._id.toString()));
+        // Pass the winner user object and the filtered finalItems array (lean objects)
+        await sendWinningTradeOffer(round, winner, itemsToSend);
 
     } catch (err) {
         console.error(`CRITICAL ERROR during endRound for round ${roundIdToEnd}:`, err);
@@ -694,9 +760,9 @@ async function endRound() {
 
 /**
  * Sends the winning trade offer to the winner.
- * @param {object} round - The completed Round mongoose document (lean or full).
- * @param {object} winner - The populated User mongoose document for the winner.
- * @param {Array} itemsToSend - Array of populated Item objects to send (after tax).
+ * @param {object} round - The completed Round lean object.
+ * @param {object} winner - The populated User lean object for the winner.
+ * @param {Array} itemsToSend - Array of lean Item objects to send (after tax).
  */
 async function sendWinningTradeOffer(round, winner, itemsToSend) {
     // Critical Check: Ensure bot is ready before attempting to send
@@ -723,7 +789,7 @@ async function sendWinningTradeOffer(round, winner, itemsToSend) {
 
     try {
         const offer = manager.createOffer(winner.tradeUrl);
-        offer.addMyItems(itemsToSend.map(item => ({
+        offer.addMyItems(itemsToSend.map(item => ({ // Map lean item objects
             assetid: item.assetId,
             appid: RUST_APP_ID,
             contextid: RUST_CONTEXT_ID
@@ -771,13 +837,16 @@ async function sendWinningTradeOffer(round, winner, itemsToSend) {
 
 
 // --- Authentication Routes ---
-app.get('/auth/steam', passport.authenticate('steam', { failureRedirect: '/' }));
+// Apply auth rate limiter to the login initiation route
+app.get('/auth/steam', authLimiter, passport.authenticate('steam', { failureRedirect: '/' }));
+
 app.get('/auth/steam/return',
     passport.authenticate('steam', { failureRedirect: '/' }),
     (req, res) => {
         // Successful authentication, redirect home.
         res.redirect('/');
     });
+
 // Logout Route
 app.post('/logout', (req, res, next) => {
     req.logout(err => {
@@ -800,6 +869,15 @@ function ensureAuthenticated(req, res, next) {
     res.status(401).json({ error: 'Not authenticated' });
 }
 
+// Helper Middleware for validation results
+const handleValidationErrors = (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    next();
+};
+
 // GET User Profile
 app.get('/api/user', ensureAuthenticated, (req, res) => {
     // Return only necessary, non-sensitive user data
@@ -808,41 +886,41 @@ app.get('/api/user', ensureAuthenticated, (req, res) => {
 });
 
 // POST Update Trade URL
-app.post('/api/user/tradeurl', ensureAuthenticated, async (req, res) => {
-    const { tradeUrl } = req.body;
+app.post('/api/user/tradeurl',
+    sensitiveActionLimiter, // Apply stricter rate limit
+    ensureAuthenticated,
+    [ // Validation Rules
+        body('tradeUrl')
+            .trim()
+            .notEmpty().withMessage('Trade URL cannot be empty.')
+            .isURL({ require_protocol: true, protocols: ['https'] }).withMessage('Trade URL must be a valid HTTPS URL.')
+            .matches(/^https:\/\/steamcommunity\.com\/tradeoffer\/new\/\?partner=\d+&token=[a-zA-Z0-9_-]+$/)
+            .withMessage('Invalid Steam Trade URL format. Must include partner and token.')
+    ],
+    handleValidationErrors, // Handle validation results
+    async (req, res) => {
+        // Validation passed if we reach here
+        const { tradeUrl } = req.body;
 
-    // Basic validation
-    if (!tradeUrl || typeof tradeUrl !== 'string') {
-        return res.status(400).json({ error: 'Invalid Trade URL provided.' });
-    }
-    // Improved validation
-    try {
-        const url = new URL(tradeUrl);
-        if (!url.protocol.startsWith('https') || url.hostname !== 'steamcommunity.com' || !url.pathname.includes('/tradeoffer/new/')) {
-             throw new Error('Invalid URL structure.');
+        try {
+            const updatedUser = await User.findByIdAndUpdate(
+                req.user._id,
+                { tradeUrl: tradeUrl },
+                { new: true, runValidators: true } // Return the updated document and run schema validators
+            );
+            if (!updatedUser) {
+                return res.status(404).json({ error: 'User not found.' });
+            }
+            console.log(`Trade URL updated for user: ${updatedUser.username}`);
+            res.json({ success: true, tradeUrl: updatedUser.tradeUrl });
+        } catch (err) {
+             // Check for Mongoose validation error (e.g., from schema match)
+            if (err.name === 'ValidationError') {
+                return res.status(400).json({ error: err.message });
+            }
+            console.error(`Error updating trade URL for user ${req.user._id}:`, err);
+            res.status(500).json({ error: 'Server error saving Trade URL.' });
         }
-        if (!url.searchParams.get('partner') || !url.searchParams.get('token')) {
-            throw new Error('Trade URL must include partner and token parameters.');
-        }
-    } catch (e) {
-        return res.status(400).json({ error: e.message || 'Invalid Trade URL format.' });
-    }
-
-    try {
-        const updatedUser = await User.findByIdAndUpdate(
-            req.user._id,
-            { tradeUrl: tradeUrl },
-            { new: true, runValidators: true } // Return the updated document and run schema validators
-        );
-        if (!updatedUser) {
-            return res.status(404).json({ error: 'User not found.' });
-        }
-        console.log(`Trade URL updated for user: ${updatedUser.username}`);
-        res.json({ success: true, tradeUrl: updatedUser.tradeUrl });
-    } catch (err) {
-        console.error(`Error updating trade URL for user ${req.user._id}:`, err);
-        res.status(500).json({ error: 'Server error saving Trade URL.' });
-    }
 });
 
 // GET User Inventory
@@ -884,6 +962,12 @@ app.get('/api/inventory', ensureAuthenticated, async (req, res) => {
                 // Ensure price is a number, default to 0 if not
                 const finalPrice = (typeof price === 'number' && !isNaN(price)) ? price : 0;
 
+                // Check for required properties (assetid, icon_url) before returning
+                if (!item.assetid || !item.icon_url) {
+                     console.warn(`Inventory item missing assetid or icon_url: Name ${itemName}`);
+                     return null; // Skip this item
+                }
+
                 return {
                     assetId: item.assetid, // Ensure assetId is included
                     name: itemName || 'Unknown Item', // Use market_hash_name preferentially
@@ -894,8 +978,7 @@ app.get('/api/inventory', ensureAuthenticated, async (req, res) => {
                     marketable: item.marketable // Include marketable status
                 };
             })
-            // Filter AFTER mapping prices
-            .filter(item => item.tradable && item.price >= MIN_ITEM_VALUE);
+            .filter(item => item && item.tradable && item.price >= MIN_ITEM_VALUE); // Filter nulls, non-tradables, and low value items
 
         res.json(validItems);
 
@@ -908,30 +991,46 @@ app.get('/api/inventory', ensureAuthenticated, async (req, res) => {
 
 
 // POST Initiate Deposit Request (Client gets token and bot URL)
-app.post('/api/deposit/initiate', ensureAuthenticated, (req, res) => {
-    if (!isBotReady || !process.env.BOT_TRADE_URL) {
-        console.warn(`Deposit initiation failed for ${req.user.username}: Bot service is unavailable.`);
-        return res.status(503).json({ error: "Deposit service is temporarily unavailable. Please try again later." });
-    }
-    if (!currentRound || currentRound.status !== 'active' || isRolling) {
-        // console.warn(`Deposit initiation rejected for ${req.user.username}: Round not active (Status: ${currentRound?.status}, Rolling: ${isRolling})`); // Less verbose
-        return res.status(400).json({ error: 'Deposits are currently closed for this round.' });
-    }
-    // Double check limits server-side before issuing token
-    if (currentRound.participants.length >= MAX_PARTICIPANTS) {
-        return res.status(400).json({ error: `Participant limit (${MAX_PARTICIPANTS}) reached.` });
-    }
-    if (currentRound.items.length >= MAX_ITEMS_PER_POT) {
-        return res.status(400).json({ error: `Pot item limit (${MAX_ITEMS_PER_POT}) reached.` });
-    }
+app.post('/api/deposit/initiate',
+    sensitiveActionLimiter, // Apply stricter rate limit
+    ensureAuthenticated,
+    async (req, res) => { // Mark async for potential future DB checks if needed
+        if (!isBotReady || !process.env.BOT_TRADE_URL) {
+            console.warn(`Deposit initiation failed for ${req.user.username}: Bot service is unavailable.`);
+            return res.status(503).json({ error: "Deposit service is temporarily unavailable. Please try again later." });
+        }
+        if (!currentRound || currentRound.status !== 'active' || isRolling) {
+            // console.warn(`Deposit initiation rejected for ${req.user.username}: Round not active (Status: ${currentRound?.status}, Rolling: ${isRolling})`); // Less verbose
+            return res.status(400).json({ error: 'Deposits are currently closed for this round.' });
+        }
 
-    // Generate a unique, short-lived token for the trade offer message
-    const token = generateDepositToken(req.user._id);
-    res.json({
-        success: true,
-        depositToken: token,
-        botTradeUrl: process.env.BOT_TRADE_URL // Send the bot's trade URL to the client
-    });
+        // Fetch latest round data for accurate limit checks just before token generation
+        try {
+            const latestRoundData = await Round.findById(currentRound._id).select('participants items').lean();
+            if (!latestRoundData) {
+                console.error(`Deposit initiation failed for ${req.user.username}: Could not fetch current round data.`);
+                return res.status(500).json({ error: 'Internal server error. Please try again.' });
+            }
+
+            // Double check limits server-side before issuing token
+            if (latestRoundData.participants.length >= MAX_PARTICIPANTS) {
+                return res.status(400).json({ error: `Participant limit (${MAX_PARTICIPANTS}) reached.` });
+            }
+            if (latestRoundData.items.length >= MAX_ITEMS_PER_POT) {
+                return res.status(400).json({ error: `Pot item limit (${MAX_ITEMS_PER_POT}) reached.` });
+            }
+
+            // Generate a unique, short-lived token for the trade offer message
+            const token = generateDepositToken(req.user._id);
+            res.json({
+                success: true,
+                depositToken: token,
+                botTradeUrl: process.env.BOT_TRADE_URL // Send the bot's trade URL to the client
+            });
+        } catch (dbErr) {
+            console.error(`Error fetching round data during deposit initiation for ${req.user.username}:`, dbErr);
+            return res.status(500).json({ error: 'Internal server error. Please try again.' });
+        }
 });
 
 
@@ -940,20 +1039,36 @@ if (isBotConfigured && manager) { // Ensure manager is initialized
     manager.on('newOffer', async (offer) => {
         if (!isBotReady) return; // Ignore offers if bot isn't fully ready
 
-        // Ignore offers sent *by* the bot, or empty offers, or offers without a message (token)
-        if (offer.isOurOffer || offer.itemsToReceive.length === 0 || !offer.message) {
+        // Basic sanity checks on the offer object
+        if (!offer || !offer.partner || typeof offer.partner.getSteamID64 !== 'function') {
+            console.warn('Received an invalid or incomplete offer object.');
             return;
         }
 
-        console.log(`Received new trade offer #${offer.id} from ${offer.partner.getSteamID64()}. Message: "${offer.message}"`);
+        // Ignore offers sent *by* the bot, or empty offers, or offers without a message (token)
+        if (offer.isOurOffer || !offer.itemsToReceive || offer.itemsToReceive.length === 0 || !offer.message) {
+            // console.log(`Ignoring offer #${offer.id}: isOurOffer=${offer.isOurOffer}, itemsToReceive=${offer.itemsToReceive?.length}, hasMessage=${!!offer.message}`); // Debug log
+            return;
+        }
+
+        const partnerSteamId = offer.partner.getSteamID64();
+        console.log(`Received new trade offer #${offer.id} from ${partnerSteamId}. Message: "${offer.message}"`);
 
         // 1. Check Round Status & Limits *before* verifying token
-        if (!currentRound || currentRound.status !== 'active' || isRolling) {
-            // console.log(`Offer #${offer.id}: Declining - Deposits closed (Status: ${currentRound?.status}, Rolling: ${isRolling})`); // Less verbose
+        if (!currentRound || !currentRound._id || currentRound.status !== 'active' || isRolling) {
+            console.log(`Offer #${offer.id}: Declining - Deposits closed (Status: ${currentRound?.status}, Rolling: ${isRolling})`);
             return offer.decline().catch(e => console.error(`Error declining offer ${offer.id} (round closed):`, e));
         }
         // Fetch latest participant count directly from DB for better accuracy in checks
-        const latestRoundDataForCheck = await Round.findById(currentRound._id).select('participants items').lean();
+        let latestRoundDataForCheck;
+        try {
+             latestRoundDataForCheck = await Round.findById(currentRound._id).select('participants items').lean();
+        } catch(dbErr) {
+             console.error(`Offer #${offer.id}: DB error fetching round data for limits check:`, dbErr);
+             // Decline if we can't check limits
+             return offer.decline().catch(e => console.error(`Error declining offer ${offer.id} (DB check failed):`, e));
+        }
+
         if (!latestRoundDataForCheck) {
              console.error(`Offer #${offer.id}: Cannot check limits, current round data missing from DB.`);
              return offer.decline().catch(e => console.error(`Error declining offer ${offer.id} (DB check failed):`, e));
@@ -973,9 +1088,9 @@ if (isBotConfigured && manager) { // Ensure manager is initialized
         const token = offer.message.trim();
         let user; // Will store the user object if token is valid
         try {
-            user = await verifyDepositToken(token, offer.partner.getSteamID64());
+            user = await verifyDepositToken(token, partnerSteamId); // verifyDepositToken now includes basic validation
             if (!user) {
-                // console.log(`Offer #${offer.id}: Declining - Invalid or expired deposit token.`); // Less verbose
+                console.log(`Offer #${offer.id}: Declining - Invalid or expired deposit token.`);
                 return offer.decline().catch(e => console.error(`Error declining offer ${offer.id} (invalid token):`, e));
             }
         } catch (vErr) { // Catch errors during DB lookup in verifyDepositToken
@@ -995,11 +1110,17 @@ if (isBotConfigured && manager) { // Ensure manager is initialized
         try {
             const itemsToProcess = offer.itemsToReceive
                 .map(item => {
-                    // Basic check for necessary properties
-                    if (!item.market_hash_name || !item.assetid || !item.icon_url) {
-                        console.warn(`Offer #${offer.id}: Item asset ${item.assetid} missing required properties (name/icon). Skipping.`);
+                    // Basic check for necessary properties from Steam
+                    if (!item || !item.market_hash_name || !item.assetid || !item.icon_url || !item.appid || !item.contextid) {
+                        console.warn(`Offer #${offer.id}: Item asset ${item?.assetid || 'UNKNOWN'} missing required properties. Skipping.`);
                         return null;
                     }
+                    // Ensure item is for the correct game (Rust)
+                    if (item.appid != RUST_APP_ID || item.contextid != RUST_CONTEXT_ID) {
+                        console.warn(`Offer #${offer.id}: Item asset ${item.assetid} ('${item.market_hash_name}') is not a Rust item (AppID: ${item.appid}, ContextID: ${item.contextid}). Skipping.`);
+                        return null;
+                    }
+
                     const price = getItemPrice(item.market_hash_name); // Get price from cache/fallback
                     // Check if item meets minimum value threshold
                     if (price < MIN_ITEM_VALUE) {
@@ -1020,7 +1141,7 @@ if (isBotConfigured && manager) { // Ensure manager is initialized
             const depositTotalValue = itemsToProcess.reduce((sum, item) => sum + item.price, 0);
 
             if (itemsToProcess.length === 0) {
-                // console.log(`Offer #${offer.id}: Declining - No items met the minimum value requirement.`); // Less verbose
+                console.log(`Offer #${offer.id}: Declining - No valid items met the requirements (Correct game, min value).`);
                 return offer.decline().catch(e => console.error(`Error declining offer ${offer.id} (no valid items):`, e));
             }
 
@@ -1043,22 +1164,48 @@ if (isBotConfigured && manager) { // Ensure manager is initialized
                     return; // Stop processing if accept fails
                 }
 
-                console.log(`Offer #${offer.id} accepted successfully. Status: ${status}. Updating database...`);
+                 // Check status for confirmation needed (rare for bot->bot but good practice)
+                 if (status === 'pending') {
+                      console.log(`Offer #${offer.id} accepted but requires confirmation (pending). Accepting confirmation...`);
+                      try {
+                          await new Promise((resolve, reject) => {
+                              community.acceptConfirmationForObject(process.env.STEAM_IDENTITY_SECRET, offer.id, (confErr) => {
+                                  if (confErr) {
+                                      console.error(`Offer #${offer.id}: Error accepting confirmation:`, confErr);
+                                      // TODO: Handle this state - items might be stuck until manually confirmed/canceled. Notify admin.
+                                      reject(confErr);
+                                  } else {
+                                      console.log(`Offer #${offer.id}: Confirmation accepted.`);
+                                      resolve();
+                                  }
+                              });
+                          });
+                          // If confirmation is successful, proceed to update DB
+                      } catch (confAcceptErr) {
+                           io.emit('notification', { type: 'error', userId: user._id.toString(), message: `Deposit Error: Could not automatically confirm offer #${offer.id}. Please contact support.` });
+                           // Do not proceed with DB update if confirmation failed
+                           return;
+                      }
+                 } else {
+                    console.log(`Offer #${offer.id} accepted successfully. Status: ${status}. Updating database...`);
+                 }
+
 
                 // --- 5. Update Database (CRITICAL SECTION) ---
                 // Use findOneAndUpdate for atomic update to mitigate race conditions
                 try {
                     // Prepare update operations
-                    const itemDocuments = itemsToProcess.map(item => new Item(item)); // Create Item documents in memory
-                    await Item.insertMany(itemDocuments); // Save items first
+                    // Use lean() for performance and create Item documents directly
+                    const itemDocuments = itemsToProcess.map(item => new Item(item));
+                    await Item.insertMany(itemDocuments, { ordered: false }); // Save items first, allow continuing if some duplicates fail (shouldn't happen with assetId)
                     const createdItemIds = itemDocuments.map(doc => doc._id);
 
                     // Find the participant index or prepare new participant data
                     const participantUpdate = {
                          $inc: { // Use $inc for atomic increments
-                              totalValue: depositTotalValue,
-                              'participants.$.itemsValue': depositTotalValue,
-                              'participants.$.tickets': Math.max(1, Math.floor(depositTotalValue / TICKET_VALUE_RATIO))
+                             totalValue: depositTotalValue,
+                             'participants.$.itemsValue': depositTotalValue,
+                             'participants.$.tickets': Math.max(1, Math.floor(depositTotalValue / TICKET_VALUE_RATIO))
                          },
                          $push: { items: { $each: createdItemIds } } // Push new item IDs
                     };
@@ -1068,12 +1215,12 @@ if (isBotConfigured && manager) { // Ensure manager is initialized
                     const updateResult = await Round.updateOne(participantFilter, participantUpdate);
 
                     let latestRound;
-                    if (updateResult.modifiedCount === 0) {
+                    if (updateResult.matchedCount === 0) { // Use matchedCount for better check if filter worked but no change needed (or participant wasn't found)
                          // Participant not found or round status changed, try adding as new participant
                          const newParticipantData = {
-                              user: user._id,
-                              itemsValue: depositTotalValue,
-                              tickets: Math.max(1, Math.floor(depositTotalValue / TICKET_VALUE_RATIO))
+                             user: user._id,
+                             itemsValue: depositTotalValue,
+                             tickets: Math.max(1, Math.floor(depositTotalValue / TICKET_VALUE_RATIO))
                          };
                          const addParticipantUpdate = {
                               $inc: { totalValue: depositTotalValue },
@@ -1082,19 +1229,33 @@ if (isBotConfigured && manager) { // Ensure manager is initialized
                                    participants: newParticipantData
                               }
                          };
-                         // Add condition to ensure round is still active
-                         const addResult = await Round.updateOne({ _id: currentRound._id, status: 'active' }, addParticipantUpdate);
+                         // Add condition to ensure round is still active and participant doesn't exist yet
+                         const addFilter = {
+                            _id: currentRound._id,
+                            status: 'active',
+                            'participants.user': { $ne: user._id } // Ensure user is not already in the array
+                         };
+                         const addResult = await Round.updateOne(addFilter, addParticipantUpdate);
 
                          if (addResult.modifiedCount === 0) {
-                              // CRITICAL: Round status changed *during* DB update attempts after accepting trade.
-                              throw new Error(`Round status changed after accepting offer ${offer.id}. DB update failed.`);
+                             // Check if the participant was added *just now* by another process (race condition)
+                             const checkAgain = await Round.findOne({ _id: currentRound._id, 'participants.user': user._id }).lean();
+                             if (!checkAgain) {
+                                // CRITICAL: Round status changed or participant add failed unexpectedly.
+                                // This could happen if the participant limit was hit between the initial check and now.
+                                throw new Error(`Round status/limits changed after accepting offer ${offer.id}. DB update failed.`);
+                             }
+                             // If checkAgain finds the user, it means another process added them, fetch latest data
+                             latestRound = await Round.findById(currentRound._id).populate('participants.user', 'steamId username avatar').lean();
+
+                         } else {
+                             // Fetch the round again after adding participant
+                            latestRound = await Round.findById(currentRound._id).populate('participants.user', 'steamId username avatar').lean();
                          }
-                         // Fetch the round again after adding participant
-                         latestRound = await Round.findById(currentRound._id).populate('participants.user', 'steamId username avatar').lean();
 
                     } else {
                          // Fetch the round again after updating existing participant
-                         latestRound = await Round.findById(currentRound._id).populate('participants.user', 'steamId username avatar').lean();
+                        latestRound = await Round.findById(currentRound._id).populate('participants.user', 'steamId username avatar').lean();
                     }
 
 
@@ -1114,7 +1275,7 @@ if (isBotConfigured && manager) { // Ensure manager is initialized
                         avatar: user.avatar,
                         itemsValue: updatedParticipantData?.itemsValue || 0, // Send cumulative value
                         tickets: updatedParticipantData?.tickets || 0,     // Send cumulative tickets
-                        totalValue: latestRound.totalValue,                // Send new round total value
+                        totalValue: latestRound.totalValue,              // Send new round total value
                         depositedItems: itemsToProcess.map(i => ({ // Send details of *this* deposit
                             assetId: i.assetId, name: i.name, image: i.image, price: i.price
                         }))
@@ -1123,9 +1284,9 @@ if (isBotConfigured && manager) { // Ensure manager is initialized
 
                     // Start timer if this was the first participant (check latestRound)
                     if (latestRound.participants.length === 1 && !roundTimer) { // Check roundTimer flag too
-                         console.log(`First participant (${user.username}) joined round ${latestRound.roundId}. Starting timer.`);
-                         // timerActive flag is not reliable server-side, rely on roundTimer interval ID
-                         startRoundTimer();
+                        console.log(`First participant (${user.username}) joined round ${latestRound.roundId}. Starting timer.`);
+                        // timerActive flag is not reliable server-side, rely on roundTimer interval ID
+                        startRoundTimer();
                     }
 
                     console.log(`Deposit success for offer #${offer.id}. User: ${user.username}, Value: $${depositTotalValue.toFixed(2)}, Items: ${itemsToProcess.length}`);
@@ -1141,6 +1302,8 @@ if (isBotConfigured && manager) { // Ensure manager is initialized
                     }
                     // TODO: System to handle items stuck in bot inventory (e.g., flag for admin).
                     io.emit('notification', { type: 'error', userId: user._id.toString(), message: `Deposit Error: Database issue after accepting offer #${offer.id}. Please contact support.` });
+                    // IMPORTANT: Consider attempting to return items to the user here if DB update fails.
+                    // This is complex due to potential trade holds/errors. Manual intervention is often safer.
                 }
             }); // End offer.accept callback
 
@@ -1178,35 +1341,39 @@ if (isBotConfigured && manager) { // Ensure manager is initialized
 
 // --- Round Info API Routes ---
 // Helper function to format round data for client
-function formatRoundForClient(round) {
+function formatRoundForClient(round) { // Expects a lean object
     if (!round) return null;
 
     const timeLeft = (round.status === 'active' && round.endTime)
         ? Math.max(0, Math.floor((new Date(round.endTime).getTime() - Date.now()) / 1000))
         : 0;
 
+    // Participants should already be populated lean objects
     const participantsFormatted = (round.participants || []).map(p => ({
         user: p.user ? { id: p.user._id, steamId: p.user.steamId, username: p.user.username, avatar: p.user.avatar } : null,
         itemsValue: p.itemsValue || 0,
         tickets: p.tickets || 0
-    })).filter(p => p.user);
+    })).filter(p => p.user); // Filter out any potential null users
 
+    // Items should already be populated lean objects
     const itemsFormatted = (round.items || []).map(i => ({
-        id: i._id, name: i.name, image: i.image, price: i.price || 0, owner: i.owner
+        // id: i._id, // Usually not needed on client for display
+        assetId: i.assetId, // More useful for linking/images
+        name: i.name,
+        image: i.image,
+        price: i.price || 0,
+        owner: i.owner // Keep owner's Mongo ID
     }));
 
-    // Populate winner details if available and populated
+    // Winner should already be populated if status is completed
     let winnerDetails = null;
-    if (round.status === 'completed' && round.winner && typeof round.winner === 'object') { // Check if winner is populated
+    if (round.status === 'completed' && round.winner) {
          winnerDetails = {
-              id: round.winner._id,
-              steamId: round.winner.steamId,
-              username: round.winner.username,
-              avatar: round.winner.avatar
+             id: round.winner._id,
+             steamId: round.winner.steamId,
+             username: round.winner.username,
+             avatar: round.winner.avatar
          };
-    } else if (round.status === 'completed' && round.winner) {
-        // If winner is just an ID, send the ID
-        winnerDetails = { id: round.winner };
     }
 
 
@@ -1216,12 +1383,12 @@ function formatRoundForClient(round) {
         startTime: round.startTime,
         endTime: round.endTime,
         timeLeft: timeLeft,
-        totalValue: round.totalValue || 0,
+        totalValue: round.totalValue || 0, // Use final post-tax value
         serverSeedHash: round.serverSeedHash,
         participants: participantsFormatted,
         items: itemsFormatted,
         // Conditionally include completed round data
-        winner: winnerDetails, // Send populated winner details or ID
+        winner: winnerDetails,
         winningTicket: round.status === 'completed' ? round.winningTicket : undefined, // Use undefined for cleaner JSON
         serverSeed: round.status === 'completed' ? round.serverSeed : undefined,
         clientSeed: round.status === 'completed' ? round.clientSeed : undefined,
@@ -1234,20 +1401,28 @@ function formatRoundForClient(round) {
 app.get('/api/round/current', async (req, res) => {
     let roundToFormat = null;
     try {
+        // Prioritize the in-memory currentRound if it exists and seems valid
         if (currentRound?._id) {
-            // Fetch fresh data for the current round ID in memory
+            // Fetch fresh data to ensure consistency, especially participant/item lists
             roundToFormat = await Round.findById(currentRound._id)
                 .populate('participants.user', 'steamId username avatar')
                 .populate('items') // Populate full item details
                 .populate('winner', 'steamId username avatar') // Populate winner details
                 .lean();
-            if (roundToFormat) {
-                 currentRound = roundToFormat; // Update in-memory version
-            }
+             // If fetch fails for the in-memory ID, clear it and try finding another active one
+             if (!roundToFormat) {
+                  console.warn(`Current round (_id: ${currentRound._id}, roundId: ${currentRound.roundId}) in memory was not found in DB. Clearing memory reference.`);
+                  currentRound = null;
+             } else {
+                 // Update in-memory version with fresh data
+                 currentRound = roundToFormat;
+             }
         }
-        // Fallback: If no round in memory or fetch failed, check DB for any active round
+
+        // Fallback: If no round in memory or fetch failed, check DB for *any* active round
         if (!roundToFormat) {
             roundToFormat = await Round.findOne({ status: 'active' })
+                .sort({ startTime: -1 }) // Get the latest active round if multiple somehow exist
                 .populate('participants.user', 'steamId username avatar')
                 .populate('items')
                 .populate('winner', 'steamId username avatar')
@@ -1255,8 +1430,12 @@ app.get('/api/round/current', async (req, res) => {
             if (roundToFormat && !currentRound) { // Restore to memory if found and memory is empty
                 currentRound = roundToFormat;
                 console.log(`Restored active round ${currentRound.roundId} from DB via API.`);
-                if (currentRound.participants?.length > 0 && currentRound.endTime && new Date(currentRound.endTime) > Date.now()) {
-                    startRoundTimer(true); // Resume timer if needed
+                // Ensure timer is running if needed (check conditions again)
+                if (currentRound.participants?.length > 0 && currentRound.endTime && new Date(currentRound.endTime) > Date.now() && !roundTimer) {
+                    startRoundTimer(true); // Resume timer if needed and not already running
+                } else if (currentRound.participants?.length > 0 && !currentRound.endTime && !roundTimer) {
+                     console.warn(`Restored active round ${currentRound.roundId} from DB found without endTime. Starting timer now.`);
+                     startRoundTimer(false);
                 }
             }
         }
@@ -1266,6 +1445,7 @@ app.get('/api/round/current', async (req, res) => {
         if (formattedData) {
             res.json(formattedData);
         } else {
+            // No active round found in memory or DB
             res.status(404).json({ error: 'No active round found.' });
         }
     } catch (err) {
@@ -1274,127 +1454,165 @@ app.get('/api/round/current', async (req, res) => {
     }
 });
 
-app.get('/api/rounds', async (req, res) => {
-    try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10; // Default 10 per page
-        const skip = (page - 1) * limit;
+app.get('/api/rounds',
+    [ // Validation Rules
+        query('page').optional().isInt({ min: 1 }).toInt().withMessage('Page must be a positive integer.'),
+        query('limit').optional().isInt({ min: 1, max: 50 }).toInt().withMessage('Limit must be between 1 and 50.') // Added max limit
+    ],
+    handleValidationErrors, // Handle validation results
+    async (req, res) => {
+        try {
+            // Use validated and sanitized values or defaults
+            const page = req.query.page || 1;
+            const limit = req.query.limit || 10;
+            const skip = (page - 1) * limit;
 
-        const query = { status: { $in: ['completed', 'error'] } }; // Find completed or errored rounds
+            const queryFilter = { status: { $in: ['completed', 'error'] } }; // Find completed or errored rounds
 
-        // Execute queries in parallel
-        const [rounds, totalCount] = await Promise.all([
-            Round.find(query)
-                .sort('-roundId') // Sort by roundId descending (newest first)
-                .skip(skip)
-                .limit(limit)
-                .populate('winner', 'username avatar steamId') // Populate winner info
-                // Select only necessary fields for the history view
-                .select('roundId startTime endTime completedTime totalValue winner serverSeed serverSeedHash clientSeed winningTicket provableHash status taxAmount')
-                .lean(), // Use lean for performance
-            Round.countDocuments(query)
-        ]);
+            // Execute queries in parallel
+            const [rounds, totalCount] = await Promise.all([
+                Round.find(queryFilter)
+                    .sort('-roundId') // Sort by roundId descending (newest first)
+                    .skip(skip)
+                    .limit(limit)
+                    .populate('winner', 'username avatar steamId') // Populate winner info
+                    // Select only necessary fields for the history view
+                    .select('roundId startTime endTime completedTime totalValue winner serverSeed serverSeedHash clientSeed winningTicket provableHash status taxAmount')
+                    .lean(), // Use lean for performance
+                Round.countDocuments(queryFilter)
+            ]);
 
-        res.json({
-            rounds: rounds,
-            totalPages: Math.ceil(totalCount / limit),
-            currentPage: page,
-            totalRounds: totalCount
-        });
-    } catch (err) {
-        console.error('Error fetching past rounds:', err);
-        res.status(500).json({ error: 'Server error fetching round history.' });
-    }
+            res.json({
+                rounds: rounds,
+                totalPages: Math.ceil(totalCount / limit),
+                currentPage: page,
+                totalRounds: totalCount
+            });
+        } catch (err) {
+            console.error('Error fetching past rounds:', err);
+            res.status(500).json({ error: 'Server error fetching round history.' });
+        }
 });
 
-app.post('/api/verify', async (req, res) => {
-    const { roundId, serverSeed, clientSeed } = req.body;
-    if (!roundId || !serverSeed || !clientSeed) {
-        return res.status(400).json({ error: 'Missing required fields (roundId, serverSeed, clientSeed).' });
-    }
-    // Add basic format validation
-    if (typeof serverSeed !== 'string' || serverSeed.length !== 64 || !/^[a-f0-9]{64}$/i.test(serverSeed)) {
-         return res.status(400).json({ error: 'Invalid Server Seed format.' });
-    }
-     if (typeof clientSeed !== 'string' || clientSeed.length === 0) {
-         return res.status(400).json({ error: 'Invalid Client Seed format.' });
-     }
+app.post('/api/verify',
+    sensitiveActionLimiter, // Apply stricter rate limit
+    [ // Validation Rules
+        body('roundId')
+            .notEmpty().withMessage('Round ID is required.')
+            .isInt({ min: 1 }).toInt().withMessage('Round ID must be a positive integer.'),
+        body('serverSeed')
+            .trim()
+            .notEmpty().withMessage('Server Seed is required.')
+            .isHexadecimal().withMessage('Server Seed must be a hexadecimal string.')
+            .isLength({ min: 64, max: 64 }).withMessage('Server Seed must be 64 characters long.'),
+        body('clientSeed')
+             .trim()
+             .notEmpty().withMessage('Client Seed is required.')
+             // Allow reasonable length hex or alphanumeric for client seed flexibility, adjust if needed
+             .isString()
+             .isLength({ min: 1, max: 128 }).withMessage('Client Seed length invalid.')
+             // Optionally restrict characters: .matches(/^[a-f0-9]+$/i).withMessage('Client Seed must be hexadecimal.')
+    ],
+    handleValidationErrors, // Handle validation results
+    async (req, res) => {
+        // Use validated data
+        const { roundId, serverSeed, clientSeed } = req.body;
+
+        try {
+            const round = await Round.findOne({ roundId: roundId, status: 'completed' })
+                .populate('participants.user', 'username') // Need participants for ticket calculation
+                .populate('winner', 'username')
+                .lean(); // Use lean
+
+            if (!round) {
+                return res.status(404).json({ error: `Completed round #${roundId} not found.` });
+            }
+
+            // 1. Verify Server Seed Hash
+            const providedHash = crypto.createHash('sha256').update(serverSeed).digest('hex');
+            if (providedHash !== round.serverSeedHash) {
+                return res.json({
+                    verified: false,
+                    reason: 'Server Seed Hash mismatch.',
+                    expectedHash: round.serverSeedHash,
+                    providedSeed: serverSeed,
+                    calculatedHash: providedHash
+                });
+            }
+
+            // 2. Verify Seeds Match Record (if round data contains them - sometimes verification happens before reveal)
+             if (round.serverSeed && round.clientSeed) {
+                if (serverSeed !== round.serverSeed || clientSeed !== round.clientSeed) {
+                    return res.json({
+                        verified: false,
+                        reason: 'Provided seeds do not match the official round seeds.',
+                        expectedServerSeed: round.serverSeed,
+                        expectedClientSeed: round.clientSeed,
+                        providedServerSeed: serverSeed,
+                        providedClientSeed: clientSeed
+                    });
+                }
+             } else {
+                 // Cannot fully verify against stored seeds yet, maybe round just finished
+                 console.warn(`Verification attempt for round ${roundId} before seeds fully recorded?`);
+             }
 
 
-    try {
-        const round = await Round.findOne({ roundId: roundId, status: 'completed' })
-            .populate('participants.user', 'username') // Need participants for ticket calculation
-            .populate('winner', 'username')
-            .lean(); // Use lean
+            // 3. Recalculate Winning Ticket using the *provided* seeds
+            const combinedString = serverSeed + clientSeed;
+            const calculatedProvableHash = crypto.createHash('sha256').update(combinedString).digest('hex');
 
-        if (!round) {
-            return res.status(404).json({ error: `Completed round #${roundId} not found.` });
-        }
+            // Verify calculated provable hash matches stored provable hash (if available)
+            if (round.provableHash && calculatedProvableHash !== round.provableHash) {
+                 return res.json({
+                      verified: false,
+                      reason: 'Calculated Provable Hash does not match recorded hash.',
+                      expectedProvableHash: round.provableHash,
+                      calculatedProvableHash: calculatedProvableHash,
+                      combinedString: combinedString
+                 });
+            }
 
-        // 1. Verify Server Seed Hash
-        const providedHash = crypto.createHash('sha256').update(serverSeed).digest('hex');
-        if (providedHash !== round.serverSeedHash) {
-            return res.json({
-                verified: false,
-                reason: 'Server Seed Hash mismatch.',
-                serverSeedHash: round.serverSeedHash // Show expected hash
+            const decimalFromHash = parseInt(calculatedProvableHash.substring(0, 8), 16);
+            const totalTickets = round.participants?.reduce((sum, p) => sum + (p?.tickets || 0), 0) ?? 0;
+
+            if (totalTickets <= 0) {
+                return res.json({ verified: false, reason: 'Round had zero total tickets.' });
+            }
+
+            const calculatedWinningTicket = decimalFromHash % totalTickets;
+
+            // 4. Compare Calculated vs Actual Ticket
+            if (calculatedWinningTicket !== round.winningTicket) {
+                return res.json({
+                    verified: false,
+                    reason: 'Calculated winning ticket does not match the recorded winning ticket.',
+                    calculatedTicket: calculatedWinningTicket,
+                    actualWinningTicket: round.winningTicket,
+                    provableHashUsed: calculatedProvableHash, // Show hash used for calculation
+                    totalTickets: totalTickets
+                });
+            }
+
+            // If all checks pass
+            res.json({
+                verified: true,
+                roundId: round.roundId,
+                serverSeed: serverSeed, // Echo back provided seed
+                serverSeedHash: round.serverSeedHash,
+                clientSeed: clientSeed, // Echo back provided seed
+                combinedString: combinedString, // Show combined string
+                finalHash: calculatedProvableHash, // Show calculated hash
+                winningTicket: calculatedWinningTicket,
+                totalTickets: totalTickets,
+                totalValue: round.totalValue, // Post-tax value
+                winnerUsername: round.winner?.username || 'N/A'
             });
+
+        } catch (err) {
+            console.error(`Error verifying round ${roundId}:`, err);
+            res.status(500).json({ error: 'Server error during verification.' });
         }
-
-        // 2. Verify Seeds Match Record
-        if (serverSeed !== round.serverSeed || clientSeed !== round.clientSeed) {
-            return res.json({
-                verified: false,
-                reason: 'Provided seeds do not match the official round seeds.',
-                serverSeed: round.serverSeed, // Show expected seeds
-                clientSeed: round.clientSeed
-            });
-        }
-
-
-        // 3. Recalculate Winning Ticket
-        const combinedString = serverSeed + clientSeed;
-        const calculatedProvableHash = crypto.createHash('sha256').update(combinedString).digest('hex');
-        const decimalFromHash = parseInt(calculatedProvableHash.substring(0, 8), 16);
-        const totalTickets = round.participants?.reduce((sum, p) => sum + (p?.tickets || 0), 0) ?? 0;
-
-        if (totalTickets <= 0) {
-            return res.json({ verified: false, reason: 'Round had zero total tickets.' });
-        }
-
-        const calculatedWinningTicket = decimalFromHash % totalTickets;
-
-        // 4. Compare Calculated vs Actual Ticket
-        if (calculatedWinningTicket !== round.winningTicket) {
-            return res.json({
-                verified: false,
-                reason: 'Calculated winning ticket does not match the recorded winning ticket.',
-                calculatedTicket: calculatedWinningTicket,
-                actualWinningTicket: round.winningTicket,
-                provableHash: calculatedProvableHash, // Show hash used for calculation
-                totalTickets: totalTickets
-            });
-        }
-
-        // If all checks pass
-        res.json({
-            verified: true,
-            roundId: round.roundId,
-            serverSeed: serverSeed,
-            serverSeedHash: round.serverSeedHash,
-            clientSeed: clientSeed,
-            combinedString: combinedString, // Show combined string
-            finalHash: calculatedProvableHash, // Show calculated hash
-            winningTicket: calculatedWinningTicket,
-            totalTickets: totalTickets,
-            totalValue: round.totalValue, // Post-tax value
-            winnerUsername: round.winner?.username || 'N/A'
-        });
-
-    } catch (err) {
-        console.error(`Error verifying round ${roundId}:`, err);
-        res.status(500).json({ error: 'Server error during verification.' });
-    }
 });
 
 
@@ -1405,31 +1623,33 @@ io.on('connection', (socket) => {
     // Send current round data on connection request
     socket.on('requestRoundData', async () => { // Listen for explicit request
         try {
+            // Re-use the logic from the API endpoint to get consistent data
             let roundToSend = null;
             if (currentRound?._id) {
-                // Fetch fresh data for the current round ID in memory
                 roundToSend = await Round.findById(currentRound._id)
-                    .populate('participants.user', 'steamId username avatar')
-                    .populate('items') // Populate full item details
-                    .populate('winner', 'steamId username avatar') // Populate winner details
-                    .lean();
-                 if (roundToSend) {
-                     currentRound = roundToSend; // Update in-memory version
-                 }
-            }
-            // Fallback: If no round in memory or fetch failed, check DB for any active round
-            if (!roundToSend) {
-                roundToSend = await Round.findOne({ status: 'active' })
                     .populate('participants.user', 'steamId username avatar')
                     .populate('items')
                     .populate('winner', 'steamId username avatar')
                     .lean();
-                if (roundToSend && !currentRound) { // Restore to memory if found and memory is empty
+                 if (!roundToSend) { currentRound = null; } // Clear if not found
+                 else { currentRound = roundToSend; } // Update memory
+            }
+            if (!roundToSend) {
+                roundToSend = await Round.findOne({ status: 'active' })
+                    .sort({ startTime: -1 })
+                    .populate('participants.user', 'steamId username avatar')
+                    .populate('items')
+                    .populate('winner', 'steamId username avatar')
+                    .lean();
+                if (roundToSend && !currentRound) {
                     currentRound = roundToSend;
-                    console.log(`Restored active round ${currentRound.roundId} from DB on client request.`);
-                    if (currentRound.participants?.length > 0 && currentRound.endTime && new Date(currentRound.endTime) > Date.now()) {
-                         startRoundTimer(true); // Resume timer if needed
-                    }
+                    console.log(`Restored active round ${currentRound.roundId} from DB on client socket request.`);
+                    // Check and potentially start timer
+                     if (currentRound.participants?.length > 0 && currentRound.endTime && new Date(currentRound.endTime) > Date.now() && !roundTimer) {
+                          startRoundTimer(true);
+                     } else if (currentRound.participants?.length > 0 && !currentRound.endTime && !roundTimer) {
+                          startRoundTimer(false);
+                     }
                 }
             }
 
@@ -1479,21 +1699,6 @@ async function startApp() {
         if (!isBotConfigured) { console.log("INFO: Steam Bot not configured. Trade features disabled."); }
         else if (!isBotReady) { console.log("INFO: Waiting for Steam Bot login attempt..."); }
         else { console.log("INFO: Steam Bot is ready."); } // If already ready at listen time
-
-        // Test Pricing API on startup (optional, can be removed)
-        /*
-        setTimeout(async () => {
-           console.log("Testing Pricing API on startup (uses cache/fallback)...");
-           const testItem1 = "Assault Rifle";
-           const testItem2 = "NonExistentItem123";
-           try {
-                const price1 = getItemPrice(testItem1);
-                console.log(`TEST: Price for '${testItem1}': ${price1 !== undefined ? `$${price1.toFixed(2)}` : 'Error/Not Found'}`);
-                const price2 = getItemPrice(testItem2); // Should trigger fallback
-                console.log(`TEST: Price for '${testItem2}': ${price2 !== undefined ? `$${price2.toFixed(2)}` : 'Error/Not Found'}`);
-           } catch(e) { console.error("Error testing price API:", e); }
-        }, 2000);
-        */
     });
 }
 
@@ -1527,6 +1732,7 @@ process.on('SIGINT', gracefulShutdown); // Handle Ctrl+C
 // Basic Error Handling Middleware (Place LAST)
 app.use((err, req, res, next) => {
     console.error("Unhandled Error:", err.stack || err);
+    // Avoid sending stack trace in production
     const status = err.status || 500;
     const message = process.env.NODE_ENV === 'production' ? 'An unexpected server error occurred.' : (err.message || 'Unknown server error.');
     // Avoid sending sensitive error details in production
