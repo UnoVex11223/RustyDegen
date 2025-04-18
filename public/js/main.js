@@ -100,7 +100,11 @@ const DOMElements = {
         winnerChance: document.getElementById('winnerChance'), // Displays winner's chance
         returnToJackpotButton: document.getElementById('returnToJackpot'), // Optional button
         confettiContainer: document.getElementById('confettiContainer'), // For confetti effect
-        spinSound: document.getElementById('spinSound'), // <audio> element
+    },
+    // Audio Elements (Moved Here)
+    audio: {
+         spinSound: document.getElementById('spinSound'),
+         depositSound: document.getElementById('depositSound')
     },
     // Provably Fair Elements
     provablyFair: {
@@ -591,7 +595,7 @@ function addSelectedItemElement(item) {
         <div class="item-name" title="${item.name}">${item.name}</div>
         <div class="item-value">$${item.price.toFixed(2)}</div>
         <button class="remove-item-btn" title="Remove ${item.name}" data-asset-id="${item.assetId}" aria-label="Remove ${item.name}">&times;</button>
-     `; // Added a remove button
+       `; // Added a remove button
 
     // Add listener to remove button
     selectedElement.querySelector('.remove-item-btn')?.addEventListener('click', (e) => {
@@ -910,6 +914,16 @@ function displayLatestDeposit(data) {
         console.error("Invalid data passed to displayLatestDeposit:", data);
         return;
     }
+
+    // --->>> Play Deposit Sound <<<---
+    const depositSfx = DOMElements.audio.depositSound; // Get the deposit sound element
+    if (depositSfx) {
+        depositSfx.volume = 0.6; // Adjust volume (0.0 to 1.0) as needed
+        depositSfx.currentTime = 0; // Ensure it plays from the start if triggered quickly
+        depositSfx.play().catch(e => console.error("Error playing deposit sound:", e));
+    }
+    // --->>> End Deposit Sound <<<---
+
 
     const username = data.username || 'Unknown User';
     const avatar = data.avatar || '/img/default-avatar.png';
@@ -1448,33 +1462,23 @@ function startRouletteAnimation(winnerData) {
 
     console.log('Starting animation for Winner:', winnerParticipantData.user.username);
 
-    const sound = DOMElements.roulette.spinSound;
+    // --->>> CHANGED: Simplified Spin Sound Start <<<---
+    const sound = DOMElements.audio.spinSound; // Use updated reference
     if (sound) {
-        sound.volume = 0;
-        sound.currentTime = 0;
-        sound.playbackRate = 1.0;
-        sound.play().catch(e => console.error('Error playing spin sound:', e));
+        sound.volume = 0.7; // Set desired volume directly (e.g., 70%)
+        sound.currentTime = 0; // Reset playback to the beginning
+        sound.playbackRate = 1.0; // Ensure normal speed
+        sound.play().catch(e => console.error('Error playing spin sound:', e)); // Attempt to play
 
-        let currentVolume = 0;
-        const fadeInInterval = 50;
-        const targetVolume = 0.7;
-        const fadeDuration = 500;
-        const volumeStep = targetVolume / (fadeDuration / fadeInInterval);
+        // <<< REMOVED: Fade-in interval logic was here >>>
+        // if (window.soundFadeInInterval) clearInterval(window.soundFadeInInterval);
+        // window.soundFadeInInterval = setInterval(() => { ... });
 
-        if (window.soundFadeInInterval) clearInterval(window.soundFadeInInterval);
-        window.soundFadeInInterval = setInterval(() => {
-            currentVolume += volumeStep;
-            if (currentVolume >= targetVolume) {
-                sound.volume = targetVolume;
-                clearInterval(window.soundFadeInInterval);
-                window.soundFadeInInterval = null;
-            } else {
-                sound.volume = currentVolume;
-            }
-        }, fadeInInterval);
     } else {
         console.warn("Spin sound element not found.");
     }
+    // --->>> END OF CHANGED SECTION <<<---
+
 
     setTimeout(() => {
         const track = DOMElements.roulette.rouletteTrack;
@@ -1540,7 +1544,7 @@ function startRouletteAnimation(winnerData) {
 function handleRouletteSpinAnimation(winningElement, winner) {
     const track = DOMElements.roulette.rouletteTrack;
     const container = DOMElements.roulette.inlineRouletteContainer?.querySelector('.roulette-container');
-    const sound = DOMElements.roulette.spinSound;
+    const sound = DOMElements.audio.spinSound; // Use updated reference
 
     if (!winningElement || !track || !container) {
         console.error("Missing elements for roulette animation loop.");
@@ -1596,6 +1600,14 @@ function handleRouletteSpinAnimation(winningElement, winner) {
 
         track.style.transform = `translateX(${currentPosition}px)`;
 
+        // <<< REMOVED: Logic that changed sound.playbackRate based on speed >>>
+        /*
+        const deltaTime = (timestamp - lastTimestamp) / 1000;
+        if (deltaTime > 0.001 && sound && !sound.paused) {
+           // ... code to calculate targetRate and set sound.playbackRate ...
+        }
+        */
+
         lastPosition = currentPosition;
         lastTimestamp = timestamp;
 
@@ -1614,7 +1626,7 @@ function handleRouletteSpinAnimation(winningElement, winner) {
 
 
 /**
- * Called when the roulette animation physically stops. Applies winner highlighting and fades sound.
+ * Called when the roulette animation physically stops. Applies winner highlighting.
  * @param {HTMLElement} winningElement - The element that won.
  * @param {object} winner - Winner data { user, value, percentage }.
  */
@@ -1625,7 +1637,7 @@ function finalizeSpin(winningElement, winner) {
         return;
     }
 
-    console.log("Finalizing spin: Applying highlight, fading sound.");
+    console.log("Finalizing spin: Applying highlight."); // <<< CHANGED: Removed "fading sound" part
     const userColor = getUserColor(winner.user.id);
 
     winningElement.classList.add('winner-highlight');
@@ -1646,26 +1658,13 @@ function finalizeSpin(winningElement, winner) {
         }`;
     document.head.appendChild(style);
 
-    const sound = DOMElements.roulette.spinSound;
-    if (sound && !sound.paused) {
-        if (window.soundFadeOutInterval) clearInterval(window.soundFadeOutInterval);
-
-        let currentVolume = sound.volume;
-        const fadeOutInterval = 75;
-        const fadeDuration = 1000;
-        const volumeStep = currentVolume / (fadeDuration / fadeOutInterval);
-
-        window.soundFadeOutInterval = setInterval(() => {
-            currentVolume -= volumeStep;
-            if (currentVolume <= 0) {
-                sound.pause(); sound.volume = 1.0; sound.playbackRate = 1.0;
-                clearInterval(window.soundFadeOutInterval); window.soundFadeOutInterval = null;
-                console.log("Sound faded out.");
-            } else {
-                sound.volume = currentVolume;
-            }
-        }, fadeOutInterval);
-    }
+    // <<< REMOVED: Sound Fade-Out Logic >>>
+    // const sound = DOMElements.audio.spinSound;
+    // if (sound && !sound.paused) {
+    //     if (window.soundFadeOutInterval) clearInterval(window.soundFadeOutInterval);
+    //     // ... setInterval to decrease volume and pause ...
+    // }
+    // <<< END OF REMOVED SECTION >>>
 
     setTimeout(() => {
         handleSpinEnd(winningElement, winner);
@@ -1814,6 +1813,7 @@ function resetToJackpotView() {
 
     if (animationFrameId) cancelAnimationFrame(animationFrameId); animationFrameId = null;
     if (window.soundFadeInInterval) clearInterval(window.soundFadeInInterval); window.soundFadeInInterval = null;
+    // <<< CHANGED: Clear fade out just in case, though it shouldn't be running >>>
     if (window.soundFadeOutInterval) clearInterval(window.soundFadeOutInterval); window.soundFadeOutInterval = null;
     if (window.typeDepositInterval) clearInterval(window.typeDepositInterval); window.typeDepositInterval = null;
     if (window.typeChanceInterval) clearInterval(window.typeChanceInterval); window.typeChanceInterval = null;
@@ -1832,10 +1832,17 @@ function resetToJackpotView() {
         return;
     }
 
-    const sound = DOMElements.roulette.spinSound;
-    if (sound && !sound.paused) {
-        sound.pause(); sound.currentTime = 0; sound.volume = 1.0; sound.playbackRate = 1.0;
+    const sound = DOMElements.audio.spinSound; // Use updated reference
+    // <<< CHANGED: Sound handling during reset >>>
+    if (sound) {
+        // <<< REMOVED: sound.pause() >>>
+        // <<< REMOVED: sound.currentTime = 0; >>>
+        // Reset properties for the *next* spin, but don't affect current playback
+        sound.volume = 1.0;
+        sound.playbackRate = 1.0;
     }
+    // <<< END OF CHANGED SECTION >>>
+
 
     rouletteContainer.style.transition = 'opacity 0.5s ease';
     rouletteContainer.style.opacity = '0';
@@ -2443,9 +2450,9 @@ function setupSocketConnection() {
     // --- Notification Event (Generic) ---
     socket.on('notification', (data) => {
        console.log('Notification event received:', data);
-        // Check if notification is targeted to the current user or global
+       // Check if notification is targeted to the current user or global
        if (!data.userId || (currentUser && data.userId === currentUser._id)) {
-           showNotification(data.message || 'Received notification from server.', data.type || 'info', data.duration || 4000);
+          showNotification(data.message || 'Received notification from server.', data.type || 'info', data.duration || 4000);
        }
    });
 
