@@ -53,7 +53,7 @@ const MAX_PARTICIPANTS = 20;
 const MAX_ITEMS_PER_POT = 200;
 const TAX_MIN_PERCENT = 5;
 const TAX_MAX_PERCENT = 10;
-const MIN_POT_FOR_TAX = 100; // Pot must be at least $100 for tax
+//const MIN_POT_FOR_TAX = 100; // Pot must be at least $100 for tax
 
 // Initialize Express app
 const app = express();
