@@ -12,7 +12,9 @@
     </head>
 <body>
 
-    <div id="notification-bar" class="notification-bar"></div> <div class="modal age-verification" id="ageVerificationModal">
+    <div id="notification-bar" class="notification-bar"></div>
+
+    <div class="modal age-verification" id="ageVerificationModal">
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Age Verification</h2>
@@ -64,7 +66,7 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-primary btn-deposit" id="depositButton" disabled>Deposit Items</button>
-                 </div>
+            </div>
         </div>
     </div>
 
@@ -77,7 +79,8 @@
             <div class="modal-body">
                 <p>Please enter your Steam Trade URL to complete deposits and receive winnings:</p>
                 <div class="form-group">
-                    <label for="tradeUrlInput">Steam Trade URL</label> <input type="url" id="tradeUrlInput" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...">
+                    <label for="tradeUrlInput">Steam Trade URL</label>
+                    <input type="url" id="tradeUrlInput" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...">
                 </div>
                 <p class="help-text">
                     You can find your trade URL in your
@@ -86,6 +89,42 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-primary" id="saveTradeUrl">Save Trade URL</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal profile-modal" id="profileModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Your Profile</h2>
+                <button class="close-btn" id="closeProfileModal" aria-label="Close profile modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="profile-info">
+                     <img src="/img/default-avatar.png" alt="User Avatar" class="profile-avatar-large" id="profileModalAvatar">
+                     <h3 id="profileModalUsername">Username</h3>
+                </div>
+                <div class="profile-stats">
+                    <h4>Statistics</h4>
+                    <p>Total Deposited: <span id="profileTotalDeposited">$?.??</span></p>
+                    <p>Total Won: <span id="profileTotalWon">$?.??</span></p>
+                    </div>
+                 <div class="profile-trade-url">
+                    <h4>Steam Trade URL</h4>
+                    <p>Ensure your Trade URL is up-to-date to receive winnings.</p>
+                    <div class="form-group">
+                        <label for="profileTradeUrlInput" class="sr-only">Steam Trade URL</label>
+                        <input type="url" id="profileTradeUrlInput" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...">
+                    </div>
+                     <button class="btn btn-primary" id="saveProfileTradeUrl">Save Trade URL</button>
+                    <p class="help-text">
+                        Find your URL in
+                        <a href="https://steamcommunity.com/my/tradeoffers/privacy" target="_blank" rel="noopener noreferrer">Steam Trade Privacy Settings</a>.
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                 <button class="btn btn-secondary" id="profileLogoutButton">Logout</button>
             </div>
         </div>
     </div>
@@ -105,13 +144,12 @@
 
             <nav class="main-nav header-center">
                 <ul>
-                    <li><a href="#" class="active jackpot-pulse jackpot-tab">JACKPOT</a></li>
-                    </ul>
+                    <li><a href="#" class="active jackpot-pulse jackpot-tab" id="home-link">JACKPOT</a></li> </ul>
             </nav>
 
             <div class="header-right">
                 <nav class="secondary-nav">
-                     <ul>
+                    <ul>
                         <li><a href="#" id="faq-link">FAQ</a></li>
                         <li><a href="#" id="fair-link">PROVABLY FAIR</a></li>
                     </ul>
@@ -120,11 +158,20 @@
                     <button class="btn btn-login" id="loginButton">
                         <i class="fa-brands fa-steam"></i> Sign in
                     </button>
-                    <div class="user-profile" id="userProfile" style="display: none;">
-                        <img src="/img/default-avatar.png" alt="User Avatar" class="user-avatar" id="userAvatar">
-                        <span class="user-name" id="userName">PlayerName</span>
-                        </div>
-                </div>
+                    <div class="user-profile-container" id="userProfileContainer" style="display: none; position: relative;">
+                         <div class="user-profile" id="userProfile" style="cursor: pointer;"> <img src="/img/default-avatar.png" alt="User Avatar" class="user-avatar" id="userAvatar">
+                            <span class="user-name" id="userName">PlayerName</span>
+                             <i class="fas fa-caret-down dropdown-arrow"></i> </div>
+                         <div class="dropdown-menu" id="profileDropdown" style="display: none;">
+                             <button class="dropdown-item" id="dropdownProfileButton">
+                                <i class="fas fa-user icon"></i> Profile
+                             </button>
+                             <button class="dropdown-item" id="dropdownLogoutButton">
+                                <i class="fas fa-sign-out-alt icon"></i> Logout
+                             </button>
+                         </div>
+                         </div>
+                     </div>
             </div>
         </div>
     </header>
@@ -145,12 +192,14 @@
                                     <circle class="timer-foreground" cx="50" cy="50" r="42"></circle>
                                 </svg>
                                 <div class="timer-text">
-                                    <span id="timerValue">--</span> </div>
+                                    <span id="timerValue">--</span>
+                                </div>
                             </div>
                             <span class="timer-label">SECONDS LEFT</span>
                         </div>
                         <div class="jackpot-stats">
-                            <span class="stat-value" id="participantCount">0/--</span> <span class="stat-label">PARTICIPANTS</span>
+                            <span class="stat-value" id="participantCount">0/--</span>
+                            <span class="stat-label">PARTICIPANTS</span>
                         </div>
 
                         <div class="inline-roulette" id="inlineRoulette" style="display: none;">
@@ -159,7 +208,7 @@
                                     </div>
                                 <div class="roulette-ticker">
                                     <div class="ticker-line"></div>
-                                    </div>
+                                </div>
                             </div>
                             <div class="winner-info" id="winnerInfo" style="display: none;">
                                 <div class="winner-header">
@@ -188,7 +237,8 @@
 
                     <div class="current-items-section" id="currentItems">
                         <h3 class="section-title">CURRENT ITEMS IN POT</h3>
-                        <div class="items-container" id="itemsContainer"> <div class="empty-pot-message" id="emptyPotMessage" style="display: block;">
+                        <div class="items-container" id="itemsContainer">
+                            <div class="empty-pot-message" id="emptyPotMessage" style="display: block;">
                                 <p>No items in the current pot. Be the first to deposit!</p>
                             </div>
                             </div>
@@ -221,7 +271,7 @@
             </section>
 
             <section id="roadmap-page" style="display: none;">
-                 <div class="content-card">
+                <div class="content-card">
                     <h1>Roadmap</h1>
                     <div style="margin-bottom: 30px;">
                         <p style="margin-bottom: 20px;">As a solo developer passionate about both Rust and web development, I have ambitious plans for the future of Rusty Degen. This roadmap outlines the features and improvements I'm currently working on and planning to implement in the coming months.</p>
@@ -319,7 +369,7 @@
             </section>
 
             <section id="fair-page" style="display: none;">
-                 <div class="content-card">
+                <div class="content-card">
                     <h1>Provably Fair System</h1>
                     <div class="fair-section">
                         <div class="fair-title">How Our System Works</div>
@@ -333,7 +383,8 @@
                             <ol>
                                 <li><strong>Seed Generation:</strong> Before a round begins, the server generates a long, random, secret string called the "Server Seed".</li>
                                 <li><strong>Hashing:</strong> The server calculates the SHA256 hash of this Server Seed. This hash (e.g., <code>a1b2c3d4...</code>) is publicly displayed for the round *before* any deposits are accepted. Hashing is a one-way process; you cannot get the original Seed from the Hash, but you can later verify that a revealed Seed produces the same Hash.</li>
-                                <li><strong>Deposits & Tickets:</strong> Players deposit items. Each $0.01 of value deposited grants the player 1 ticket. Tickets are numbered sequentially (e.g., Player A deposits $1.00 gets tickets 1-100, Player B deposits $2.50 gets tickets 101-350).</li> <li><strong>Round End & Client Seed:</strong> When the round ends (timer reaches zero or max items), a "Client Seed" is determined. This is typically a combination of public data like the Round ID and the end timestamp, making it unique and unpredictable beforehand.</li>
+                                <li><strong>Deposits & Tickets:</strong> Players deposit items. Each $0.01 of value deposited grants the player 1 ticket. Tickets are numbered sequentially (e.g., Player A deposits $1.00 gets tickets 1-100, Player B deposits $2.50 gets tickets 101-350).</li>
+                                <li><strong>Round End & Client Seed:</strong> When the round ends (timer reaches zero or max items), a "Client Seed" is determined. This is typically a combination of public data like the Round ID and the end timestamp, making it unique and unpredictable beforehand.</li>
                                 <li><strong>Combined Hashing:</strong> The server combines the secret Server Seed and the public Client Seed (usually as <code>ServerSeed-ClientSeed</code>). It then calculates the SHA256 hash of this combined string.</li>
                                 <li><strong>Winning Ticket Calculation:</strong> The resulting hash is converted into a number. We use the modulo operator (%) with the total number of tickets in the round to determine the winning ticket number. (e.g., <code>WinningTicket = HashedNumber % TotalTickets + 1</code> to get 1-based ticket).</li>
                                 <li><strong>Winner Selection:</strong> The player whose ticket range includes the calculated Winning Ticket number wins the pot.</li>
@@ -366,29 +417,33 @@
                         </div>
                     </div>
                     <div class="fair-section">
-                         <div class="fair-title">Round History</div>
-                         <div class="fair-content">
-                             <div class="table-container"> <table class="history-table"> <thead>
-                                         <tr>
-                                             <th>Round ID</th>
-                                             <th>Date</th>
-                                             <th>Pot Value</th>
-                                             <th>Winner</th>
-                                             <th>Actions</th>
-                                         </tr>
-                                     </thead>
-                                     <tbody id="rounds-table-body">
-                                         <tr><td colspan="5" class="loading-message">Loading round history...</td></tr>
-                                     </tbody>
-                                 </table>
-                             </div>
-                             <div class="pagination-container" id="rounds-pagination"> </div>
-                         </div>
-                     </div>
+                        <div class="fair-title">Round History</div>
+                        <div class="fair-content">
+                            <div class="table-container">
+                                <table class="history-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Round ID</th>
+                                            <th>Date</th>
+                                            <th>Pot Value</th>
+                                            <th>Winner</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rounds-table-body">
+                                        <tr><td colspan="5" class="loading-message">Loading round history...</td></tr>
+                                        </tbody>
+                                </table>
+                            </div>
+                            <div class="pagination-container" id="rounds-pagination">
+                                </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
-        </div> </main>
+        </div>
+    </main>
     <footer class="main-footer">
         <div class="container">
             <p>&copy; 2025 Rusty Degen. All rights reserved. Gambling can be addictive. Play responsibly. 18+</p>
