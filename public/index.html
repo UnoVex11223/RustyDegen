@@ -65,8 +65,8 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-primary btn-deposit" id="depositButton" disabled>Deposit Items</button>
-            </div>
+                 <button class="btn btn-primary btn-deposit" id="depositButton" disabled>Deposit Items</button>
+                </div>
         </div>
     </div>
 
@@ -93,49 +93,13 @@
         </div>
     </div>
 
-    <div class="modal profile-modal" id="profileModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Your Profile</h2>
-                <button class="close-btn" id="closeProfileModal" aria-label="Close profile modal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="profile-info">
-                     <img src="/img/default-avatar.png" alt="User Avatar" class="profile-avatar-large" id="profileModalAvatar">
-                     <h3 id="profileModalUsername">Username</h3>
-                </div>
-                <div class="profile-stats">
-                    <h4>Statistics</h4>
-                    <p>Total Deposited: <span id="profileTotalDeposited">$?.??</span></p>
-                    <p>Total Won: <span id="profileTotalWon">$?.??</span></p>
-                    </div>
-                 <div class="profile-trade-url">
-                    <h4>Steam Trade URL</h4>
-                    <p>Ensure your Trade URL is up-to-date to receive winnings.</p>
-                    <div class="form-group">
-                        <label for="profileTradeUrlInput" class="sr-only">Steam Trade URL</label>
-                        <input type="url" id="profileTradeUrlInput" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...">
-                    </div>
-                     <button class="btn btn-primary" id="saveProfileTradeUrl">Save Trade URL</button>
-                    <p class="help-text">
-                        Find your URL in
-                        <a href="https://steamcommunity.com/my/tradeoffers/privacy" target="_blank" rel="noopener noreferrer">Steam Trade Privacy Settings</a>.
-                    </p>
-                </div>
-            </div>
-            <div class="modal-footer">
-                 <button class="btn btn-secondary" id="profileLogoutButton">Logout</button>
-            </div>
-        </div>
-    </div>
     <header class="main-header">
         <div class="container header-container">
             <div class="header-left">
                 <div class="logo">
                     <h1>RUSTY<span>DEGEN</span></h1>
                 </div>
-                <nav class="primary-nav">
-                    <ul>
+                <nav class="primary-nav"> <ul>
                         <li><a href="#" id="about-link">ABOUT</a></li>
                         <li><a href="#" id="roadmap-link">ROADMAP</a></li>
                     </ul>
@@ -144,12 +108,12 @@
 
             <nav class="main-nav header-center">
                 <ul>
-                    <li><a href="#" class="active jackpot-pulse jackpot-tab" id="home-link">JACKPOT</a></li> </ul>
+                    <li><a href="#" class="active jackpot-tab" id="home-link">JACKPOT</a></li>
+                    </ul>
             </nav>
 
             <div class="header-right">
-                <nav class="secondary-nav">
-                    <ul>
+                <nav class="secondary-nav"> <ul>
                         <li><a href="#" id="faq-link">FAQ</a></li>
                         <li><a href="#" id="fair-link">PROVABLY FAIR</a></li>
                     </ul>
@@ -158,23 +122,15 @@
                     <button class="btn btn-login" id="loginButton">
                         <i class="fa-brands fa-steam"></i> Sign in
                     </button>
-                    <div class="user-profile-container" id="userProfileContainer" style="display: none; position: relative;">
-                         <div class="user-profile" id="userProfile" style="cursor: pointer;"> <img src="/img/default-avatar.png" alt="User Avatar" class="user-avatar" id="userAvatar">
-                            <span class="user-name" id="userName">PlayerName</span>
-                             <i class="fas fa-caret-down dropdown-arrow"></i> </div>
-                         <div class="dropdown-menu" id="profileDropdown" style="display: none;">
-                             <button class="dropdown-item" id="dropdownProfileButton">
-                                <i class="fas fa-user icon"></i> Profile
-                             </button>
-                             <button class="dropdown-item" id="dropdownLogoutButton">
-                                <i class="fas fa-sign-out-alt icon"></i> Logout
-                             </button>
-                         </div>
-                         </div>
-                     </div>
+                    <div class="user-profile" id="userProfile" style="display: none;">
+                        <img src="/img/default-avatar.png" alt="User Avatar" class="user-avatar" id="userAvatar">
+                        <span class="user-name" id="userName">PlayerName</span>
+                        </div>
+                </div>
             </div>
         </div>
     </header>
+
     <main class="main-content">
         <div class="container">
 
@@ -228,7 +184,7 @@
                     </div>
 
                     <div class="deposit-button-container" id="depositBtnContainer">
-                        <button class="btn btn-deposit" id="showDepositModal" title="Log in to deposit" disabled>DEPOSIT SKINS</button>
+                         <button class="btn btn-deposit" id="showDepositModal" title="Log in to deposit" disabled>DEPOSIT SKINS</button>
                         <div class="test-buttons-container">
                             <button class="btn btn-secondary" id="testSpinButton">Test Roulette</button>
                             <button class="btn btn-secondary" id="testDepositButton">Test Deposit</button>
@@ -241,7 +197,7 @@
                             <div class="empty-pot-message" id="emptyPotMessage" style="display: block;">
                                 <p>No items in the current pot. Be the first to deposit!</p>
                             </div>
-                            </div>
+                             </div>
                     </div>
                 </div>
             </section>
@@ -347,7 +303,7 @@
                             <p>The winner is selected using a provably fair system based on cryptographic hashing. Each player gets virtual 'tickets' proportional to the value of their deposited skins (e.g., 1 ticket per $0.01). A random winning ticket number is generated using a combination of a secret server seed (hashed and shown before the round starts) and a public client seed (based on round info). See our "Provably Fair" page for a detailed explanation and verification tool.</p>
                         </div>
                     </div>
-                    <div class="faq-item">
+                     <div class="faq-item">
                         <div class="faq-question">How do I receive my winnings?</div>
                         <div class="faq-answer">
                             <p>If you win the jackpot, all items in the pot (minus the site fee) will be automatically sent to you via a Steam trade offer from one of our site bots. Ensure your Trade URL is correctly set in your profile (you'll be prompted if it's missing) and that your Steam inventory privacy is set to "Public" so we can send the offer.</p>
@@ -432,7 +388,7 @@
                                     </thead>
                                     <tbody id="rounds-table-body">
                                         <tr><td colspan="5" class="loading-message">Loading round history...</td></tr>
-                                        </tbody>
+                                    </tbody>
                                 </table>
                             </div>
                             <div class="pagination-container" id="rounds-pagination">
@@ -442,13 +398,14 @@
                 </div>
             </section>
 
-        </div>
-    </main>
+        </div> </main>
+
     <footer class="main-footer">
         <div class="container">
             <p>&copy; 2025 Rusty Degen. All rights reserved. Gambling can be addictive. Play responsibly. 18+</p>
-            </div>
+             </div>
     </footer>
+
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/main.js"></script>
 
