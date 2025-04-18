@@ -53,7 +53,7 @@ const MAX_PARTICIPANTS = 20;
 const MAX_ITEMS_PER_POT = 200;
 const TAX_MIN_PERCENT = 5;
 const TAX_MAX_PERCENT = 10;
-//const MIN_POT_FOR_TAX = 100; // Pot must be at least $100 for tax
+const MIN_POT_FOR_TAX = parseFloat(process.env.MIN_POT_FOR_TAX) || 100; // Pot must be at least $100 for tax (example)
 
 // Initialize Express app
 const app = express();
@@ -71,7 +71,7 @@ app.use(session({
     saveUninitialized: false,
     // Consider using a persistent session store (like connect-mongo) for production
     cookie: {
-        maxAge: 3600000, // 1 hour session cookie
+        maxAge: 3600000 * 24, // 24 hour session cookie (increased duration)
         secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
         httpOnly: true // Helps prevent XSS
     }
@@ -156,7 +156,7 @@ const roundSchema = new mongoose.Schema({
     participants: [{
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
         itemsValue: { type: Number, required: true, default: 0 }, // Total value deposited by user in this round
-        tickets: { type: Number, required: true, default: 0 }     // Tickets based on value
+        tickets: { type: Number, required: true, default: 0 }    // Tickets based on value
     }],
     winner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true }, // Added index
     winningTicket: { type: Number },
@@ -255,7 +255,7 @@ let isRolling = false; // Flag to prevent actions during winner selection/payout
 
 // --- Deposit Security Token Store ---
 // TODO: For production robustness, replace this in-memory store with a persistent one
-//       like Redis or a MongoDB collection with a TTL index.
+//        like Redis or a MongoDB collection with a TTL index.
 const depositTokens = {}; // Simple in-memory store { token: { userId, expiry } }
 
 function generateDepositToken(userId) {
@@ -546,7 +546,7 @@ async function endRound() {
         // Fetch the full round data for processing, ensuring it's the one we intended to end
         const round = await Round.findById(roundMongoId)
             .populate('participants.user') // Populate user data
-            .populate('items');             // Populate item data
+            .populate('items');              // Populate item data
 
         if (!round) throw new Error(`Round ${roundIdToEnd} data missing after status update.`);
         if (round.status !== 'rolling') { // Double check status after fetch
@@ -575,6 +575,7 @@ async function endRound() {
         let taxAmount = 0;
         let taxedItemsInfo = [];
 
+        // Check if pot meets minimum for tax
         if (finalTotalValue >= MIN_POT_FOR_TAX) {
             // console.log(`Round ${round.roundId} eligible for tax (Value: $${finalTotalValue.toFixed(2)} >= $${MIN_POT_FOR_TAX})`); // Less verbose
             const targetTaxValue = finalTotalValue * (TAX_MIN_PERCENT / 100);
@@ -616,7 +617,7 @@ async function endRound() {
                 // console.log(`Tax Skipped for Round ${round.roundId}: Could not select items within ${TAX_MIN_PERCENT}-${TAX_MAX_PERCENT}% range.`); // Less verbose
             }
         } else {
-            // console.log(`Tax Skipped for Round ${round.roundId}: Pot value $${finalTotalValue.toFixed(2)} is below minimum $${MIN_POT_FOR_TAX}`); // Less verbose
+             // console.log(`Tax Skipped for Round ${round.roundId}: Pot value $${finalTotalValue.toFixed(2)} is below minimum $${MIN_POT_FOR_TAX}`); // Less verbose
         }
 
 
@@ -714,7 +715,7 @@ async function sendWinningTradeOffer(round, winner, itemsToSend) {
     if (!itemsToSend || itemsToSend.length === 0) {
         console.log(`PAYOUT_INFO: No items to send for round ${round.roundId} (possibly all taxed or error).`);
         if (round.taxAmount > 0 && round.totalValue <= 0) { // If tax took everything
-            io.emit('notification', { type: 'info', userId: winner._id.toString(), message: `Round ${round.roundId} winnings ($${round.taxAmount.toFixed(2)}) were processed as site tax.` });
+             io.emit('notification', { type: 'info', userId: winner._id.toString(), message: `Round ${round.roundId} winnings ($${round.taxAmount.toFixed(2)}) were processed as site tax.` });
         }
         return;
     }
@@ -778,16 +779,22 @@ app.get('/auth/steam/return',
         // Successful authentication, redirect home.
         res.redirect('/');
     });
+
 // Logout Route
 app.post('/logout', (req, res, next) => {
     req.logout(err => {
-        if (err) { return next(err); }
+        if (err) {
+            console.error("Error during logout:", err);
+            return next(err); // Pass error to error handler
+        }
         req.session.destroy(err => {
             if (err) {
                 console.error("Error destroying session during logout:", err);
-                return res.status(500).json({ error: 'Logout failed.' });
+                // Send error response even if session destruction fails
+                return res.status(500).json({ success: false, error: 'Logout failed during session destruction.' });
             }
             res.clearCookie('connect.sid'); // Use the default session cookie name
+            console.log(`User logged out (Session ID: ${req.sessionID})`); // Log session ID before it's gone
             res.json({ success: true });
         });
     });
@@ -800,7 +807,7 @@ function ensureAuthenticated(req, res, next) {
     res.status(401).json({ error: 'Not authenticated' });
 }
 
-// GET User Profile
+// GET User Profile (Basic Info)
 app.get('/api/user', ensureAuthenticated, (req, res) => {
     // Return only necessary, non-sensitive user data
     const { _id, steamId, username, avatar, tradeUrl, balance, createdAt } = req.user;
@@ -822,7 +829,7 @@ app.post('/api/user/tradeurl', ensureAuthenticated, async (req, res) => {
              throw new Error('Invalid URL structure.');
         }
         if (!url.searchParams.get('partner') || !url.searchParams.get('token')) {
-            throw new Error('Trade URL must include partner and token parameters.');
+             throw new Error('Trade URL must include partner and token parameters.');
         }
     } catch (e) {
         return res.status(400).json({ error: e.message || 'Invalid Trade URL format.' });
@@ -906,6 +913,39 @@ app.get('/api/inventory', ensureAuthenticated, async (req, res) => {
     }
 });
 
+// *** NEW *** GET User Statistics (Deposit/Win Totals)
+app.get('/api/user/stats', ensureAuthenticated, async (req, res) => {
+    try {
+        const userId = req.user._id;
+
+        // --- Calculate Total Deposited Value ---
+        const depositPipeline = [
+            { $match: { owner: userId } }, // Filter items owned by the user
+            { $group: { _id: null, totalDeposited: { $sum: "$price" } } } // Sum the price of these items
+        ];
+        const depositResult = await Item.aggregate(depositPipeline);
+        const totalDeposited = depositResult.length > 0 ? depositResult[0].totalDeposited : 0;
+
+        // --- Calculate Total Won Value ---
+        const winPipeline = [
+            { $match: { winner: userId, status: 'completed' } }, // Filter completed rounds won by the user
+            // Sum the final (post-tax) totalValue of these rounds
+            { $group: { _id: null, totalWon: { $sum: "$totalValue" } } }
+        ];
+        const winResult = await Round.aggregate(winPipeline);
+        const totalWon = winResult.length > 0 ? winResult[0].totalWon : 0;
+
+        res.json({
+            success: true,
+            totalDeposited: totalDeposited,
+            totalWon: totalWon
+        });
+
+    } catch (err) {
+        console.error(`Error fetching stats for user ${req.user._id}:`, err);
+        res.status(500).json({ success: false, error: 'Server error fetching user statistics.' });
+    }
+});
 
 // POST Initiate Deposit Request (Client gets token and bot URL)
 app.post('/api/deposit/initiate', ensureAuthenticated, (req, res) => {
@@ -1056,9 +1096,9 @@ if (isBotConfigured && manager) { // Ensure manager is initialized
                     // Find the participant index or prepare new participant data
                     const participantUpdate = {
                          $inc: { // Use $inc for atomic increments
-                              totalValue: depositTotalValue,
-                              'participants.$.itemsValue': depositTotalValue,
-                              'participants.$.tickets': Math.max(1, Math.floor(depositTotalValue / TICKET_VALUE_RATIO))
+                             totalValue: depositTotalValue,
+                             'participants.$.itemsValue': depositTotalValue,
+                             'participants.$.tickets': Math.max(1, Math.floor(depositTotalValue / TICKET_VALUE_RATIO))
                          },
                          $push: { items: { $each: createdItemIds } } // Push new item IDs
                     };
@@ -1071,23 +1111,23 @@ if (isBotConfigured && manager) { // Ensure manager is initialized
                     if (updateResult.modifiedCount === 0) {
                          // Participant not found or round status changed, try adding as new participant
                          const newParticipantData = {
-                              user: user._id,
-                              itemsValue: depositTotalValue,
-                              tickets: Math.max(1, Math.floor(depositTotalValue / TICKET_VALUE_RATIO))
+                             user: user._id,
+                             itemsValue: depositTotalValue,
+                             tickets: Math.max(1, Math.floor(depositTotalValue / TICKET_VALUE_RATIO))
                          };
                          const addParticipantUpdate = {
-                              $inc: { totalValue: depositTotalValue },
-                              $push: {
-                                   items: { $each: createdItemIds },
-                                   participants: newParticipantData
-                              }
+                             $inc: { totalValue: depositTotalValue },
+                             $push: {
+                                 items: { $each: createdItemIds },
+                                 participants: newParticipantData
+                             }
                          };
                          // Add condition to ensure round is still active
                          const addResult = await Round.updateOne({ _id: currentRound._id, status: 'active' }, addParticipantUpdate);
 
                          if (addResult.modifiedCount === 0) {
-                              // CRITICAL: Round status changed *during* DB update attempts after accepting trade.
-                              throw new Error(`Round status changed after accepting offer ${offer.id}. DB update failed.`);
+                             // CRITICAL: Round status changed *during* DB update attempts after accepting trade.
+                             throw new Error(`Round status changed after accepting offer ${offer.id}. DB update failed.`);
                          }
                          // Fetch the round again after adding participant
                          latestRound = await Round.findById(currentRound._id).populate('participants.user', 'steamId username avatar').lean();
@@ -1114,7 +1154,7 @@ if (isBotConfigured && manager) { // Ensure manager is initialized
                         avatar: user.avatar,
                         itemsValue: updatedParticipantData?.itemsValue || 0, // Send cumulative value
                         tickets: updatedParticipantData?.tickets || 0,     // Send cumulative tickets
-                        totalValue: latestRound.totalValue,                // Send new round total value
+                        totalValue: latestRound.totalValue,             // Send new round total value
                         depositedItems: itemsToProcess.map(i => ({ // Send details of *this* deposit
                             assetId: i.assetId, name: i.name, image: i.image, price: i.price
                         }))
@@ -1199,14 +1239,14 @@ function formatRoundForClient(round) {
     let winnerDetails = null;
     if (round.status === 'completed' && round.winner && typeof round.winner === 'object') { // Check if winner is populated
          winnerDetails = {
-              id: round.winner._id,
-              steamId: round.winner.steamId,
-              username: round.winner.username,
-              avatar: round.winner.avatar
+             id: round.winner._id,
+             steamId: round.winner.steamId,
+             username: round.winner.username,
+             avatar: round.winner.avatar
          };
     } else if (round.status === 'completed' && round.winner) {
-        // If winner is just an ID, send the ID
-        winnerDetails = { id: round.winner };
+         // If winner is just an ID, send the ID
+         winnerDetails = { id: round.winner };
     }
 
 
@@ -1253,11 +1293,11 @@ app.get('/api/round/current', async (req, res) => {
                 .populate('winner', 'steamId username avatar')
                 .lean();
             if (roundToFormat && !currentRound) { // Restore to memory if found and memory is empty
-                currentRound = roundToFormat;
-                console.log(`Restored active round ${currentRound.roundId} from DB via API.`);
-                if (currentRound.participants?.length > 0 && currentRound.endTime && new Date(currentRound.endTime) > Date.now()) {
-                    startRoundTimer(true); // Resume timer if needed
-                }
+                 currentRound = roundToFormat;
+                 console.log(`Restored active round ${currentRound.roundId} from DB via API.`);
+                 if (currentRound.participants?.length > 0 && currentRound.endTime && new Date(currentRound.endTime) > Date.now()) {
+                     startRoundTimer(true); // Resume timer if needed
+                 }
             }
         }
 
@@ -1414,7 +1454,7 @@ io.on('connection', (socket) => {
                     .populate('winner', 'steamId username avatar') // Populate winner details
                     .lean();
                  if (roundToSend) {
-                     currentRound = roundToSend; // Update in-memory version
+                      currentRound = roundToSend; // Update in-memory version
                  }
             }
             // Fallback: If no round in memory or fetch failed, check DB for any active round
@@ -1425,11 +1465,11 @@ io.on('connection', (socket) => {
                     .populate('winner', 'steamId username avatar')
                     .lean();
                 if (roundToSend && !currentRound) { // Restore to memory if found and memory is empty
-                    currentRound = roundToSend;
-                    console.log(`Restored active round ${currentRound.roundId} from DB on client request.`);
-                    if (currentRound.participants?.length > 0 && currentRound.endTime && new Date(currentRound.endTime) > Date.now()) {
-                         startRoundTimer(true); // Resume timer if needed
-                    }
+                     currentRound = roundToSend;
+                     console.log(`Restored active round ${currentRound.roundId} from DB on client request.`);
+                     if (currentRound.participants?.length > 0 && currentRound.endTime && new Date(currentRound.endTime) > Date.now()) {
+                          startRoundTimer(true); // Resume timer if needed
+                     }
                 }
             }
 
@@ -1461,10 +1501,10 @@ async function startApp() {
     // Wrap in try...catch to prevent interval crashing the app
     setInterval(async () => {
          try {
-              await refreshPriceCache();
+             await refreshPriceCache();
          } catch (refreshErr) {
-              console.error("Error during scheduled price cache refresh:", refreshErr);
-              // Continue running, rely on existing cache/fallbacks
+             console.error("Error during scheduled price cache refresh:", refreshErr);
+             // Continue running, rely on existing cache/fallbacks
          }
     }, PRICE_REFRESH_INTERVAL_MS);
     console.log(`Scheduled price cache refresh every ${PRICE_REFRESH_INTERVAL_MS / 60000} minutes.`);
@@ -1479,21 +1519,6 @@ async function startApp() {
         if (!isBotConfigured) { console.log("INFO: Steam Bot not configured. Trade features disabled."); }
         else if (!isBotReady) { console.log("INFO: Waiting for Steam Bot login attempt..."); }
         else { console.log("INFO: Steam Bot is ready."); } // If already ready at listen time
-
-        // Test Pricing API on startup (optional, can be removed)
-        /*
-        setTimeout(async () => {
-           console.log("Testing Pricing API on startup (uses cache/fallback)...");
-           const testItem1 = "Assault Rifle";
-           const testItem2 = "NonExistentItem123";
-           try {
-                const price1 = getItemPrice(testItem1);
-                console.log(`TEST: Price for '${testItem1}': ${price1 !== undefined ? `$${price1.toFixed(2)}` : 'Error/Not Found'}`);
-                const price2 = getItemPrice(testItem2); // Should trigger fallback
-                console.log(`TEST: Price for '${testItem2}': ${price2 !== undefined ? `$${price2.toFixed(2)}` : 'Error/Not Found'}`);
-           } catch(e) { console.error("Error testing price API:", e); }
-        }, 2000);
-        */
     });
 }
 
