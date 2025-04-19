@@ -266,7 +266,7 @@ if (isBotConfigured) {
                     console.log('TradeOfferManager cookies set.');
                     community.setCookies(cookies); // Also set cookies for general community actions
                     // community.gamesPlayed(process.env.SITE_NAME || 'RustyDegen'); // Commented out: Often cosmetic
-                    community.setPersona(SteamCommunity.EPersonaState.Online); // Set online status
+                    community.setPersona(1); // Set online status (1 = Online) // Set online status
                     isBotReady = true;
                     console.log("Steam Bot is ready.");
                     // Now that the bot is ready, attempt to create the first round if none exists
