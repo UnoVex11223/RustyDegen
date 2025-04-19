@@ -14,8 +14,9 @@ const bodyParser = require('body-parser');
 const SteamTotp = require('steam-totp');
 const axios = require('axios');
 const NodeCache = require('node-cache');
-const rateLimit = require('express-rate-limit'); // <-- Added for rate limiting
-const { body, query, param, validationResult } = require('express-validator'); // <-- Added for input validation
+const helmet = require('helmet'); // <-- Added helmet import
+const rateLimit = require('express-rate-limit');
+const { body, query, param, validationResult } = require('express-validator');
 require('dotenv').config();
 
 // --- Configuration Constants ---
@@ -67,32 +68,34 @@ const io = socketIo(server, { cors: { origin: process.env.SITE_URL || "*", metho
 // Trust proxy if behind one (like Heroku, Nginx) - important for rate limiting IPs correctly
 app.set('trust proxy', 1); // Adjust the number based on your proxy depth
 
-// Rate Limiting Setup
+app.use(helmet()); // <-- Sets secure HTTP headers
+
+// Rate Limiting Setup (Using your existing definitions)
 const generalApiLimiter = rateLimit({
-	windowMs: 15 * 60 * 1000, // 15 minutes
-	max: 100, // Limit each IP to 100 requests per windowMs
-	message: 'Too many requests from this IP, please try again after 15 minutes',
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again after 15 minutes',
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-	legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
 const authLimiter = rateLimit({
-	windowMs: 10 * 60 * 1000, // 10 minutes
-	max: 10, // Limit each IP to 10 login attempts per windowMs
-	message: 'Too many login attempts from this IP, please try again after 10 minutes',
+    windowMs: 10 * 60 * 1000, // 10 minutes
+    max: 10, // Limit each IP to 10 login attempts per windowMs
+    message: 'Too many login attempts from this IP, please try again after 10 minutes',
     standardHeaders: true,
-	legacyHeaders: false,
+    legacyHeaders: false,
 });
 
 const sensitiveActionLimiter = rateLimit({
-	windowMs: 5 * 60 * 1000, // 5 minutes
-	max: 20, // Limit each IP to 20 sensitive actions per windowMs
-	message: 'Too many requests for this action, please try again after 5 minutes',
+    windowMs: 5 * 60 * 1000, // 5 minutes
+    max: 20, // Limit each IP to 20 sensitive actions per windowMs
+    message: 'Too many requests for this action, please try again after 5 minutes',
     standardHeaders: true,
-	legacyHeaders: false,
+    legacyHeaders: false,
 });
 
-// Apply general limiter to API routes
+// Apply general limiter to API routes (Already present in your code)
 app.use('/api/', generalApiLimiter);
 
 // Configure middleware
@@ -199,7 +202,7 @@ const roundSchema = new mongoose.Schema({
     participants: [{
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
         itemsValue: { type: Number, required: true, default: 0, min: 0 }, // Total value deposited by user in this round
-        tickets: { type: Number, required: true, default: 0, min: 0 }     // Tickets based on value
+        tickets: { type: Number, required: true, default: 0, min: 0 }    // Tickets based on value
     }],
     winner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true }, // Added index
     winningTicket: { type: Number, min: 0 },
@@ -298,7 +301,7 @@ let isRolling = false; // Flag to prevent actions during winner selection/payout
 
 // --- Deposit Security Token Store ---
 // TODO: For production robustness, replace this in-memory store with a persistent one
-//       like Redis or a MongoDB collection with a TTL index.
+//        like Redis or a MongoDB collection with a TTL index.
 const depositTokens = {}; // Simple in-memory store { token: { userId, expiry } }
 
 function generateDepositToken(userId) {
@@ -432,6 +435,46 @@ function getItemPrice(marketHashName) {
         return getFallbackPrice(marketHashName); // Use fallback if not in cache
     }
 }
+
+// --- Sanitizer Function ---
+// Function to sanitize data before passing to vulnerable packages
+function sanitizeObjectProperties(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+
+    // Create a new object to avoid modifying the original
+    const sanitized = Array.isArray(obj) ? [] : {};
+
+    for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {
+            const value = obj[key];
+
+            // Recursively sanitize nested objects
+            if (value && typeof value === 'object') {
+                sanitized[key] = sanitizeObjectProperties(value);
+            }
+            // Sanitize strings to prevent prototype pollution
+            else if (typeof value === 'string') {
+                // Avoid "__proto__", "constructor", etc.
+                if (key === '__proto__' || key === 'constructor' ||
+                    key === 'prototype' || key === 'hasOwnProperty') {
+                    continue;
+                }
+                sanitized[key] = value;
+            }
+            // Keep other primitives as-is
+            else {
+                sanitized[key] = value;
+            }
+        }
+    }
+
+    return sanitized;
+}
+// Use this sanitizer before passing data to steamcommunity or steam-tradeoffer-manager
+// Example:
+// const sanitizedData = sanitizeObjectProperties(inputData);
+// steamCommunityInstance.someMethod(sanitizedData);
+
 
 // --- Core Game Logic ---
 
@@ -807,7 +850,7 @@ async function sendWinningTradeOffer(round, winner, itemsToSend) {
                          console.error(`PAYOUT_ERROR: Trade offer failed for round ${round.roundId}: Winner's inventory might be full or private. Offer ID: ${offer.id}`);
                          io.emit('notification', { type: 'error', userId: winner._id.toString(), message: 'Could not send winnings. Ensure your Steam inventory is public and not full.' });
                     } else {
-                        console.error(`PAYOUT_ERROR: Error sending trade offer ${offer.id} for round ${round.roundId}: EResult ${err.eresult} - ${err.message}`);
+                         console.error(`PAYOUT_ERROR: Error sending trade offer ${offer.id} for round ${round.roundId}: EResult ${err.eresult} - ${err.message}`);
                     }
                     // TODO: Implement retry logic or manual intervention queue for failed payouts
                     return reject(err); // Reject the promise on error
@@ -869,7 +912,7 @@ function ensureAuthenticated(req, res, next) {
     res.status(401).json({ error: 'Not authenticated' });
 }
 
-// Helper Middleware for validation results
+// Helper Middleware for validation results (Already present in your code)
 const handleValidationErrors = (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -885,20 +928,20 @@ app.get('/api/user', ensureAuthenticated, (req, res) => {
     res.json({ _id, steamId, username, avatar, tradeUrl, balance, createdAt });
 });
 
-// POST Update Trade URL
+// POST Update Trade URL (Updated with validation)
 app.post('/api/user/tradeurl',
     sensitiveActionLimiter, // Apply stricter rate limit
     ensureAuthenticated,
-    [ // Validation Rules
+    [ // Validation Rules from provided snippet
         body('tradeUrl')
             .trim()
             .notEmpty().withMessage('Trade URL cannot be empty.')
-            .isURL({ require_protocol: true, protocols: ['https'] }).withMessage('Trade URL must be a valid HTTPS URL.')
+            .isURL({ require_protocol: true, protocols: ['https'] }).withMessage('Trade URL must be a valid HTTPS URL.') // Modified from snippet for better validation
             .matches(/^https:\/\/steamcommunity\.com\/tradeoffer\/new\/\?partner=\d+&token=[a-zA-Z0-9_-]+$/)
             .withMessage('Invalid Steam Trade URL format. Must include partner and token.')
     ],
     handleValidationErrors, // Handle validation results
-    async (req, res) => {
+    async (req, res) => { // This is the original handler logic
         // Validation passed if we reach here
         const { tradeUrl } = req.body;
 
@@ -1169,16 +1212,16 @@ if (isBotConfigured && manager) { // Ensure manager is initialized
                       console.log(`Offer #${offer.id} accepted but requires confirmation (pending). Accepting confirmation...`);
                       try {
                           await new Promise((resolve, reject) => {
-                              community.acceptConfirmationForObject(process.env.STEAM_IDENTITY_SECRET, offer.id, (confErr) => {
-                                  if (confErr) {
-                                      console.error(`Offer #${offer.id}: Error accepting confirmation:`, confErr);
-                                      // TODO: Handle this state - items might be stuck until manually confirmed/canceled. Notify admin.
-                                      reject(confErr);
-                                  } else {
-                                      console.log(`Offer #${offer.id}: Confirmation accepted.`);
-                                      resolve();
-                                  }
-                              });
+                               community.acceptConfirmationForObject(process.env.STEAM_IDENTITY_SECRET, offer.id, (confErr) => {
+                                   if (confErr) {
+                                       console.error(`Offer #${offer.id}: Error accepting confirmation:`, confErr);
+                                       // TODO: Handle this state - items might be stuck until manually confirmed/canceled. Notify admin.
+                                       reject(confErr);
+                                   } else {
+                                       console.log(`Offer #${offer.id}: Confirmation accepted.`);
+                                       resolve();
+                                   }
+                               });
                           });
                           // If confirmation is successful, proceed to update DB
                       } catch (confAcceptErr) {
@@ -1203,9 +1246,9 @@ if (isBotConfigured && manager) { // Ensure manager is initialized
                     // Find the participant index or prepare new participant data
                     const participantUpdate = {
                          $inc: { // Use $inc for atomic increments
-                             totalValue: depositTotalValue,
-                             'participants.$.itemsValue': depositTotalValue,
-                             'participants.$.tickets': Math.max(1, Math.floor(depositTotalValue / TICKET_VALUE_RATIO))
+                              totalValue: depositTotalValue,
+                              'participants.$.itemsValue': depositTotalValue,
+                              'participants.$.tickets': Math.max(1, Math.floor(depositTotalValue / TICKET_VALUE_RATIO))
                          },
                          $push: { items: { $each: createdItemIds } } // Push new item IDs
                     };
@@ -1225,37 +1268,37 @@ if (isBotConfigured && manager) { // Ensure manager is initialized
                          const addParticipantUpdate = {
                               $inc: { totalValue: depositTotalValue },
                               $push: {
-                                   items: { $each: createdItemIds },
-                                   participants: newParticipantData
+                                  items: { $each: createdItemIds },
+                                  participants: newParticipantData
                               }
                          };
                          // Add condition to ensure round is still active and participant doesn't exist yet
                          const addFilter = {
-                            _id: currentRound._id,
-                            status: 'active',
-                            'participants.user': { $ne: user._id } // Ensure user is not already in the array
+                             _id: currentRound._id,
+                             status: 'active',
+                             'participants.user': { $ne: user._id } // Ensure user is not already in the array
                          };
                          const addResult = await Round.updateOne(addFilter, addParticipantUpdate);
 
                          if (addResult.modifiedCount === 0) {
-                             // Check if the participant was added *just now* by another process (race condition)
-                             const checkAgain = await Round.findOne({ _id: currentRound._id, 'participants.user': user._id }).lean();
-                             if (!checkAgain) {
-                                // CRITICAL: Round status changed or participant add failed unexpectedly.
-                                // This could happen if the participant limit was hit between the initial check and now.
-                                throw new Error(`Round status/limits changed after accepting offer ${offer.id}. DB update failed.`);
-                             }
-                             // If checkAgain finds the user, it means another process added them, fetch latest data
-                             latestRound = await Round.findById(currentRound._id).populate('participants.user', 'steamId username avatar').lean();
+                              // Check if the participant was added *just now* by another process (race condition)
+                              const checkAgain = await Round.findOne({ _id: currentRound._id, 'participants.user': user._id }).lean();
+                              if (!checkAgain) {
+                                  // CRITICAL: Round status changed or participant add failed unexpectedly.
+                                  // This could happen if the participant limit was hit between the initial check and now.
+                                  throw new Error(`Round status/limits changed after accepting offer ${offer.id}. DB update failed.`);
+                              }
+                              // If checkAgain finds the user, it means another process added them, fetch latest data
+                              latestRound = await Round.findById(currentRound._id).populate('participants.user', 'steamId username avatar').lean();
 
                          } else {
-                             // Fetch the round again after adding participant
-                            latestRound = await Round.findById(currentRound._id).populate('participants.user', 'steamId username avatar').lean();
+                              // Fetch the round again after adding participant
+                              latestRound = await Round.findById(currentRound._id).populate('participants.user', 'steamId username avatar').lean();
                          }
 
                     } else {
                          // Fetch the round again after updating existing participant
-                        latestRound = await Round.findById(currentRound._id).populate('participants.user', 'steamId username avatar').lean();
+                         latestRound = await Round.findById(currentRound._id).populate('participants.user', 'steamId username avatar').lean();
                     }
 
 
@@ -1274,8 +1317,8 @@ if (isBotConfigured && manager) { // Ensure manager is initialized
                         username: user.username,
                         avatar: user.avatar,
                         itemsValue: updatedParticipantData?.itemsValue || 0, // Send cumulative value
-                        tickets: updatedParticipantData?.tickets || 0,     // Send cumulative tickets
-                        totalValue: latestRound.totalValue,              // Send new round total value
+                        tickets: updatedParticipantData?.tickets || 0,       // Send cumulative tickets
+                        totalValue: latestRound.totalValue,                 // Send new round total value
                         depositedItems: itemsToProcess.map(i => ({ // Send details of *this* deposit
                             assetId: i.assetId, name: i.name, image: i.image, price: i.price
                         }))
@@ -1542,16 +1585,16 @@ app.post('/api/verify',
 
             // 2. Verify Seeds Match Record (if round data contains them - sometimes verification happens before reveal)
              if (round.serverSeed && round.clientSeed) {
-                if (serverSeed !== round.serverSeed || clientSeed !== round.clientSeed) {
-                    return res.json({
-                        verified: false,
-                        reason: 'Provided seeds do not match the official round seeds.',
-                        expectedServerSeed: round.serverSeed,
-                        expectedClientSeed: round.clientSeed,
-                        providedServerSeed: serverSeed,
-                        providedClientSeed: clientSeed
-                    });
-                }
+                 if (serverSeed !== round.serverSeed || clientSeed !== round.clientSeed) {
+                     return res.json({
+                         verified: false,
+                         reason: 'Provided seeds do not match the official round seeds.',
+                         expectedServerSeed: round.serverSeed,
+                         expectedClientSeed: round.clientSeed,
+                         providedServerSeed: serverSeed,
+                         providedClientSeed: clientSeed
+                     });
+                 }
              } else {
                  // Cannot fully verify against stored seeds yet, maybe round just finished
                  console.warn(`Verification attempt for round ${roundId} before seeds fully recorded?`);
@@ -1565,11 +1608,11 @@ app.post('/api/verify',
             // Verify calculated provable hash matches stored provable hash (if available)
             if (round.provableHash && calculatedProvableHash !== round.provableHash) {
                  return res.json({
-                      verified: false,
-                      reason: 'Calculated Provable Hash does not match recorded hash.',
-                      expectedProvableHash: round.provableHash,
-                      calculatedProvableHash: calculatedProvableHash,
-                      combinedString: combinedString
+                     verified: false,
+                     reason: 'Calculated Provable Hash does not match recorded hash.',
+                     expectedProvableHash: round.provableHash,
+                     calculatedProvableHash: calculatedProvableHash,
+                     combinedString: combinedString
                  });
             }
 
@@ -1646,9 +1689,9 @@ io.on('connection', (socket) => {
                     console.log(`Restored active round ${currentRound.roundId} from DB on client socket request.`);
                     // Check and potentially start timer
                      if (currentRound.participants?.length > 0 && currentRound.endTime && new Date(currentRound.endTime) > Date.now() && !roundTimer) {
-                          startRoundTimer(true);
+                           startRoundTimer(true);
                      } else if (currentRound.participants?.length > 0 && !currentRound.endTime && !roundTimer) {
-                          startRoundTimer(false);
+                           startRoundTimer(false);
                      }
                 }
             }
@@ -1681,10 +1724,10 @@ async function startApp() {
     // Wrap in try...catch to prevent interval crashing the app
     setInterval(async () => {
          try {
-              await refreshPriceCache();
+               await refreshPriceCache();
          } catch (refreshErr) {
-              console.error("Error during scheduled price cache refresh:", refreshErr);
-              // Continue running, rely on existing cache/fallbacks
+               console.error("Error during scheduled price cache refresh:", refreshErr);
+               // Continue running, rely on existing cache/fallbacks
          }
     }, PRICE_REFRESH_INTERVAL_MS);
     console.log(`Scheduled price cache refresh every ${PRICE_REFRESH_INTERVAL_MS / 60000} minutes.`);
