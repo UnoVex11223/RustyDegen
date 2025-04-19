@@ -57,7 +57,6 @@ const DOMElements = {
         userProfile: document.getElementById('userProfile'), // The clickable profile part
         userAvatar: document.getElementById('userAvatar'),
         userName: document.getElementById('userName'),
-        // MODIFIED: Added dropdown elements
         userDropdownMenu: document.getElementById('userDropdownMenu'), // The dropdown menu itself
         logoutButton: document.getElementById('logoutButton'), // The logout button inside the dropdown
     },
@@ -415,7 +414,6 @@ async function checkLoginStatus() {
 /**
  * Updates the user profile section (avatar, name) or shows the login button.
  */
-// MODIFIED: Added handling for dropdown visibility on logout
 function updateUserUI() {
     // ADD userDropdownMenu to the destructuring assignment:
     const { loginButton, userProfile, userAvatar, userName, userDropdownMenu } = DOMElements.user;
@@ -432,12 +430,10 @@ function updateUserUI() {
         userProfile.style.display = 'none'; // Hide profile block
         userProfile.setAttribute('aria-disabled', 'true'); // Disable profile button
 
-        // ADD THESE LINES inside the else block:
         // Ensure dropdown is hidden if user logs out while it's open
         if (userDropdownMenu) userDropdownMenu.style.display = 'none';
         userProfile.setAttribute('aria-expanded', 'false');
         userProfile.classList.remove('open');
-        // END OF ADDED LINES
     }
 }
 
@@ -613,7 +609,6 @@ function addSelectedItemElement(item) {
         updateTotalValue();
     });
 
-
     container.appendChild(selectedElement);
 }
 
@@ -732,7 +727,7 @@ async function submitDeposit() {
         // Example (requires adding a placeholder element):
         // const tradeLinkPlaceholder = document.getElementById('tradeLinkPlaceholder');
         // if (tradeLinkPlaceholder) {
-        //    tradeLinkPlaceholder.innerHTML = `<p>Open trade: <a href="${fullBotTradeUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-small">Steam Trade</a><br>Message: <code>${depositToken}</code></p>`;
+        //     tradeLinkPlaceholder.innerHTML = `<p>Open trade: <a href="${fullBotTradeUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-small">Steam Trade</a><br>Message: <code>${depositToken}</code></p>`;
         // }
 
 
@@ -1323,10 +1318,10 @@ function createRouletteItems() {
 
         // Use the simpler structure if defined in CSS (adjust HTML generation)
          itemElement.innerHTML = `
-            <img class="roulette-avatar" src="${avatar}" alt="${username}" loading="lazy"
-                 onerror="this.onerror=null; this.src='/img/default-avatar.png';" style="border-color:${userColor}">
-            <div class="roulette-name" title="${username}">${username}</div>
-            <div class="roulette-percentage" style="color:${userColor}">${percentage}%</div>`;
+             <img class="roulette-avatar" src="${avatar}" alt="${username}" loading="lazy"
+                  onerror="this.onerror=null; this.src='/img/default-avatar.png';" style="border-color:${userColor}">
+             <div class="roulette-name" title="${username}">${username}</div>
+             <div class="roulette-percentage" style="color:${userColor}">${percentage}%</div>`;
 
         fragment.appendChild(itemElement);
     }
@@ -1462,23 +1457,16 @@ function startRouletteAnimation(winnerData) {
 
     console.log('Starting animation for Winner:', winnerParticipantData.user.username);
 
-    // --->>> CHANGED: Simplified Spin Sound Start <<<---
+    // Start Spin Sound
     const sound = DOMElements.audio.spinSound; // Use updated reference
     if (sound) {
         sound.volume = 0.7; // Set desired volume directly (e.g., 70%)
         sound.currentTime = 0; // Reset playback to the beginning
         sound.playbackRate = 1.0; // Ensure normal speed
         sound.play().catch(e => console.error('Error playing spin sound:', e)); // Attempt to play
-
-        // <<< REMOVED: Fade-in interval logic was here >>>
-        // if (window.soundFadeInInterval) clearInterval(window.soundFadeInInterval);
-        // window.soundFadeInInterval = setInterval(() => { ... });
-
     } else {
         console.warn("Spin sound element not found.");
     }
-    // --->>> END OF CHANGED SECTION <<<---
-
 
     setTimeout(() => {
         const track = DOMElements.roulette.rouletteTrack;
@@ -1600,14 +1588,6 @@ function handleRouletteSpinAnimation(winningElement, winner) {
 
         track.style.transform = `translateX(${currentPosition}px)`;
 
-        // <<< REMOVED: Logic that changed sound.playbackRate based on speed >>>
-        /*
-        const deltaTime = (timestamp - lastTimestamp) / 1000;
-        if (deltaTime > 0.001 && sound && !sound.paused) {
-           // ... code to calculate targetRate and set sound.playbackRate ...
-        }
-        */
-
         lastPosition = currentPosition;
         lastTimestamp = timestamp;
 
@@ -1637,7 +1617,7 @@ function finalizeSpin(winningElement, winner) {
         return;
     }
 
-    console.log("Finalizing spin: Applying highlight."); // <<< CHANGED: Removed "fading sound" part
+    console.log("Finalizing spin: Applying highlight.");
     const userColor = getUserColor(winner.user.id);
 
     winningElement.classList.add('winner-highlight');
@@ -1657,14 +1637,6 @@ function finalizeSpin(winningElement, winner) {
             50% { box-shadow: 0 0 25px var(--winner-color), 0 0 10px var(--winner-color); transform: scale(1.1); }
         }`;
     document.head.appendChild(style);
-
-    // <<< REMOVED: Sound Fade-Out Logic >>>
-    // const sound = DOMElements.audio.spinSound;
-    // if (sound && !sound.paused) {
-    //     if (window.soundFadeOutInterval) clearInterval(window.soundFadeOutInterval);
-    //     // ... setInterval to decrease volume and pause ...
-    // }
-    // <<< END OF REMOVED SECTION >>>
 
     setTimeout(() => {
         handleSpinEnd(winningElement, winner);
@@ -1813,7 +1785,6 @@ function resetToJackpotView() {
 
     if (animationFrameId) cancelAnimationFrame(animationFrameId); animationFrameId = null;
     if (window.soundFadeInInterval) clearInterval(window.soundFadeInInterval); window.soundFadeInInterval = null;
-    // <<< CHANGED: Clear fade out just in case, though it shouldn't be running >>>
     if (window.soundFadeOutInterval) clearInterval(window.soundFadeOutInterval); window.soundFadeOutInterval = null;
     if (window.typeDepositInterval) clearInterval(window.typeDepositInterval); window.typeDepositInterval = null;
     if (window.typeChanceInterval) clearInterval(window.typeChanceInterval); window.typeChanceInterval = null;
@@ -1833,16 +1804,11 @@ function resetToJackpotView() {
     }
 
     const sound = DOMElements.audio.spinSound; // Use updated reference
-    // <<< CHANGED: Sound handling during reset >>>
     if (sound) {
-        // <<< REMOVED: sound.pause() >>>
-        // <<< REMOVED: sound.currentTime = 0; >>>
         // Reset properties for the *next* spin, but don't affect current playback
         sound.volume = 1.0;
         sound.playbackRate = 1.0;
     }
-    // <<< END OF CHANGED SECTION >>>
-
 
     rouletteContainer.style.transition = 'opacity 0.5s ease';
     rouletteContainer.style.opacity = '0';
@@ -2401,7 +2367,7 @@ function setupSocketConnection() {
                  if (roundTimer) clearInterval(roundTimer); roundTimer = null;
                  updateTimerUI(CONFIG.ROUND_DURATION);
                  updateDepositButtonState();
-             }
+            }
         } else if (currentRound.status === 'pending') {
             console.log("Received pending round state.");
             initiateNewRoundVisualReset();
@@ -2434,7 +2400,7 @@ function setupSocketConnection() {
             });
         } else if (container && data.participants?.length === 0) {
              // Ensure empty message is shown if data confirms no participants
-              initiateNewRoundVisualReset();
+             initiateNewRoundVisualReset();
         }
 
     });
@@ -2452,7 +2418,7 @@ function setupSocketConnection() {
        console.log('Notification event received:', data);
        // Check if notification is targeted to the current user or global
        if (!data.userId || (currentUser && data.userId === currentUser._id)) {
-          showNotification(data.message || 'Received notification from server.', data.type || 'info', data.duration || 4000);
+         showNotification(data.message || 'Received notification from server.', data.type || 'info', data.duration || 4000);
        }
    });
 
@@ -2471,12 +2437,27 @@ function setupEventListeners() {
         }
     });
 
-    // Login Button
+    // --- MODIFIED LOGIN BUTTON LISTENER ---
     DOMElements.user.loginButton?.addEventListener('click', () => {
-        window.location.href = '/auth/steam';
+        // Check if age is already verified in localStorage
+        if (localStorage.getItem('ageVerified') === 'true') {
+            // Already verified, proceed directly to Steam login
+            console.log("Age already verified, proceeding to Steam login.");
+            window.location.href = '/auth/steam';
+        } else {
+            // Not verified, show the age verification modal first
+            console.log("Age not verified, showing verification modal.");
+            // Ensure the modal's state is reset (checkbox unchecked, button disabled)
+            const { checkbox: ageCheckbox, agreeButton: ageAgreeButton } = DOMElements.ageVerification;
+            if(ageCheckbox) ageCheckbox.checked = false;
+            if(ageAgreeButton) ageAgreeButton.disabled = true;
+            // Show the modal
+            showModal(DOMElements.ageVerification.modal);
+        }
     });
+    // --- END OF MODIFIED LOGIN BUTTON LISTENER ---
 
-    // MODIFIED: Added dropdown toggle and logout listeners
+
     // User Profile Dropdown Toggle
     DOMElements.user.userProfile?.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -2523,18 +2504,33 @@ function setupEventListeners() {
     DOMElements.tradeUrl.closeTradeUrlModalButton?.addEventListener('click', () => hideModal(DOMElements.tradeUrl.tradeUrlModal));
     DOMElements.tradeUrl.saveTradeUrlButton?.addEventListener('click', saveUserTradeUrl);
 
-    // Age Verification Modal Logic
+    // --- MODIFIED AGE VERIFICATION LOGIC ---
     const { modal: ageModal, checkbox: ageCheckbox, agreeButton: ageAgreeButton } = DOMElements.ageVerification;
     if (ageModal && ageCheckbox && ageAgreeButton) {
-        ageCheckbox.addEventListener('change', () => { ageAgreeButton.disabled = !ageCheckbox.checked; });
+        // Enable/disable agree button based on checkbox state
+        ageCheckbox.addEventListener('change', () => {
+            ageAgreeButton.disabled = !ageCheckbox.checked;
+        });
+
+        // Handle clicking the "Agree" button
         ageAgreeButton.addEventListener('click', () => {
             if (ageCheckbox.checked) {
+                // 1. Store verification status
                 localStorage.setItem('ageVerified', 'true');
+                // 2. Hide the modal
                 hideModal(ageModal);
+                // 3. *** ADDED: Proceed to Steam Login ***
+                console.log("Age verification agreed. Proceeding to Steam login.");
+                window.location.href = '/auth/steam';
             }
         });
+
+        // Ensure button is initially disabled if checkbox isn't checked by default
+        // (This applies when the modal is setup, not just on change)
         ageAgreeButton.disabled = !ageCheckbox.checked;
     }
+    // --- END OF MODIFIED AGE VERIFICATION LOGIC ---
+
 
     // Test Buttons
     document.getElementById('testSpinButton')?.addEventListener('click', testRouletteAnimation);
@@ -2543,7 +2539,7 @@ function setupEventListeners() {
     // Provably Fair Verify Button
     DOMElements.provablyFair.verifyButton?.addEventListener('click', verifyRound);
 
-    // MODIFIED: Combined window click listener
+    // Combined window click listener
     window.addEventListener('click', (e) => {
         // Close dropdown
         const menu = DOMElements.user.userDropdownMenu;
@@ -2557,10 +2553,12 @@ function setupEventListeners() {
         // Close modals
         if (e.target === DOMElements.deposit.depositModal) hideModal(DOMElements.deposit.depositModal);
         if (e.target === DOMElements.tradeUrl.tradeUrlModal) hideModal(DOMElements.tradeUrl.tradeUrlModal);
+        // Close age modal if clicked outside (but NOT if it was triggered by login button - only manually opened one)
+        // if (e.target === DOMElements.ageVerification.modal) hideModal(DOMElements.ageVerification.modal);
         // ... other modal closing logic if needed ...
     });
 
-    // MODIFIED: Combined document keydown listener
+    // Combined document keydown listener
     document.addEventListener('keydown', function(event) { // Changed 'e' to 'event' for clarity
         // Close dropdown with Escape key
         const menu = DOMElements.user.userDropdownMenu;
@@ -2589,12 +2587,16 @@ function setupEventListeners() {
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM fully loaded and parsed.");
 
+    // --- REMOVED INITIAL AGE CHECK ---
+    /*
     if (DOMElements.ageVerification.modal && !localStorage.getItem('ageVerified')) {
         showModal(DOMElements.ageVerification.modal);
     }
+    */
+    // --- END REMOVED BLOCK ---
 
     checkLoginStatus();
-    setupEventListeners(); // This function now includes the dropdown/logout listeners
+    setupEventListeners(); // setupEventListeners now contains the updated login/age verification logic
     setupSocketConnection();
     showPage(DOMElements.pages.homePage);
     initiateNewRoundVisualReset();
