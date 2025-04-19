@@ -216,7 +216,7 @@ code { /* General code tag styling */
     text-shadow: 0 0 10px var(--jackpot-tab-color), 0 0 15px var(--jackpot-tab-color);
     letter-spacing: 1px;
     font-weight: 700;
-    transform: translateX(2px)
+    transform: translateX(1px)
 }
 .jackpot-tab::after {
     background-color: var(--jackpot-tab-color);
