@@ -1,5 +1,5 @@
 {
-  "name": "rustydegen",
+  "name": "rustpot",
   "version": "1.0.0",
   "description": "Rust skin jackpot site",
   "main": "app.js",
@@ -33,9 +33,9 @@
   "overrides": {
     "cookie": "^0.7.1",
     "tough-cookie": "^4.1.3",
-    "nth-check": "^2.1.1",
-    "cheerio": {
-      "lodash.pick": "npm:@graphql-tools/utils@^10.0.13"
-    }
+    "nth-check": "^2.1.1"
+  },
+  "resolutions": {
+    "lodash.pick": "^4.4.0"
   }
 }
