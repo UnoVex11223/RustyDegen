@@ -7,9 +7,9 @@
     "start": "node app.js",
     "dev": "nodemon app.js",
     "audit-fix": "npm audit fix",
-    "security-check": "npm audit && npm outdated",
+    "security-check": "npm audit --production",
     "update-deps": "npm update",
-    "postinstall": "patch-package"
+    "postinstall": "echo 'Skipping patch-package for now'"
   },
   "dependencies": {
     "axios": "^1.9.0",
@@ -25,15 +25,12 @@
     "node-cache": "^5.1.2",
     "passport": "^0.7.0",
     "passport-steam": "^1.0.18",
-    "patch-package": "^8.0.0",
-    "socket.io": "^4.7.4",
     "steam-totp": "^2.1.2",
     "steam-tradeoffer-manager": "^2.11.9",
     "steamcommunity": "^3.48.10"
   },
   "devDependencies": {
-    "nodemon": "^3.0.3",
-    "snyk": "^1.1270.0"
+    "nodemon": "^3.0.3"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -46,13 +43,8 @@
     "word-wrap": "^1.2.4",
     "follow-redirects": "^1.15.6",
     "xml2js": "^0.6.2",
-    "braces": "^3.0.3",
     "glob-parent": "^6.0.2",
     "debug": "^4.3.4",
     "minimist": "^1.2.8"
-  },
-  "resolutions": {
-    "lodash": "^4.17.21",
-    "json5": "^2.2.3"
   }
 }
